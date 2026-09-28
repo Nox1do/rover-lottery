@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.0.6 — guía breve
+# Virtual Lotteries v3.0.7 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -33,3 +33,8 @@ Si un sorteo queda en `CONFLICT`, el motor vuelve a consultar tanto la fuente co
 ## Mensajes DONE
 
 Cuando un resultado fue enviado por el motor y posteriormente confirmado en Rover, el estado `DONE` muestra `Procesado y verificado en Rover.` en vez de un motivo vacío. Los estados DONE históricos sin motivo también usan este texto como fallback visual.
+
+
+## Filas que aparecen por horario
+
+El motor no depende del último **Search** visible del usuario. Si una consulta normal a `verResultados2.php` usa un snapshot reciente pero todavía no contiene la fila del sorteo, descarta ese snapshot y hace una segunda consulta fresca inmediatamente. Solo si la fila sigue ausente después de esa segunda lectura se considera no encontrada. Esto cubre, por ejemplo, una Rapid de las 7 PM cuando la tabla visible se consultó por última vez a las 5:30 PM.

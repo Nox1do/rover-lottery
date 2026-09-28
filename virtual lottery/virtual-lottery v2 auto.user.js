@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.6
+// @version      3.0.7
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @match        https://www.roversport.lol/adm/es/lottery.php
@@ -736,7 +736,18 @@
         }
         const doc = await cache.promise;
         const tr = autoFila(doc, codigo);
-        if (!tr) return { encontrada: false };
+        if (!tr) {
+            // verResultados2.php incorpora filas según avanza el horario.
+            // Si el snapshot normal estaba cacheado antes de que apareciera este sorteo,
+            // descartarlo y hacer exactamente una lectura fresca antes de rendirse.
+            if (!fresh) {
+                if (autoRoverCache.get(reloj.fechaIso) === cache) {
+                    autoRoverCache.delete(reloj.fechaIso);
+                }
+                return autoConsultar(reloj, codigo, resultado, true);
+            }
+            return { encontrada: false };
+        }
         return {
             encontrada: true,
             codigoServidor: tr.querySelector('input[name="primera"][loteria]').getAttribute('loteria'),

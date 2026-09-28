@@ -1,13 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const header = await readFile(path.join(root, 'src/userscript-header.txt'), 'utf8');
-const manifest = [
-  'src/main.js'
-];
-const parts = [];
-for (const rel of manifest) parts.push(await readFile(path.join(root, rel), 'utf8'));
-await mkdir(path.join(root, 'dist'), { recursive: true });
-await writeFile(path.join(root, 'dist/virtual-lottery-v2-auto.user.js'), `${header.trim()}\n\n${parts.join('\n\n')}\n`, 'utf8');
+import { readFile, writeFile, mkdir } from 'node:fs/promises';import{fileURLToPath}from'node:url';import path from'node:path';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),header=await readFile(path.join(root,'src/userscript-header.txt'),'utf8');
+const manifest=['src/lotteries/registry.js','src/core/storage.js','src/core/settings-store.js','src/core/state-store.js','src/core/retry-policy.js','src/core/scheduler.js','src/core/logger.js','src/rover/conflicts.js','src/rover/reader.js','src/rover/processor.js','src/rover/verifier.js','src/sources/http.js','src/sources/qplay.js','src/sources/queen.js','src/sources/premier.js','src/sources/rapid.js','src/sources/nationjl.js','src/sources/extra.js','src/sources/index.js','src/ui/styles.js','src/ui/settings-modal.js','src/ui/toolbar.js','src/ui/source-buttons.js','src/core/auto-engine.js','src/main.js'];
+const parts=[];for(const rel of manifest)parts.push(await readFile(path.join(root,rel),'utf8'));await mkdir(path.join(root,'dist'),{recursive:true});await writeFile(path.join(root,'dist/virtual-lottery-v2-auto.user.js'),`${header.trim()}\n\n${parts.join('\n\n')}\n`,'utf8');

@@ -1,0 +1,156 @@
+(function(VL){'use strict'; const URL='https://qplay777.net/';
+ function parseFH(t){const m=String(t).trim().match(/^(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{1,2}):(\d{2})(am|pm)$/i);return m?{fecha:m[1],hora:`${String(m[2]).padStart(2,'0')}:${m[3]} ${m[4].toUpperCase()}`}:null}
+ function values(srcs){let mode='main';const a=[],b=[],c=[];for(const raw of srcs){const s=String(raw).toLowerCase();if(/\/img\/pick3\.png(?:[?#]|$)/.test(s)){mode='p3';continue}if(/\/img\/pick4\.png(?:[?#]|$)/.test(s)){mode='p4';continue}const m=s.match(/\/img\/balls\/([0-9])\.png(?:[?#]|$)/);if(!m)continue;(mode==='main'?a:mode==='p3'?b:c).push(m[1])}if(a.length<6||b.length<3||c.length<4)return null;return{primera:a.slice(0,2).join(''),segunda:a.slice(2,4).join(''),tercera:a.slice(4,6).join(''),pick3:b.slice(0,3).join(''),pick4:c.slice(0,4).join('')}}
+ function parseQPlay(html){const out=[];const hre=/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;const hs=[];let m;while((m=hre.exec(html)))hs.push({i:m.index,end:hre.lastIndex,text:m[1].replace(/<[^>]+>/g,'').trim()});for(let x=0;x<hs.length;x++){const fh=parseFH(hs[x].text);if(!fh)continue;const seg=html.slice(hs[x].end,hs[x+1]?.i??html.length);const srcs=[...seg.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)].map(z=>z[1]);const v=values(srcs);if(v)out.push({...fh,...v})}return out}
+ function createQPlaySource({request=VL.requestText}={}){let cache={ts:0,p:null};async function all(){const n=Date.now();if(cache.p&&n-cache.ts<10000)return cache.p;const p=Promise.resolve(request(URL)).then(parseQPlay);cache={ts:n,p};try{return await p}finally{setTimeout(()=>{if(cache.p===p)cache={ts:0,p:null}},10000)}}return{async fetchResult({draw,dateUs}){return (await all()).find(r=>r.fecha===dateUs&&r.hora.toUpperCase()===String(draw.hora||'').toUpperCase())||null}}}
+ Object.assign(VL,{parseQPlay,createQPlaySource});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';const URL='https://www.thequeenlottery.com/main/live';const months={january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12'};
+ function qDate(s){const m=String(s).trim().match(/^(?:[A-Za-z]+,\s*)?([A-Za-z]+)\s+(\d{1,2}),\s+(\d{4})$/i);return m&&months[m[1].toLowerCase()]?`${months[m[1].toLowerCase()]}/${String(m[2]).padStart(2,'0')}/${m[3]}`:''}
+ const imgs=s=>[...String(s).matchAll(/\/normal\/([0-9]{2})\.png/gi)].map(m=>m[1]);const strip=s=>String(s).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+ function parseQueen(html){const out=[];const dates=[...html.matchAll(/<h4[^>]*>([^<]+)<\/h4>/gi)].map(m=>({i:m.index,fecha:qDate(m[1])})).filter(x=>x.fecha);for(let d=0;d<dates.length;d++){const seg=html.slice(dates[d].i,dates[d+1]?.i??html.length);for(const rm of seg.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)){const tds=[...rm[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map(x=>x[1]);if(tds.length<6)continue;const key=strip(tds[0]).toUpperCase();if(!/^QL (MORNING|MIDDAY|AFTERNOON|EVENING|NIGHT)$/.test(key))continue;const a=imgs(tds[1]),b=imgs(tds[2]),c=imgs(tds[3]),p3=imgs(tds[4]).map(x=>String(parseInt(x,10))),p4=imgs(tds[5]).map(x=>String(parseInt(x,10)));const r={fecha:dates[d].fecha,queenKey:key,primera:a[0]||'',segunda:b[0]||'',tercera:c[0]||'',pick3:p3.join(''),pick4:p4.join('')};if(/^\d{2}$/.test(r.primera)&&/^\d{2}$/.test(r.segunda)&&/^\d{2}$/.test(r.tercera)&&/^\d{3}$/.test(r.pick3)&&/^\d{4}$/.test(r.pick4))out.push(r)}}return out}
+ function createQueenSource({request=VL.requestText}={}){return{async fetchResult({draw,dateUs}){const key=String(draw.queenKey||'').toUpperCase();return parseQueen(await request(URL)).find(r=>r.fecha===dateUs&&r.queenKey===key)||null}}}
+ Object.assign(VL,{parseQueen,createQueenSource});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';const URL='https://api.lotocentral.net/api/v1/homepage/historical_results';
+ const dateUs=d=>{const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[2]}/${m[3]}/${m[1]}`:''};
+ function parsePremier(data){return (Array.isArray(data?.results)?data.results:[]).map(r=>({fecha:dateUs(r.date),horaKey:String(r?.sortition?.abbreviation||'').toUpperCase(),primera:String(r.first??''),segunda:String(r.second??''),tercera:String(r.third??''),pick3:String(r.cashThree??''),pick4:String(r.pickFour??'')})).filter(r=>r.fecha&&r.horaKey)}
+ function createPremierSource({request=(u,h)=>VL.requestText(u,h)}={}){return{async fetchResult({draw,dateUs}){const text=await request(URL,{Accept:'application/json',Origin:'https://premierlotto.tv',Referer:'https://premierlotto.tv/','Cache-Control':'no-cache'});let data;try{data=JSON.parse(text)}catch{throw new Error('PremierLotto: respuesta JSON inválida')}const key=String(draw.premierKey||'').toUpperCase();return parsePremier(data).find(r=>r.fecha===dateUs&&r.horaKey===key)||null}}}
+ Object.assign(VL,{parsePremier,createPremierSource});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';const URL='https://rapidlottery.app/api/res.php';const months={january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12'};
+ function parseFH(v){const m=String(v||'').trim().match(/^[A-Za-z]+,\s+([A-Za-z]+)\s+(\d{1,2})\s+(\d{4})\s+(\d{1,2}:\d{2})\s+(AM|PM)$/i);if(!m||!months[m[1].toLowerCase()])return null;return{fecha:`${months[m[1].toLowerCase()]}/${String(m[2]).padStart(2,'0')}/${m[3]}`,hora:`${String(m[4].split(':')[0]).padStart(2,'0')}:${m[4].split(':')[1]} ${m[5].toUpperCase()}`}}
+ function parseRapid(data){return(Array.isArray(data?.history)?data.history:[]).flatMap(r=>{const f=parseFH(r.datetime);return f?[{...f,drawNumber:String(r.draw_number||''),primera:String(r.first??''),segunda:String(r.second??''),tercera:String(r.third??''),pick3:String(r.pick3||'').replace(/,/g,'').trim(),pick4:String(r.pick4||'').replace(/,/g,'').trim()}]:[]})}
+ function createRapidSource({request=VL.requestText,todayUs=()=>new Intl.DateTimeFormat('en-US',{timeZone:'America/Santo_Domingo',month:'2-digit',day:'2-digit',year:'numeric'}).format(new Date())}={}){return{async fetchResult({draw,dateUs}){let data;try{data=JSON.parse(await request(URL))}catch{throw new Error('Rapid Lottery: respuesta JSON inválida')}if(dateUs===todayUs()){const d=(Array.isArray(data.draws)?data.draws:[]).find(x=>String(x.time||'')===draw.hora24);if(d&&Number(d.completed)!==1)return{pending:true}}return parseRapid(data).find(r=>r.fecha===dateUs&&r.hora.toUpperCase()===String(draw.hora||'').toUpperCase())||null}}}
+ Object.assign(VL,{parseRapid,createRapidSource});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';const URL='https://www.nationjl.com/main/live';
+ function parseNationJL(html){if(typeof DOMParser==='undefined')return[];const doc=new DOMParser().parseFromString(html,'text/html'),table=doc.querySelector('.results-pw table');if(!table)throw new Error('NationJL: no se encontró LAST 7 DAYS RESULTS');let date='';const out=[];const val=img=>(img?.getAttribute('src')||'').match(/\/normal\/([^/?#]+)\.png/i)?.[1]||'';const pick=td=>[...td.querySelectorAll('img')].map(i=>{const v=parseInt(val(i),10);return Number.isFinite(v)?String(v):''}).filter(Boolean).join('');for(const tr of table.querySelectorAll('tr')){const h=tr.querySelector('th[colspan] span');if(h){if(/^\d{2}\/\d{2}\/\d{4}$/.test(h.textContent.trim()))date=h.textContent.trim();continue}const td=[...tr.querySelectorAll('td')];if(td.length<8)continue;const hora=td[0].textContent.replace(/\s+/g,' ').trim();if(!/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(hora))continue;out.push({fecha:date,hora,primera:val(td[1].querySelector('img')),segunda:val(td[2].querySelector('img')),tercera:val(td[3].querySelector('img')),pick3:pick(td[6]),pick4:pick(td[7])})}return out}
+ function createNationJLSource({request=VL.requestText}={}){return{async fetchResult({draw,dateUs}){return parseNationJL(await request(URL)).find(r=>r.fecha===dateUs&&r.hora.toUpperCase()===String(draw.hora||'').toUpperCase())||null}}}
+ Object.assign(VL,{parseNationJL,createNationJLSource});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ const EXTRA_URL='https://www.lotterypost.com/results/qc/extra/past',WAIT=120000;
+ function parseExtra(html,dateIso){if(/just a moment|attention required/i.test(html))throw new Error('Lottery Post: verificación Cloudflare; no se obtuvieron resultados');const canonical=String(html).match(/<link\b[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["']/i)?.[1]||String(html).match(/<link\b[^>]*href=["']([^"']+)["'][^>]*rel=["']canonical["']/i)?.[1];if(canonical){const u=new globalThis.URL(canonical,EXTRA_URL);if(u.hostname!=='www.lotterypost.com'||!/^\/results\/qc\/extra(?:\/|$)/.test(u.pathname))throw new Error('Lottery Post: la respuesta no corresponde a Québec Extra');}const blocks=[...String(html).matchAll(/<[^>]*class=["'][^"']*resultsdrawing[^"']*["'][^>]*>([\s\S]*?)(?=<[^>]*class=["'][^"']*resultsdrawing|$)/gi)].map(m=>m[1]);const matches=blocks.filter(b=>new RegExp(`datetime=["']${dateIso}T`).test(b));if(!matches.length)return null;if(matches.length!==1)throw new Error('Lottery Post: más de un sorteo para la misma fecha');const list=matches[0].match(/class=["'][^"']*resultsnums[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i)?.[1]||'';const digits=[...list.matchAll(/<li[^>]*>\s*(\d)\s*<\/li>/gi)].map(m=>m[1]);if(digits.length!==7)return null;const n=digits.join('');return{fecha:`${dateIso.slice(5,7)}/${dateIso.slice(8,10)}/${dateIso.slice(0,4)}`,numero:n,primera:n.slice(5,7),segunda:n.slice(1,3),tercera:n.slice(3,5)}}
+ function dateIsoFromUs(us){const m=String(us).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[1]}-${m[2]}`:''}
+ function createExtraSource({api=globalThis,cryptoObj=globalThis.crypto}={}){const cancels=new Set();function cancelAll(){for(const f of [...cancels])f()}
+  function fetchResult({dateUs}){const dateIso=dateIsoFromUs(dateUs);if(!dateIso)return Promise.reject(new Error('Extra: fecha inválida'));return new Promise((resolve,reject)=>{const id=cryptoObj.randomUUID(),rk=`vl-extra-request:${id}`,sk=`vl-extra-response:${id}`;let done=false,listener,timer,tab;const finish=(err,res,close=false)=>{if(done)return;done=true;clearTimeout(timer);if(listener!==undefined)api.GM_removeValueChangeListener(listener);api.GM_deleteValue(rk);api.GM_deleteValue(sk);cancels.delete(cancel);if(close&&tab)tab.close();err?reject(err):resolve(res)};const cancel=()=>finish(new Error('Extra: consulta cancelada por cambio de fecha'),null,true);cancels.add(cancel);listener=api.GM_addValueChangeListener(sk,(_k,_o,r)=>{if(!r||r.id!==id||r.fechaISO!==dateIso)return;if(r.error)return finish(new Error(r.error));if(r.numero===null)return finish(null,null,true);if(!/^\d{7}$/.test(r.numero||''))return finish(new Error('Extra: resultado inválido recibido de la pestaña'));const n=r.numero;finish(null,{fecha:dateUs,numero:n,primera:n.slice(5,7),segunda:n.slice(1,3),tercera:n.slice(3,5)},true)});api.GM_setValue(rk,{id,fechaISO:dateIso,creada:Date.now()});timer=setTimeout(()=>finish(new Error('Extra: tiempo de espera de 2 minutos agotado.'),null,true),WAIT);const [y,m]=dateIso.split('-');tab=api.GM_openInTab(`${EXTRA_URL}/${y}/${Number(m)}#${new URLSearchParams({vlExtra:id})}`,{active:false,insert:true,setParent:true});if(!tab)finish(new Error('Extra: no se pudo abrir la pestaña de Lottery Post'))})}
+  return{fetchResult,cancelAll};}
+ function handleExtraTab({api=globalThis,doc=globalThis.document,loc=globalThis.location}={}){const id=new URLSearchParams(loc.hash.slice(1)).get('vlExtra');if(!id||!/^[a-f0-9-]{36}$/i.test(id))return false;const rk=`vl-extra-request:${id}`,req=api.GM_getValue(rk,null);if(!req||req.id!==id||!/^\d{4}-\d{2}-\d{2}$/.test(req.fechaISO)||Date.now()-req.creada>WAIT)return false;let done=false,obs,timer;const stop=()=>{done=true;obs?.disconnect();clearTimeout(timer)};const read=()=>{if(done)return;const cur=api.GM_getValue(rk,null);if(!cur||cur.id!==id)return stop();if(!doc.querySelector('.resultsdrawing'))return;let response;try{const r=parseExtra(doc.documentElement.outerHTML,req.fechaISO);response={id,fechaISO:req.fechaISO,numero:r?.numero??null}}catch(e){response={id,fechaISO:req.fechaISO,error:e.message}}stop();api.GM_setValue(`vl-extra-response:${id}`,response)};obs=new MutationObserver(read);obs.observe(doc.documentElement,{childList:true,subtree:true});timer=setTimeout(stop,Math.max(0,WAIT-(Date.now()-req.creada)));read();return true}
+ Object.assign(VL,{EXTRA_URL,EXTRA_WAIT_MS:WAIT,parseExtra,createExtraSource,handleExtraTab});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';function createSourceAdapters(){return{qplay:VL.createQPlaySource(),queen:VL.createQueenSource(),premier:VL.createPremierSource(),rapid:VL.createRapidSource(),nationjl:VL.createNationJLSource(),extra:VL.createExtraSource()}}VL.createSourceAdapters=createSourceAdapters;
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';VL.UI_CSS=`
+#vl-auto-toolbar{display:flex;align-items:center;gap:10px;padding:7px 10px;margin:6px 0;background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;font:13px/1.3 Arial,sans-serif;color:#0f172a}#vl-auto-toolbar .vl-title{font-weight:700}#vl-auto-toolbar .vl-summary{color:#475569}#vl-auto-toolbar button{border:0;background:transparent;cursor:pointer;font-size:17px;padding:2px 5px}.vl-switch{display:inline-flex;gap:5px;align-items:center}.vl-modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:99998;display:flex;align-items:center;justify-content:center}.vl-modal{background:#fff;max-width:760px;width:min(94vw,760px);max-height:88vh;overflow:auto;border-radius:8px;padding:16px;z-index:99999;font:14px/1.4 Arial,sans-serif}.vl-modal table{width:100%;border-collapse:collapse}.vl-modal th,.vl-modal td{padding:6px;border-bottom:1px solid #e2e8f0;text-align:left}.vl-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.vl-error{color:#b91c1c;margin-top:8px}
+.rs-source-fetch-btn{margin-left:6px;padding:2px 5px;min-width:24px;height:20px;border:0;border-radius:4px;background:#2563eb;color:#fff;font-size:10px;cursor:pointer}.rs-source-filled{background-color:rgba(34,197,94,.18)!important;box-shadow:inset 0 0 0 1px rgba(34,197,94,.28)!important}
+`;})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ function parseRetryOffsets(text){const a=String(text||'').split(',').map(s=>Number(s.trim()));if(!a.length||a.some(n=>!Number.isInteger(n)||n<=0)||a.some((n,i)=>i>0&&n<=a[i-1]))return null;return a}
+ function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+ function collectDrawStates(stateStore,registry,clock=VL.createRDClock()){const out={};for(const id of Object.keys(registry)){if(!registry[id].automationSupported)continue;for(const code of Object.keys(registry[id].draws)){const st=stateStore?.get?.(clock.dateIso,code);if(st)out[code]=st}}return out}
+ function renderSettingsModalHtml(registry,settings,states={}){let body='';for(const id of Object.keys(registry)){const l=registry[id];if(!l.automationSupported)continue;const s=settings.lotteries[id];body+=`<section data-lottery="${esc(id)}"><h4>${esc(l.name)} / ${esc(l.source)}</h4><label><input type="checkbox" data-lottery-enabled="${esc(id)}" ${s.enabled?'checked':''}> Auto</label><table><thead><tr><th>Sorteo</th><th>Auto</th><th>Hora</th><th>Estado</th></tr></thead><tbody>`;for(const code of Object.keys(l.draws)){const d=s.draws[code];body+=`<tr><td>${esc(l.draws[code].label)} <small>${esc(code)}</small></td><td><input type="checkbox" data-draw-enabled="${esc(code)}" ${d.enabled?'checked':''}></td><td><input type="time" data-draw-time="${esc(code)}" value="${esc(d.time||'')}"></td><td>${esc(states[code]?.state||'WAITING_TIME')}</td></tr>`}body+=`</tbody></table><label>Reintentos <input data-retry-offsets="${esc(id)}" value="${esc(s.retryPolicy.offsets.join(','))}"></label> <label>Después <input type="number" min="1" data-retry-after="${esc(id)}" value="${esc(s.retryPolicy.afterLast)}"> min</label></section>`}return `<div class="vl-modal"><h3>Configuración automática</h3><label><input type="checkbox" data-modal-master ${settings.masterEnabled?'checked':''}> AUTO general</label>${body}<div class="vl-error" data-error></div><div class="vl-actions"><button data-cancel>Cancelar</button><button data-save>Guardar</button></div></div>`}
+ function openSettingsModal({root=document,settingsStore,stateStore,registry,onSave=()=>{}}){root.querySelector('#vl-auto-settings-modal')?.remove();const settings=settingsStore.load();const states=collectDrawStates(stateStore,registry);const wrap=root.createElement('div');wrap.id='vl-auto-settings-modal';wrap.className='vl-modal-backdrop';wrap.innerHTML=renderSettingsModalHtml(registry,settings,states);root.body.appendChild(wrap);wrap.querySelector('[data-cancel]').onclick=()=>wrap.remove();wrap.querySelector('[data-save]').onclick=()=>{const next=structuredClone(settings);next.masterEnabled=!!wrap.querySelector('[data-modal-master]')?.checked;for(const id of Object.keys(registry)){if(!registry[id].automationSupported)continue;next.lotteries[id].enabled=!!wrap.querySelector(`[data-lottery-enabled="${id}"]`)?.checked;for(const code of Object.keys(registry[id].draws)){next.lotteries[id].draws[code].enabled=!!wrap.querySelector(`[data-draw-enabled="${code}"]`)?.checked;next.lotteries[id].draws[code].time=wrap.querySelector(`[data-draw-time="${code}"]`)?.value||next.lotteries[id].draws[code].time}const offsets=parseRetryOffsets(wrap.querySelector(`[data-retry-offsets="${id}"]`)?.value);const after=Number(wrap.querySelector(`[data-retry-after="${id}"]`)?.value);if(!offsets||!Number.isInteger(after)||after<=0){wrap.querySelector('[data-error]').textContent='Reintentos inválidos.';return}next.lotteries[id].retryPolicy={offsets,afterLast:after}}settingsStore.save(next);onSave();wrap.remove()};return wrap}
+ Object.assign(VL,{parseRetryOffsets,collectDrawStates,renderSettingsModalHtml,openSettingsModal});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ function countActiveDraws(registry,settings){if(!settings?.masterEnabled)return 0;let n=0;for(const id of Object.keys(registry)){const l=registry[id],s=settings.lotteries?.[id];if(!l.automationSupported||!s?.enabled)continue;for(const code of Object.keys(l.draws))if(s.draws?.[code]?.enabled)n++}return n}
+ function renderToolbarHtml(settings,summary=''){return `<div class="vl-title">Virtual Lottery</div><label class="vl-switch">AUTO <input type="checkbox" data-vl-master ${settings.masterEnabled?'checked':''}></label><span class="vl-summary">${summary}</span><button type="button" data-vl-settings aria-label="Configuración automática" title="Configuración automática">⚙</button>`}
+ function ensureToolbar({root=document,settingsStore,stateStore,registry,onSettingsChanged=()=>{}}){const anchor=root.querySelector('#resultadosLoteria');if(!anchor)return null;let el=root.querySelector('#vl-auto-toolbar');const settings=settingsStore.load();const summary=`${countActiveDraws(registry,settings)} activos`;if(!el){el=root.createElement('div');el.id='vl-auto-toolbar';anchor.parentNode.insertBefore(el,anchor)}el.innerHTML=renderToolbarHtml(settings,summary);el.querySelector('[data-vl-master]')?.addEventListener('change',e=>{settingsStore.update(s=>{s.masterEnabled=!!e.target.checked});onSettingsChanged();ensureToolbar({root,settingsStore,stateStore,registry,onSettingsChanged})});el.querySelector('[data-vl-settings]')?.addEventListener('click',()=>VL.openSettingsModal({root,settingsStore,stateStore,registry,onSave:onSettingsChanged}));return el}
+ Object.assign(VL,{countActiveDraws,renderToolbarHtml,ensureToolbar});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ const REINJECTION_DEBOUNCE_MS=450;const ICON_SEARCH='🔎',ICON_OK='✓',ICON_ERR='×';
+ function findLotteryInput(root,code){return [...root.querySelectorAll('input[loteria]')].find(i=>String(i.getAttribute('loteria')||'').trim()===code)||null}
+ function manualFieldsForSource(source){return source==='extra'?['primera','segunda','tercera']:['primera','segunda','tercera','pick3','pick4']}
+ function roverDate(root){const v=String(root.querySelector('#fecha')?.value||'').trim();return /^\d{2}\/\d{2}\/\d{4}$/.test(v)?v:''}
+ function writeInput(input,value){input.value=String(value);input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}))}
+ function createManualController({root=document,registry,sourceAdapters,logger=console}){let revision=0;let timer=null;const requests=new WeakMap();
+  function entries(){const out=[];for(const lotteryId of Object.keys(registry)){const l=registry[lotteryId];for(const code of Object.keys(l.draws))out.push({code,lottery:l,draw:l.draws[code]})}return out}
+  async function search(code,tr,btn){const info=entries().find(x=>x.code===code),date=roverDate(root);if(!info||!date)return;const rev=revision,token=Symbol();requests.set(btn,token);btn.disabled=true;btn.textContent='…';try{const result=await sourceAdapters[info.lottery.source].fetchResult({draw:info.draw,dateUs:date});if(requests.get(btn)!==token||rev!==revision||date!==roverDate(root)||!tr.isConnected)return;if(result?.pending||!result){btn.disabled=false;btn.textContent=ICON_ERR;setTimeout(()=>{btn.textContent=ICON_SEARCH},2000);return}const fields=manualFieldsForSource(info.lottery.source);for(const f of fields){if(typeof result[f]!=='string'||result[f]==='')throw new Error('Resultado incompleto');const input=tr.querySelector(`input[name="${f}"]`);if(!input)throw new Error(`Input ${f} no encontrado`);writeInput(input,result[f]);input.classList?.add('rs-source-filled')}btn.disabled=false;btn.textContent=ICON_OK}catch(e){logger.error?.('[Fuentes]',e);btn.disabled=false;btn.textContent=ICON_ERR}}
+  function installButtons(){let added=0;for(const info of entries()){const input=findLotteryInput(root,info.code);if(!input)continue;const tr=input.closest('tr');if(!tr||tr.querySelector(`.rs-source-fetch-btn[data-codigo="${info.code}"]`))continue;const ab=tr.querySelector('.loteria-abrev');if(!ab)continue;const b=root.createElement('button');b.type='button';b.className='rs-source-fetch-btn';b.dataset.codigo=info.code;b.textContent=ICON_SEARCH;b.title=`Buscar en ${info.lottery.name}`;b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(!b.disabled)search(info.code,tr,b)});ab.insertAdjacentElement('afterend',b);added++}return added}
+  function installDateListener(){const f=root.querySelector('#fecha');if(!f||f.dataset.rsSourcesListenerInstalled)return false;f.dataset.rsSourcesListenerInstalled='1';const reset=()=>{revision++;sourceAdapters.extra?.cancelAll?.();root.querySelectorAll('.rs-source-fetch-btn').forEach(b=>{b.disabled=false;b.textContent=ICON_SEARCH})};f.addEventListener('change',reset);f.addEventListener('input',reset);return true}
+  function needsReinjection(){if(root.querySelector('#resultadosLoteria')&&!root.querySelector('#vl-auto-toolbar'))return true;const f=root.querySelector('#fecha');if(f&&!f.dataset.rsSourcesListenerInstalled)return true;for(const info of entries()){const input=findLotteryInput(root,info.code);if(!input)continue;const tr=input.closest('tr');if(tr&&!tr.querySelector(`.rs-source-fetch-btn[data-codigo="${info.code}"]`))return true}return false}
+  function scheduleReinjection(fn){clearTimeout(timer);timer=setTimeout(()=>{timer=null;if(needsReinjection())fn()},REINJECTION_DEBOUNCE_MS)}
+  return{installButtons,installDateListener,needsReinjection,scheduleReinjection,search};
+ }
+ Object.assign(VL,{REINJECTION_DEBOUNCE_MS,findLotteryInput,manualFieldsForSource,createManualController});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ const STATES=Object.freeze({WAITING_TIME:'WAITING_TIME',SEARCHING_SOURCE:'SEARCHING_SOURCE',RESULT_READY:'RESULT_READY',CHECKING_ROVER:'CHECKING_ROVER',PROCESSING:'PROCESSING',VERIFYING:'VERIFYING',DONE:'DONE',CONFLICT:'CONFLICT',DUPLICATE:'DUPLICATE',PROCESS_UNCERTAIN:'PROCESS_UNCERTAIN',ERROR:'ERROR'});
+ const validResult=r=>!!r&&/^\d{2}$/.test(r.primera)&&/^\d{2}$/.test(r.segunda)&&/^\d{2}$/.test(r.tercera)&&/^\d{3}$/.test(r.pick3)&&/^\d{4}$/.test(r.pick4);
+ function createAutoEngine({registry,settingsStore,stateStore,sourceAdapters,roverReader,roverProcessor,verifier,clock=VL.createRDClock,logger=console,tickMs=20000,setIntervalFn=setInterval,clearIntervalFn=clearInterval}){
+   const inFlight=new Set(); let timer=null,started=false;
+   const terminal=s=>[STATES.DONE,STATES.CONFLICT,STATES.DUPLICATE,STATES.PROCESS_UNCERTAIN].includes(s);
+   async function evaluateDraw(lotteryId,drawCode){
+     const resolved=settingsStore.resolve(lotteryId,drawCode); if(!resolved?.effectiveEnabled)return;
+     const now=clock(); const existing=stateStore.get(now.dateIso,drawCode)||{dateIso:now.dateIso,state:STATES.WAITING_TIME}; if(terminal(existing.state))return;
+     if(!VL.shouldAttemptDraw({clock:now,drawTime:resolved.time,state:existing,policy:resolved.retryPolicy}))return;
+     const guard=`${now.dateIso}|${drawCode}`; if(inFlight.has(guard))return; inFlight.add(guard);
+     const drawMin=VL.parseTimeToMinute(resolved.time), elapsed=now.minuteOfDay-drawMin;
+     try{
+       stateStore.patch(now.dateIso,drawCode,{state:STATES.SEARCHING_SOURCE,lastError:''});
+       const source=sourceAdapters[resolved.lottery.source]; if(!source)throw new Error(`SOURCE_NOT_FOUND:${resolved.lottery.source}`);
+       let result; try{result=await source.fetchResult({draw:resolved.draw,dateUs:now.dateUs,timezone:'America/Santo_Domingo'})}catch(e){stateStore.patch(now.dateIso,drawCode,{state:STATES.ERROR,lastAttemptElapsedMin:elapsed,lastError:String(e?.message||e)});return}
+       if(!result||result.pending){stateStore.patch(now.dateIso,drawCode,{state:STATES.WAITING_TIME,lastAttemptElapsedMin:elapsed,lastError:''});return}
+       if(!validResult(result)){stateStore.patch(now.dateIso,drawCode,{state:STATES.ERROR,lastAttemptElapsedMin:elapsed,lastError:'INVALID_SOURCE_RESULT'});return}
+       if(!settingsStore.resolve(lotteryId,drawCode)?.effectiveEnabled){stateStore.patch(now.dateIso,drawCode,{state:STATES.RESULT_READY,result,sourceSeenAt:Date.now()});return}
+       stateStore.patch(now.dateIso,drawCode,{state:STATES.RESULT_READY,result,sourceSeenAt:Date.now()});
+       stateStore.patch(now.dateIso,drawCode,{state:STATES.CHECKING_ROVER});
+       const snap=await roverReader.read({dateUs:now.dateUs,drawCode,result});
+       if(!snap.found){stateStore.patch(now.dateIso,drawCode,{state:STATES.ERROR,lastAttemptElapsedMin:elapsed,lastError:'ROVER_ROW_NOT_FOUND'});return}
+       if(snap.processed&&VL.isExactMatch(snap.values,result)){stateStore.patch(now.dateIso,drawCode,{state:STATES.DONE,verifiedAt:Date.now(),lastError:''});return}
+       if((snap.processed&&!VL.isExactMatch(snap.values,result))||VL.hasConflict(snap.values,result)){stateStore.patch(now.dateIso,drawCode,{state:STATES.CONFLICT,lastError:'ROVER_CONFLICT'});return}
+       if(snap.duplicates?.length){stateStore.patch(now.dateIso,drawCode,{state:STATES.DUPLICATE,lastError:'ROVER_DUPLICATE'});return}
+       if(!settingsStore.resolve(lotteryId,drawCode)?.effectiveEnabled){stateStore.patch(now.dateIso,drawCode,{state:STATES.RESULT_READY});return}
+       stateStore.patch(now.dateIso,drawCode,{state:STATES.PROCESSING,processSentAt:Date.now()});
+       let processError=null; try{await roverProcessor.process({dateIso:now.dateIso,rawCode:snap.rawCode,result})}catch(e){processError=e}
+       stateStore.patch(now.dateIso,drawCode,{state:STATES.VERIFYING,lastError:processError?String(processError?.message||processError):''});
+       let v; try{v=await verifier({reader:roverReader,dateUs:now.dateUs,drawCode,result})}catch(e){v={state:STATES.PROCESS_UNCERTAIN};}
+       if(v.state===STATES.DONE)stateStore.patch(now.dateIso,drawCode,{state:STATES.DONE,verifiedAt:Date.now(),lastError:''});
+       else if(v.state===STATES.CONFLICT)stateStore.patch(now.dateIso,drawCode,{state:STATES.CONFLICT,lastError:'ROVER_CONFLICT_AFTER_PROCESS'});
+       else stateStore.patch(now.dateIso,drawCode,{state:STATES.PROCESS_UNCERTAIN,lastError:processError?String(processError?.message||processError):'VERIFY_TIMEOUT'});
+     }finally{inFlight.delete(guard)}
+   }
+   async function tick(){if(!started&&timer===null){/* manual tick allowed */}for(const lotteryId of Object.keys(registry)){const l=registry[lotteryId];if(!l.automationSupported)continue;for(const code of Object.keys(l.draws))await evaluateDraw(lotteryId,code)}}
+   function start(){if(started)return;started=true;tick().catch(e=>logger.error?.(e));timer=setIntervalFn(()=>tick().catch(e=>logger.error?.(e)),tickMs);logger.log?.('engine active')}
+   function stop(){started=false;if(timer!==null){clearIntervalFn(timer);timer=null}}
+   function onSettingsChanged(){if(started)tick().catch(e=>logger.error?.(e))}
+   return{start,stop,tick,evaluateDraw,onSettingsChanged,states:STATES};
+ }
+ Object.assign(VL,{AUTO_STATES:STATES,isValidAutoResult:validResult,createAutoEngine});
+})(globalThis.__VL__ ||= {});
+
+
+(function bootstrapVirtualLottery(VL){'use strict';
+ if(location.hostname==='www.lotterypost.com'){VL.handleExtraTab();return}
+ if(!/^(www\.)?roversport\.(lol|net)$/.test(location.hostname))return;
+ const style=document.createElement('style');style.id='vl-styles';style.textContent=VL.UI_CSS;if(!document.querySelector('#vl-styles'))document.head.appendChild(style);
+ const storage=VL.createGMStorage(),settingsStore=VL.createSettingsStore(storage,VL.LOTTERY_REGISTRY),stateStore=VL.createStateStore(storage,{retentionDays:7});const now=VL.createRDClock();stateStore.migrateLegacyBrazil(now.dateIso,Object.keys(VL.LOTTERY_REGISTRY.brazil.draws));stateStore.gc(now.dateIso);
+ const sources=VL.createSourceAdapters(),reader=VL.createRoverReader(),processor=VL.createRoverProcessor(),logger=VL.createLogger('[AUTO]');const engine=VL.createAutoEngine({registry:VL.LOTTERY_REGISTRY,settingsStore,stateStore,sourceAdapters:sources,roverReader:reader,roverProcessor:processor,verifier:VL.verifyProcessed,logger});
+ const manual=VL.createManualController({root:document,registry:VL.LOTTERY_REGISTRY,sourceAdapters:sources});
+ const ensure=()=>{manual.installButtons();manual.installDateListener();VL.ensureToolbar({root:document,settingsStore,stateStore,registry:VL.LOTTERY_REGISTRY,onSettingsChanged:()=>engine.onSettingsChanged()})};ensure();engine.start();
+ const observer=new MutationObserver(()=>manual.scheduleReinjection(ensure));observer.observe(document.documentElement,{childList:true,subtree:true});
+})(globalThis.__VL__ ||= {});

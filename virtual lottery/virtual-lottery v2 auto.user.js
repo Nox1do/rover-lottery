@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.0
+// @version      3.0.1
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @match        https://www.roversport.lol/adm/es/lottery.php
@@ -598,7 +598,8 @@
             fecha: reloj.fechaUs, codigo, fuente: autoConfig[codigo].fuente, updatedAt: Date.now() };
         GM_setValue(autoKey(reloj, codigo), next);
         if (next.estado !== anterior.estado &&
-            ['DONE', 'CONFLICT', 'DUPLICATE', 'PROCESS_UNCERTAIN', 'ERROR'].includes(next.estado)) {
+            ['WAITING_RESULT', 'RESULT_READY', 'DONE', 'CONFLICT', 'DUPLICATE',
+                'PROCESS_UNCERTAIN', 'ERROR'].includes(next.estado)) {
             console.table([{ Loteria: codigo, Fecha: reloj.fechaUs,
                 Fuente: nombreFuente(next.fuente), Estado: next.estado, Motivo: next.motivo || '' }]);
         }
@@ -782,6 +783,8 @@
                 motivo: `Duplicado con ${snap.duplicados.join(', ')}` });
             return;
         }
+        // En observación se puede ver y comprobar el resultado sin enviarlo.
+        autoReflejar(reloj, codigo, resultado);
         if (!GM_getValue(AUTO_EMISOR_KEY, false)) {
             autoGuardar(reloj, codigo, { estado: 'RESULT_READY', resultado,
                 lastCheckAt: Date.now(),
@@ -893,9 +896,21 @@
             autoEvaluar(reloj, codigo).catch(error => console.error('[AUTO LOTERÍAS]', codigo, error));
         }
     }
+    function autoResumen(reloj) {
+        const activos = Object.entries(autoConfig)
+            .filter(([, config]) => reloj.minutoDia >= config.minuto)
+            .map(([codigo, config]) => {
+                const estado = autoEstado(reloj, codigo);
+                return { Loteria: codigo, Fecha: reloj.fechaUs,
+                    Fuente: nombreFuente(config.fuente), Estado: estado.estado,
+                    Motivo: estado.motivo || '' };
+            });
+        if (activos.length) console.table(activos);
+    }
     function iniciarAutoLoterias() {
         console.log('[AUTO LOTERÍAS] 25 sorteos; EXTRA manual. Modo:',
             GM_getValue(AUTO_EMISOR_KEY, false) ? 'emisor' : 'observación');
+        autoResumen(autoAhoraRD());
         autoTick();
         setInterval(autoTick, AUTO_TICK_MS);
     }

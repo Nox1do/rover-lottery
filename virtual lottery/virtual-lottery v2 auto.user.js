@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      2.0.1
-// @description  Virtual Lotteries v2: modo manual + Brazil/QPlay automático, con observador de tabla optimizado y procesamiento/verificación en segundo plano.
+// @version      3.0.0
+// @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @match        https://www.roversport.lol/adm/es/lottery.php
 // @match        https://www.roversport.net/adm/es/lottery.php
@@ -109,6 +109,11 @@
         .rs-source-fetch-btn.rs-searching { background: #64748b; cursor: wait; }
         .rs-source-fetch-btn.rs-success { background: #16a34a; }
         .rs-source-fetch-btn.rs-error { background: #dc2626; }
+        .rs-auto-mode {
+            margin: 6px 0; padding: 4px 8px; border: 0; border-radius: 4px;
+            background: #475569; color: white; font-size: 12px; cursor: pointer;
+        }
+        .rs-auto-mode.rs-emisor { background: #15803d; }
         input.rs-source-filled {
             background-color: rgba(34, 197, 94, .18) !important;
             box-shadow: inset 0 0 0 1px rgba(34, 197, 94, .28) !important;
@@ -529,488 +534,394 @@
 
 
     // ============================================================
-    // AUTO BRAZIL — QPLAY -> ROVER (BACKGROUND)
+    // MOTOR AUTOMÁTICO — cinco fuentes; EXTRA continúa manual
     // ============================================================
+    const AUTO_CAMPOS = ['primera', 'segunda', 'tercera', 'pick3', 'pick4'];
+    const AUTO_REINTENTOS_MIN = [1, 3, 5, 8, 12, 20, 30, 45, 60, 90, 120];
+    const AUTO_VERIFY_MS = [700, 1200, 2500, 5000, 8000];
+    const AUTO_TICK_MS = 20000;
+    const AUTO_EMISOR_KEY = 'vl:auto:emisor';
+    const AUTO_PREFIJO = 'vl:auto:v3:';
+    const autoEnCurso = new Set();
+    const autoCache = new Map();
+    const autoRoverCache = new Map();
+    let autoDia = '';
 
-    const AUTO_BRAZIL_ENABLED = true;
-    const AUTO_BRAZIL_CODIGOS = {
-        'BRAZIL12PM': { minuto: 12 * 60 },
-        'BRAZIL03PM': { minuto: 15 * 60 },
-        'BRAZIL07PM': { minuto: 19 * 60 },
-        'BRAZIL08PM': { minuto: 20 * 60 }
+    function autoMinuto(hora) {
+        const m = String(hora).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!m) return null;
+        return (Number(m[1]) % 12 + (m[3].toUpperCase() === 'PM' ? 12 : 0)) * 60 + Number(m[2]);
+    }
+
+    // La hora de Queen es la que muestra la fila de Rover, no el nombre del turno.
+    const AUTO_QUEEN_HORAS = {
+        'QLT-MORNING': '10:25 AM', 'QLT-MIDDAY': '12:40 PM',
+        'QLT-AFTN': '05:25 PM', 'QLT-EVENING': '07:25 PM',
+        'QLT-NIGHT': '09:25 PM'
     };
-    const AUTO_BRAZIL_REINTENTOS_MIN = [1, 3, 5, 8, 12, 20, 30, 45, 60, 90, 120];
-    const AUTO_BRAZIL_TICK_MS = 20000;
-    const AUTO_BRAZIL_VERIFY_DELAYS_MS = [700, 1200, 2500, 5000, 8000];
-    const AUTO_BRAZIL_CAMPOS = ['primera', 'segunda', 'tercera', 'pick3', 'pick4'];
-    const autoBrazilEnCurso = new Set();
-    let autoBrazilQPlayCache = { ts: 0, promise: null };
+    const autoConfig = Object.fromEntries(Object.entries(LOTERIAS)
+        .filter(([codigo]) => codigo !== 'EXTRA')
+        .map(([codigo, config]) => [codigo, {
+            ...config, minuto: autoMinuto(AUTO_QUEEN_HORAS[codigo] || config.hora)
+        }]));
 
-    function autoBrazilAhoraRD() {
-        const parts = Object.fromEntries(
-            new Intl.DateTimeFormat('en-US', {
-                timeZone: 'America/Santo_Domingo',
-                year: 'numeric', month: '2-digit', day: '2-digit',
-                hour: '2-digit', minute: '2-digit', second: '2-digit',
-                hourCycle: 'h23'
-            }).formatToParts(new Date())
-                .filter(p => p.type !== 'literal')
-                .map(p => [p.type, p.value])
-        );
+    function autoAhoraRD() {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Santo_Domingo', year: 'numeric', month: '2-digit',
+            day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+        }).formatToParts(new Date()).filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
         return {
             fechaUs: `${parts.month}/${parts.day}/${parts.year}`,
             fechaIso: `${parts.year}-${parts.month}-${parts.day}`,
-            minutoDia: Number(parts.hour) * 60 + Number(parts.minute),
-            segundo: Number(parts.second)
+            minutoDia: Number(parts.hour) * 60 + Number(parts.minute)
         };
     }
 
-    function autoBrazilStateKey(fechaIso, codigo) {
-        return `vl:auto:brazil:${fechaIso}:${codigo}`;
-    }
-
-    function autoBrazilLeerEstado(fechaIso, codigo) {
-        return GM_getValue(autoBrazilStateKey(fechaIso, codigo), null) || {
-            codigo,
-            fechaIso,
-            estado: 'WAITING_TIME',
-            resultado: null,
-            nextAttemptMin: 1,
-            updatedAt: 0
-        };
-    }
-
-    function autoBrazilGuardarEstado(fechaIso, codigo, patch) {
-        const actual = autoBrazilLeerEstado(fechaIso, codigo);
-        const siguiente = {
-            ...actual,
-            ...patch,
-            codigo,
-            fechaIso,
-            updatedAt: Date.now()
-        };
-        GM_setValue(autoBrazilStateKey(fechaIso, codigo), siguiente);
-        return siguiente;
-    }
-
-    function autoBrazilNormalizarCampo(valor) {
-        const v = String(valor ?? '').trim().toUpperCase();
-        return v === '---' ? '' : v;
-    }
-
-    function autoBrazilHayConflicto(valores, resultado) {
-        return AUTO_BRAZIL_CAMPOS.some(campo => {
-            const actual = autoBrazilNormalizarCampo(valores?.[campo]);
-            const esperado = autoBrazilNormalizarCampo(resultado?.[campo]);
-            return actual !== '' && actual !== esperado;
-        });
-    }
-
-    function autoBrazilCoincideCompleto(valores, resultado) {
-        return AUTO_BRAZIL_CAMPOS.every(campo =>
-            autoBrazilNormalizarCampo(valores?.[campo]) ===
-            autoBrazilNormalizarCampo(resultado?.[campo])
-        );
-    }
-
-    function autoBrazilResultadoValido(resultado) {
-        return !!resultado &&
-            /^\d{2}$/.test(resultado.primera) &&
-            /^\d{2}$/.test(resultado.segunda) &&
-            /^\d{2}$/.test(resultado.tercera) &&
-            /^\d{3}$/.test(resultado.pick3) &&
-            /^\d{4}$/.test(resultado.pick4);
-    }
-
-    function autoBrazilSiguienteMinuto(transcurridos) {
-        const siguiente = AUTO_BRAZIL_REINTENTOS_MIN.find(m => m > transcurridos);
-        return siguiente ?? (transcurridos + 30);
-    }
-
-    function autoBrazilEsperar(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    async function autoBrazilPost(path, parametros) {
-        const response = await fetch(path, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: new URLSearchParams(parametros).toString()
-        });
-        const text = await response.text();
-        if (!response.ok) throw new Error(`Rover HTTP ${response.status} en ${path}`);
-        return text;
-    }
-
-    function autoBrazilValoresFila(tr) {
-        const valores = {};
-        for (const campo of AUTO_BRAZIL_CAMPOS) {
-            valores[campo] = tr?.querySelector(`input[name="${campo}"]`)?.value ?? '';
-        }
-        return valores;
-    }
-
-    function autoBrazilFilaPorCodigo(root, codigo) {
-        const inputs = [...root.querySelectorAll('input[loteria]')];
-        const primera = inputs.find(input =>
-            input.name === 'primera' &&
-            String(input.getAttribute('loteria') || '').trim() === codigo
-        );
-        return primera?.closest('tr') || null;
-    }
-
-    function autoBrazilDuplicados(doc, codigo, resultado) {
-        const duplicados = [];
-        for (const tr of doc.querySelectorAll('#tableResult tbody tr.res_tr')) {
-            const input = tr.querySelector('input[name="primera"][loteria]');
-            if (!input) continue;
-            const otroCodigo = String(input.getAttribute('loteria') || '').trim();
-            if (!otroCodigo || otroCodigo === codigo) continue;
-            const valores = autoBrazilValoresFila(tr);
-            if (
-                autoBrazilNormalizarCampo(valores.primera) === resultado.primera &&
-                autoBrazilNormalizarCampo(valores.segunda) === resultado.segunda &&
-                autoBrazilNormalizarCampo(valores.tercera) === resultado.tercera
-            ) {
-                duplicados.push({
-                    codigo: otroCodigo,
-                    nombre: tr.querySelector('.loteria-nombre')?.textContent?.trim() || otroCodigo
-                });
+    function autoKey(reloj, codigo) { return `${AUTO_PREFIJO}${reloj.fechaIso}:${codigo}`; }
+    function autoEstado(reloj, codigo) {
+        const actual = GM_getValue(autoKey(reloj, codigo), null);
+        if (actual) return actual;
+        if (autoConfig[codigo]?.fuente === 'qplay') {
+            const anterior = GM_getValue(`vl:auto:brazil:${reloj.fechaIso}:${codigo}`, null);
+            if (anterior) {
+                GM_setValue(autoKey(reloj, codigo), anterior);
+                return anterior;
             }
         }
-        return duplicados;
-    }
-
-    async function autoBrazilConsultarRover(fechaUs, codigo, resultado = null) {
-        const html = await autoBrazilPost('__inc/verResultados2.php', {
-            loteria: '',
-            fecha: fechaUs
-        });
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        const tr = autoBrazilFilaPorCodigo(doc, codigo);
-        if (!tr) return { encontrada: false, html, doc };
-        const inputCodigo = tr.querySelector('input[loteria]');
-        const snapshot = {
-            encontrada: true,
-            codigoServidor: inputCodigo?.getAttribute('loteria') || codigo,
-            procesada: !!tr.querySelector('.status-circle.status-ok'),
-            valores: autoBrazilValoresFila(tr),
-            duplicados: resultado ? autoBrazilDuplicados(doc, codigo, resultado) : [],
-            html,
-            doc
-        };
-        return snapshot;
-    }
-
-    function autoBrazilSnapshotVisible(fechaUs, codigo) {
-        if (obtenerFechaRover() !== fechaUs) return null;
-        const tr = autoBrazilFilaPorCodigo(document, codigo);
-        if (!tr) return null;
         return {
-            tr,
-            procesada: !!tr.querySelector('.status-circle.status-ok'),
-            valores: autoBrazilValoresFila(tr)
+            estado: 'WAITING_TIME', resultado: null, nextAttemptMin: 1
         };
     }
-
-    function autoBrazilReflejarVisible(fechaUs, codigo, resultado) {
-        const visible = autoBrazilSnapshotVisible(fechaUs, codigo);
-        if (!visible || autoBrazilHayConflicto(visible.valores, resultado)) return false;
-        const inputs = [];
-        for (const campo of AUTO_BRAZIL_CAMPOS) {
-            const input = visible.tr.querySelector(`input[name="${campo}"]`);
-            if (!input) return false;
-            const actual = autoBrazilNormalizarCampo(input.value);
-            if (actual === '' || actual === resultado[campo]) escribirInput(input, resultado[campo]);
-            inputs.push(input);
+    function autoGuardar(reloj, codigo, patch) {
+        const anterior = autoEstado(reloj, codigo);
+        const next = { ...anterior, ...patch,
+            fecha: reloj.fechaUs, codigo, fuente: autoConfig[codigo].fuente, updatedAt: Date.now() };
+        GM_setValue(autoKey(reloj, codigo), next);
+        if (next.estado !== anterior.estado &&
+            ['DONE', 'CONFLICT', 'DUPLICATE', 'PROCESS_UNCERTAIN', 'ERROR'].includes(next.estado)) {
+            console.table([{ Loteria: codigo, Fecha: reloj.fechaUs,
+                Fuente: nombreFuente(next.fuente), Estado: next.estado, Motivo: next.motivo || '' }]);
         }
+        return next;
+    }
+    function autoDebeSoloVerificar(estado) {
+        return ['PROCESSING', 'VERIFYING', 'PROCESS_UNCERTAIN'].includes(estado);
+    }
+    function autoNormalizar(v) {
+        const value = String(v ?? '').trim();
+        return value === '---' ? '' : value;
+    }
+    function autoResultadoValido(r) {
+        return !!r && /^\d{2}$/.test(r.primera) && /^\d{2}$/.test(r.segunda) &&
+            /^\d{2}$/.test(r.tercera) && /^\d{3}$/.test(r.pick3) &&
+            /^\d{4}$/.test(r.pick4);
+    }
+    function autoConflicto(valores, resultado) {
+        return AUTO_CAMPOS.some(c => autoNormalizar(valores[c]) !== '' &&
+            autoNormalizar(valores[c]) !== resultado[c]);
+    }
+    function autoIguales(valores, resultado) {
+        return AUTO_CAMPOS.every(c => autoNormalizar(valores[c]) === resultado[c]);
+    }
+    function autoSiguienteMinuto(transcurridos) {
+        return AUTO_REINTENTOS_MIN.find(m => m > transcurridos) ?? transcurridos + 30;
+    }
+    function autoProximoChequeo(estado, ahora) {
+        return estado.estado !== 'RESULT_READY' ||
+            ahora - Number(estado.lastCheckAt || 0) >= 120000;
+    }
+    function autoEsperar(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+    function autoUnico(resultados, coincide) {
+        const matches = resultados.filter(coincide);
+        return matches.length === 1 ? matches[0] : null;
+    }
+
+    // Una solicitud por fuente durante diez segundos; el parseo y el emparejamiento son independientes.
+    async function autoFuente(codigo, fecha) {
+        const config = autoConfig[codigo];
+        const fuente = config.fuente;
+        const now = Date.now();
+        let cached = autoCache.get(fuente);
+        if (!cached || now - cached.ts >= 10000) {
+            const promise = (async () => {
+                if (fuente === 'nationjl') return parseNationJL(await requestText(NATIONJL_URL));
+                if (fuente === 'rapid') return JSON.parse(await requestText(RAPID_URL));
+                if (fuente === 'premier') return parsePremier(JSON.parse(await requestPremier()));
+                if (fuente === 'qplay') return parseQPlay(await requestText(QPLAY_URL));
+                if (fuente === 'queen') return parseQueen(await requestText(QUEEN_URL));
+                throw new Error(`Fuente desconocida: ${fuente}`);
+            })();
+            cached = { ts: now, promise };
+            autoCache.set(fuente, cached);
+            promise.catch(() => { if (autoCache.get(fuente) === cached) autoCache.delete(fuente); });
+        }
+        const data = await cached.promise;
+        if (fuente === 'rapid') {
+            // Si la API aún declara el sorteo pendiente, no usar un histórico coincidente.
+            if (rapidSorteoCompletadoHoy(data, config) === false) return null;
+            return autoUnico(parseRapid(data), r => r.fecha === fecha &&
+                autoMinuto(r.hora) === autoMinuto(config.hora));
+        }
+        if (fuente === 'premier') return autoUnico(data, r => r.fecha === fecha &&
+            r.horaKey === config.premierKey.toUpperCase());
+        if (fuente === 'queen') return autoUnico(data, r => r.fecha === fecha &&
+            r.queenKey === config.queenKey.toUpperCase());
+        return autoUnico(data, r => r.fecha === fecha &&
+            autoMinuto(r.hora) === autoMinuto(config.hora));
+    }
+
+    async function autoPost(path, parametros) {
+        const response = await fetch(path, {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams(parametros).toString()
+        });
+        const html = await response.text();
+        if (!response.ok) throw new Error(`Rover HTTP ${response.status} en ${path}`);
+        return html;
+    }
+    function autoFila(root, codigo) {
+        return [...root.querySelectorAll('input[name="primera"][loteria]')]
+            .find(el => el.getAttribute('loteria')?.trim() === codigo)?.closest('tr') || null;
+    }
+    function autoValores(tr) {
+        return Object.fromEntries(AUTO_CAMPOS.map(c => [c,
+            tr?.querySelector(`input[name="${c}"]`)?.value ?? '']));
+    }
+    function autoDuplicados(doc, codigo, resultado) {
+        return [...doc.querySelectorAll('#tableResult tbody tr.res_tr')].filter(tr => {
+            const otro = tr.querySelector('input[name="primera"][loteria]')?.getAttribute('loteria')?.trim();
+            if (!otro || otro === codigo) return false;
+            const v = autoValores(tr);
+            return ['primera', 'segunda', 'tercera'].every(c => autoNormalizar(v[c]) === resultado[c]);
+        }).map(tr => tr.querySelector('input[name="primera"][loteria]').getAttribute('loteria'));
+    }
+    async function autoConsultar(reloj, codigo, resultado = null, fresh = false) {
+        let cache = autoRoverCache.get(reloj.fechaIso);
+        if (fresh || !cache || Date.now() - cache.ts > 10000) {
+            const promise = autoPost('__inc/verResultados2.php', { loteria: '', fecha: reloj.fechaUs })
+                .then(html => new DOMParser().parseFromString(html, 'text/html'));
+            cache = { ts: Date.now(), promise };
+            if (!fresh) autoRoverCache.set(reloj.fechaIso, cache);
+            promise.catch(() => {
+                if (autoRoverCache.get(reloj.fechaIso) === cache) autoRoverCache.delete(reloj.fechaIso);
+            });
+        }
+        const doc = await cache.promise;
+        const tr = autoFila(doc, codigo);
+        if (!tr) return { encontrada: false };
+        return {
+            encontrada: true,
+            codigoServidor: tr.querySelector('input[name="primera"][loteria]').getAttribute('loteria'),
+            procesada: !!tr.querySelector('.status-circle.status-ok'),
+            valores: autoValores(tr),
+            duplicados: resultado ? autoDuplicados(doc, codigo, resultado) : []
+        };
+    }
+    function autoVisible(reloj, codigo) {
+        if (obtenerFechaRover() !== reloj.fechaUs) return null;
+        const tr = autoFila(document, codigo);
+        return tr ? { tr, valores: autoValores(tr) } : null;
+    }
+    function autoReflejar(reloj, codigo, resultado) {
+        const visible = autoVisible(reloj, codigo);
+        if (!visible || autoConflicto(visible.valores, resultado)) return false;
+        const inputs = AUTO_CAMPOS.map(c => visible.tr.querySelector(`input[name="${c}"]`));
+        if (inputs.some(i => !i)) return false;
+        AUTO_CAMPOS.forEach((c, n) => escribirInput(inputs[n], resultado[c]));
         resaltarInputs(inputs);
         return true;
     }
-
-    async function autoBrazilResultadosQPlay() {
-        const ahora = Date.now();
-        if (autoBrazilQPlayCache.promise && ahora - autoBrazilQPlayCache.ts < 10000) {
-            return autoBrazilQPlayCache.promise;
-        }
-        const promise = requestText(QPLAY_URL).then(parseQPlay);
-        autoBrazilQPlayCache = { ts: ahora, promise };
-        try {
-            return await promise;
-        } finally {
-            setTimeout(() => {
-                if (autoBrazilQPlayCache.promise === promise) {
-                    autoBrazilQPlayCache = { ts: 0, promise: null };
-                }
-            }, 10000);
-        }
-    }
-
-    async function autoBrazilBuscarFuente(codigo, fechaUs) {
-        const config = LOTERIAS[codigo];
-        const resultados = await autoBrazilResultadosQPlay();
-        return resultados.find(r =>
-            r.fecha === fechaUs &&
-            r.hora.toUpperCase() === config.hora.toUpperCase()
-        ) || null;
-    }
-
-    async function autoBrazilEnviarProceso(fechaIso, codigoServidor, resultado) {
-        return autoBrazilPost('__inc/procesarResultados.php', {
-            fecha: fechaIso,
-            loteria: codigoServidor,
-            primera: resultado.primera,
-            segunda: resultado.segunda,
-            tercera: resultado.tercera,
-            pick3: resultado.pick3,
-            pick4: resultado.pick4
-        });
-    }
-
-    async function autoBrazilVerificarProcesado(fechaUs, codigo, resultado) {
-        for (const delay of AUTO_BRAZIL_VERIFY_DELAYS_MS) {
-            await autoBrazilEsperar(delay);
-            const snap = await autoBrazilConsultarRover(fechaUs, codigo);
+    async function autoVerificar(reloj, codigo, resultado, demoras = AUTO_VERIFY_MS) {
+        for (const ms of demoras) {
+            if (ms) await autoEsperar(ms);
+            const snap = await autoConsultar(reloj, codigo, null, true);
             if (!snap.encontrada) continue;
-            if (snap.procesada && autoBrazilCoincideCompleto(snap.valores, resultado)) {
-                return { estado: 'DONE', snap };
-            }
-            if (snap.procesada && !autoBrazilCoincideCompleto(snap.valores, resultado)) {
-                return { estado: 'CONFLICT', snap };
-            }
-            if (autoBrazilHayConflicto(snap.valores, resultado)) {
-                return { estado: 'CONFLICT', snap };
+            if (snap.procesada && autoIguales(snap.valores, resultado)) return { estado: 'DONE' };
+            if (snap.procesada || autoConflicto(snap.valores, resultado)) {
+                return { estado: 'CONFLICT', rover: snap.valores };
             }
         }
         return { estado: 'PROCESS_UNCERTAIN' };
     }
-
-    async function autoBrazilProcesarResultado(reloj, codigo, resultado) {
-        const visibleInicial = autoBrazilSnapshotVisible(reloj.fechaUs, codigo);
-        if (visibleInicial && autoBrazilHayConflicto(visibleInicial.valores, resultado)) {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'CONFLICT', resultado,
-                motivo: 'Los inputs visibles contienen valores distintos a QPlay.'
-            });
-            console.warn('[AUTO BRAZIL] CONFLICT visible', codigo, visibleInicial.valores, resultado);
+    async function autoRecuperar(reloj, codigo, estado) {
+        if (!autoResultadoValido(estado.resultado)) {
+            autoGuardar(reloj, codigo, { estado: 'PROCESS_UNCERTAIN',
+                motivo: 'Envío previo sin resultado válido; revisión manual.' });
             return;
         }
-
-        const snap = await autoBrazilConsultarRover(reloj.fechaUs, codigo, resultado);
-        if (!snap.encontrada) {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'ERROR', resultado,
-                motivo: 'Rover no devolvió la fila de la lotería.',
-                nextAttemptMin: autoBrazilSiguienteMinuto(
-                    reloj.minutoDia - AUTO_BRAZIL_CODIGOS[codigo].minuto
-                )
-            });
-            return;
-        }
-
-        if (snap.procesada) {
-            if (autoBrazilCoincideCompleto(snap.valores, resultado)) {
-                autoBrazilReflejarVisible(reloj.fechaUs, codigo, resultado);
-                autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                    estado: 'DONE', resultado, procesadoAt: Date.now(), motivo: 'Ya estaba procesada en Rover.'
-                });
-                console.log('[AUTO BRAZIL] ✅ Ya procesada', codigo);
-            } else {
-                autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                    estado: 'CONFLICT', resultado,
-                    motivo: 'Rover está procesado con valores distintos a QPlay.',
-                    rover: snap.valores
-                });
-                console.warn('[AUTO BRAZIL] CONFLICT procesada', codigo, snap.valores, resultado);
-            }
-            return;
-        }
-
-        if (autoBrazilHayConflicto(snap.valores, resultado)) {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'CONFLICT', resultado,
-                motivo: 'Rover contiene valores distintos a QPlay.',
-                rover: snap.valores
-            });
-            console.warn('[AUTO BRAZIL] CONFLICT backend', codigo, snap.valores, resultado);
-            return;
-        }
-
-        if (snap.duplicados.length) {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'DUPLICATE', resultado,
-                motivo: 'Rover detectaría un resultado duplicado; se requiere revisión manual.',
-                duplicados: snap.duplicados
-            });
-            console.warn('[AUTO BRAZIL] DUPLICATE', codigo, snap.duplicados);
-            return;
-        }
-
-        const visibleFinal = autoBrazilSnapshotVisible(reloj.fechaUs, codigo);
-        if (visibleFinal && autoBrazilHayConflicto(visibleFinal.valores, resultado)) {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'CONFLICT', resultado,
-                motivo: 'Los inputs visibles cambiaron antes de procesar.'
-            });
-            console.warn('[AUTO BRAZIL] CONFLICT antes de POST', codigo);
-            return;
-        }
-
-        autoBrazilReflejarVisible(reloj.fechaUs, codigo, resultado);
-        autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-            estado: 'PROCESSING', resultado, processSentAt: Date.now(), codigoServidor: snap.codigoServidor
-        });
-
-        console.table([{
-            Modo: 'AUTO', Fuente: 'QPlay Brazil', Fecha: reloj.fechaUs, Loteria: codigo,
-            Primera: resultado.primera, Segunda: resultado.segunda, Tercera: resultado.tercera,
-            Pick3: resultado.pick3, Pick4: resultado.pick4, Accion: 'PROCESS'
-        }]);
-
-        let postError = null;
-        try {
-            await autoBrazilEnviarProceso(reloj.fechaIso, snap.codigoServidor, resultado);
-        } catch (error) {
-            postError = error;
-            console.error('[AUTO BRAZIL] POST incierto; se verificará antes de cualquier otra acción:', error);
-        }
-
-        autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-            estado: 'VERIFYING', resultado,
-            motivo: postError ? postError.message : ''
-        });
-
-        const verificacion = await autoBrazilVerificarProcesado(reloj.fechaUs, codigo, resultado);
-        if (verificacion.estado === 'DONE') {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'DONE', resultado, procesadoAt: Date.now(), motivo: ''
-            });
-            console.log('[AUTO BRAZIL] ✅ Procesado y verificado', codigo, resultado);
-        } else if (verificacion.estado === 'CONFLICT') {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'CONFLICT', resultado,
-                motivo: 'La verificación posterior encontró valores distintos.',
-                rover: verificacion.snap?.valores || null
-            });
-            console.warn('[AUTO BRAZIL] CONFLICT después de procesar', codigo);
-        } else {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'PROCESS_UNCERTAIN', resultado,
-                motivo: 'No se pudo confirmar el procesamiento; no se reenviará automáticamente.',
-                lastVerifyAt: Date.now()
-            });
-            console.warn('[AUTO BRAZIL] Estado incierto; NO se repetirá el POST', codigo);
-        }
-    }
-
-    async function autoBrazilRevisarIncierto(reloj, codigo, estado) {
-        if (!estado.resultado) return;
         if (Date.now() - Number(estado.lastVerifyAt || 0) < 120000) return;
-        const snap = await autoBrazilConsultarRover(reloj.fechaUs, codigo);
-        if (!snap.encontrada) {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, { lastVerifyAt: Date.now() });
-            return;
-        }
-        if (snap.procesada && autoBrazilCoincideCompleto(snap.valores, estado.resultado)) {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'DONE', procesadoAt: Date.now(), lastVerifyAt: Date.now(), motivo: ''
-            });
-            console.log('[AUTO BRAZIL] ✅ Confirmación tardía', codigo);
-            return;
-        }
-        if (snap.procesada || autoBrazilHayConflicto(snap.valores, estado.resultado)) {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'CONFLICT', lastVerifyAt: Date.now(), rover: snap.valores,
-                motivo: 'La comprobación tardía encontró valores distintos.'
-            });
-            return;
-        }
-        autoBrazilGuardarEstado(reloj.fechaIso, codigo, { lastVerifyAt: Date.now() });
+        const verificado = await autoVerificar(reloj, codigo, estado.resultado, [0]);
+        autoGuardar(reloj, codigo, { ...verificado, lastVerifyAt: Date.now(),
+            motivo: verificado.estado === 'PROCESS_UNCERTAIN'
+                ? 'Envío anterior no confirmado; no se repetirá automáticamente.' : '' });
+        if (verificado.estado === 'DONE') autoReflejar(reloj, codigo, estado.resultado);
     }
-
-    async function autoBrazilEvaluarCodigo(reloj, codigo) {
-        if (autoBrazilEnCurso.has(codigo)) return;
-        const configAuto = AUTO_BRAZIL_CODIGOS[codigo];
-        const transcurridos = reloj.minutoDia - configAuto.minuto;
-        if (transcurridos < 1) {
-            autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                estado: 'WAITING_TIME', nextAttemptMin: 1
-            });
+    async function autoProcesar(reloj, codigo, resultado) {
+        const visible = autoVisible(reloj, codigo);
+        if (visible && autoConflicto(visible.valores, resultado)) {
+            autoGuardar(reloj, codigo, { estado: 'CONFLICT', resultado, motivo: 'Fila visible distinta.' });
             return;
         }
-
-        const estado = autoBrazilLeerEstado(reloj.fechaIso, codigo);
-        if (['DONE', 'CONFLICT', 'DUPLICATE'].includes(estado.estado)) return;
-
-        autoBrazilEnCurso.add(codigo);
-        try {
-            if (estado.estado === 'PROCESS_UNCERTAIN') {
-                await autoBrazilRevisarIncierto(reloj, codigo, estado);
+        const snap = await autoConsultar(reloj, codigo, resultado);
+        if (!snap.encontrada) throw new Error('Fila no encontrada en Rover');
+        if (snap.procesada) {
+            const estado = autoIguales(snap.valores, resultado) ? 'DONE' : 'CONFLICT';
+            autoGuardar(reloj, codigo, { estado, resultado, motivo: 'Fila ya procesada.' });
+            if (estado === 'DONE') autoReflejar(reloj, codigo, resultado);
+            return;
+        }
+        if (autoConflicto(snap.valores, resultado) ||
+            (autoVisible(reloj, codigo) && autoConflicto(autoVisible(reloj, codigo).valores, resultado))) {
+            autoGuardar(reloj, codigo, { estado: 'CONFLICT', resultado, motivo: 'Rover contiene otros valores.' });
+            return;
+        }
+        if (snap.duplicados.length) {
+            autoGuardar(reloj, codigo, { estado: 'DUPLICATE', resultado,
+                motivo: `Duplicado con ${snap.duplicados.join(', ')}` });
+            return;
+        }
+        if (!GM_getValue(AUTO_EMISOR_KEY, false)) {
+            autoGuardar(reloj, codigo, { estado: 'RESULT_READY', resultado,
+                lastCheckAt: Date.now(),
+                motivo: 'Observación: activar un solo emisor para procesar.' });
+            return;
+        }
+        if (!navigator.locks?.request) {
+            autoGuardar(reloj, codigo, { estado: 'RESULT_READY', resultado,
+                lastCheckAt: Date.now(),
+                motivo: 'Este navegador no ofrece Web Locks para coordinar pestañas.' });
+            return;
+        }
+        await navigator.locks.request('vl-auto-rover-post', async () => {
+            // Otra pestaña pudo enviar antes de que obtuviéramos el bloqueo.
+            const compartido = autoEstado(reloj, codigo);
+            if (autoDebeSoloVerificar(compartido.estado)) {
+                await autoRecuperar(reloj, codigo, compartido);
                 return;
             }
-
-            let resultado = estado.resultado;
-            if (!autoBrazilResultadoValido(resultado)) {
-                const nextAttemptMin = Number.isFinite(Number(estado.nextAttemptMin))
-                    ? Number(estado.nextAttemptMin) : 1;
-                if (transcurridos < nextAttemptMin) return;
-
-                autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                    estado: 'SEARCHING', lastSearchAt: Date.now()
-                });
-
-                try {
-                    resultado = await autoBrazilBuscarFuente(codigo, reloj.fechaUs);
-                } catch (error) {
-                    autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                        estado: 'ERROR', motivo: error.message,
-                        nextAttemptMin: transcurridos + 5
-                    });
-                    console.error('[AUTO BRAZIL] Error consultando QPlay', codigo, error);
-                    return;
-                }
-
-                if (!autoBrazilResultadoValido(resultado)) {
-                    const siguiente = autoBrazilSiguienteMinuto(transcurridos);
-                    autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                        estado: 'WAITING_RESULT', resultado: null,
-                        nextAttemptMin: siguiente,
-                        motivo: `Resultado todavía no disponible; próximo intento +${siguiente} min.`
-                    });
-                    console.log(`[AUTO BRAZIL] ${codigo} todavía no disponible; próximo intento +${siguiente} min`);
-                    return;
-                }
-
-                autoBrazilGuardarEstado(reloj.fechaIso, codigo, {
-                    estado: 'RESULT_READY', resultado, foundAt: Date.now(), motivo: ''
-                });
-                console.log('[AUTO BRAZIL] Resultado encontrado', codigo, resultado);
+            if (['DONE', 'CONFLICT', 'DUPLICATE'].includes(compartido.estado)) return;
+            if (autoResultadoValido(compartido.resultado) &&
+                !autoIguales(compartido.resultado, resultado)) {
+                autoGuardar(reloj, codigo, { estado: 'CONFLICT', resultado,
+                    motivo: 'La fuente cambió respecto al resultado guardado.' });
+                return;
             }
-
-            await autoBrazilProcesarResultado(reloj, codigo, resultado);
-        } finally {
-            autoBrazilEnCurso.delete(codigo);
+            // Otra pestaña pudo procesar mientras esperábamos el bloqueo.
+            const previo = await autoConsultar(reloj, codigo, resultado, true);
+            if (!previo.encontrada) throw new Error('Fila desapareció antes del envío');
+            if (previo.procesada || autoConflicto(previo.valores, resultado) || previo.duplicados.length) {
+                autoGuardar(reloj, codigo, { estado: previo.procesada && autoIguales(previo.valores, resultado)
+                    ? 'DONE' : previo.duplicados.length ? 'DUPLICATE' : 'CONFLICT',
+                    resultado, motivo: 'Rover cambió antes del envío.' });
+                return;
+            }
+            if (!GM_getValue(AUTO_EMISOR_KEY, false)) return;
+            if (autoAhoraRD().fechaIso !== reloj.fechaIso) return;
+            // Persistir antes del POST: ante cierre/timeout, recuperar leyendo Rover.
+            autoGuardar(reloj, codigo, { estado: 'PROCESSING', resultado, processSentAt: Date.now() });
+            let errorPost = '';
+            try {
+                await autoPost('__inc/procesarResultados.php', {
+                    fecha: reloj.fechaIso, loteria: previo.codigoServidor,
+                    ...Object.fromEntries(AUTO_CAMPOS.map(c => [c, resultado[c]]))
+                });
+            } catch (error) { errorPost = error.message; }
+            autoGuardar(reloj, codigo, { estado: 'VERIFYING', resultado, motivo: errorPost });
+            try {
+                const verificado = await autoVerificar(reloj, codigo, resultado);
+                autoGuardar(reloj, codigo, { ...verificado,
+                    lastVerifyAt: Date.now(), motivo: verificado.estado === 'PROCESS_UNCERTAIN'
+                        ? 'POST no confirmado; no se repetirá automáticamente.' : '' });
+                if (verificado.estado === 'DONE') autoReflejar(reloj, codigo, resultado);
+            } catch (error) {
+                autoGuardar(reloj, codigo, { estado: 'PROCESS_UNCERTAIN', resultado,
+                    lastVerifyAt: Date.now(), motivo: error.message });
+            }
+        });
+    }
+    async function autoEvaluar(reloj, codigo) {
+        if (autoEnCurso.has(codigo)) return;
+        const transcurridos = reloj.minutoDia - autoConfig[codigo].minuto;
+        if (transcurridos < 1) return;
+        autoEnCurso.add(codigo);
+        try {
+            let estado = autoEstado(reloj, codigo);
+            if (['DONE', 'CONFLICT', 'DUPLICATE'].includes(estado.estado)) return;
+            if (estado.estado === 'ERROR' &&
+                transcurridos < Number(estado.nextAttemptMin ?? 1)) return;
+            if (!autoProximoChequeo(estado, Date.now()) &&
+                !GM_getValue(AUTO_EMISOR_KEY, false)) return;
+            if (autoDebeSoloVerificar(estado.estado)) {
+                await autoRecuperar(reloj, codigo, estado);
+                return;
+            }
+            let resultado = estado.resultado;
+            if (!autoResultadoValido(resultado)) {
+                if (transcurridos < Number(estado.nextAttemptMin ?? 1)) return;
+                autoGuardar(reloj, codigo, { estado: 'SEARCHING', lastSearchAt: Date.now() });
+                resultado = await autoFuente(codigo, reloj.fechaUs);
+                if (!autoResultadoValido(resultado)) {
+                    const nextAttemptMin = autoSiguienteMinuto(transcurridos);
+                    autoGuardar(reloj, codigo, { estado: 'WAITING_RESULT', resultado: null,
+                        nextAttemptMin, motivo: 'Fuente pendiente o resultado incompleto.' });
+                    return;
+                }
+                autoGuardar(reloj, codigo, { estado: 'RESULT_READY', resultado, foundAt: Date.now() });
+            }
+            await autoProcesar(reloj, codigo, resultado);
+        } catch (error) {
+            const estado = autoEstado(reloj, codigo);
+            if (autoDebeSoloVerificar(estado.estado)) {
+                autoGuardar(reloj, codigo, { estado: 'PROCESS_UNCERTAIN',
+                    resultado: estado.resultado, lastVerifyAt: Date.now(), motivo: error.message });
+            } else {
+                autoGuardar(reloj, codigo, { estado: 'ERROR', motivo: error.message,
+                    nextAttemptMin: transcurridos + 5 });
+            }
+            console.error('[AUTO LOTERÍAS]', codigo, error);
+        } finally { autoEnCurso.delete(codigo); }
+    }
+    function autoTick() {
+        if (!document.querySelector('#fecha')) return;
+        const reloj = autoAhoraRD();
+        if (autoDia !== reloj.fechaIso) {
+            autoDia = reloj.fechaIso; autoCache.clear(); autoRoverCache.clear();
+        }
+        for (const codigo of Object.keys(autoConfig)) {
+            autoEvaluar(reloj, codigo).catch(error => console.error('[AUTO LOTERÍAS]', codigo, error));
         }
     }
-
-    async function autoBrazilTick() {        if (!AUTO_BRAZIL_ENABLED) return;
-        const reloj = autoBrazilAhoraRD();
-        for (const codigo of Object.keys(AUTO_BRAZIL_CODIGOS)) {
-            autoBrazilEvaluarCodigo(reloj, codigo).catch(error => {
-                console.error('[AUTO BRAZIL] Error no controlado', codigo, error);
-            });
-        }
+    function iniciarAutoLoterias() {
+        console.log('[AUTO LOTERÍAS] 25 sorteos; EXTRA manual. Modo:',
+            GM_getValue(AUTO_EMISOR_KEY, false) ? 'emisor' : 'observación');
+        autoTick();
+        setInterval(autoTick, AUTO_TICK_MS);
     }
 
-    function iniciarAutoBrazil() {
-        if (!AUTO_BRAZIL_ENABLED) return;
-        console.log('[AUTO BRAZIL] ✅ Motor automático activo. Solo procesa sorteos de hoy en RD.');
-        autoBrazilTick();
-        setInterval(autoBrazilTick, AUTO_BRAZIL_TICK_MS);
+    function instalarControlAuto() {
+        const fecha = document.querySelector('#fecha');
+        if (!fecha || document.querySelector('.rs-auto-mode')) return;
+        const boton = document.createElement('button');
+        boton.type = 'button';
+        boton.className = 'rs-auto-mode';
+        const pintar = () => {
+            const emisor = GM_getValue(AUTO_EMISOR_KEY, false);
+            boton.textContent = emisor ? 'AUTO: EMISOR' : 'AUTO: OBSERVAR';
+            boton.classList.toggle('rs-emisor', emisor);
+            boton.title = emisor
+                ? 'Este navegador procesa. Mantén los otros puestos en observación.'
+                : 'Consulta sin enviar. Activa solo un emisor entre los tres puestos.';
+        };
+        boton.addEventListener('click', event => {
+            event.preventDefault();
+            GM_setValue(AUTO_EMISOR_KEY, !GM_getValue(AUTO_EMISOR_KEY, false));
+            pintar();
+            autoTick();
+        });
+        fecha.insertAdjacentElement('afterend', boton);
+        pintar();
     }
 
 
@@ -1487,9 +1398,10 @@
         if (!esPaginaRoverValida()) return;
         instalarBotones();
         instalarListenerFecha();
+        instalarControlAuto();
     }
 
-    iniciarAutoBrazil();
+    iniciarAutoLoterias();
     iniciar();
 
     // Rover reemplaza #resultadosLoteria varias veces durante Search/filtros.
@@ -1502,6 +1414,7 @@
 
         const fecha = document.querySelector('#fecha');
         if (fecha && !fecha.dataset.rsSourcesListenerInstalled) return true;
+        if (fecha && !document.querySelector('.rs-auto-mode')) return true;
 
         for (const [codigo] of Object.entries(LOTERIAS)) {
             const input = buscarInputLoteria(codigo);

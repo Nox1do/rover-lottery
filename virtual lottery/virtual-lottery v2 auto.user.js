@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      2.0.0
-// @description  Virtual Lotteries v2: conserva el modo manual y automatiza Brazil/QPlay con verificación silenciosa y procesamiento en segundo plano.
+// @version      2.0.1
+// @description  Virtual Lotteries v2: modo manual + Brazil/QPlay automático, con observador de tabla optimizado y procesamiento/verificación en segundo plano.
 // @author       noeg
 // @match        https://www.roversport.lol/adm/es/lottery.php
 // @match        https://www.roversport.net/adm/es/lottery.php
@@ -1492,7 +1492,41 @@
     iniciarAutoBrazil();
     iniciar();
 
-    const observer = new MutationObserver(() => iniciar());
+    // Rover reemplaza #resultadosLoteria varias veces durante Search/filtros.
+    // Agrupamos esas mutaciones y solo reinyectamos si realmente falta algo.
+    const REINYECCION_DEBOUNCE_MS = 450;
+    let reinyeccionTimer = null;
+
+    function necesitaReinyeccion() {
+        if (!esPaginaRoverValida()) return false;
+
+        const fecha = document.querySelector('#fecha');
+        if (fecha && !fecha.dataset.rsSourcesListenerInstalled) return true;
+
+        for (const [codigo] of Object.entries(LOTERIAS)) {
+            const input = buscarInputLoteria(codigo);
+            if (!input) continue;
+
+            const tr = input.closest('tr');
+            if (!tr) continue;
+
+            if (!tr.querySelector(`.rs-source-fetch-btn[data-codigo="${codigo}"]`)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function programarReinyeccion() {
+        clearTimeout(reinyeccionTimer);
+        reinyeccionTimer = setTimeout(() => {
+            reinyeccionTimer = null;
+            if (necesitaReinyeccion()) iniciar();
+        }, REINYECCION_DEBOUNCE_MS);
+    }
+
+    const observer = new MutationObserver(() => programarReinyeccion());
     observer.observe(document.documentElement, {
         childList: true,
         subtree: true

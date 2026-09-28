@@ -1,0 +1,23 @@
+// ==UserScript==
+// @name         Virtual Lotteries v2 Auto
+// @namespace    noeg
+// @version      2.1.0
+// @description  Virtual Lotteries v2: modo manual + Brazil/QPlay automático modular, configuración persistente y procesamiento/verificación en segundo plano.
+// @author       noeg
+// @match        https://www.roversport.lol/adm/es/lottery.php
+// @match        https://www.roversport.net/adm/es/lottery.php
+// @match        https://www.lotterypost.com/results/qc/extra/past*
+// @grant        GM_openInTab
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_removeValueChangeListener
+// @grant        GM_xmlhttpRequest
+// @connect      www.nationjl.com
+// @connect      rapidlottery.app
+// @connect      api.lotocentral.net
+// @connect      qplay777.net
+// @connect      www.thequeenlottery.com
+// @run-at       document-idle
+// ==/UserScript==

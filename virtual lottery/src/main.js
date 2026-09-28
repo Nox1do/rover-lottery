@@ -1,0 +1,3 @@
+(function bootstrapVirtualLottery() {
+    'use strict';
+})();

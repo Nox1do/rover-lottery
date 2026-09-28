@@ -1,0 +1,11 @@
+{
+  "name": "virtual-lottery-userscript",
+  "private": true,
+  "version": "2.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "build": "node scripts/build.mjs",
+    "check": "npm test && npm run build && node --check dist/virtual-lottery-v2-auto.user.js"
+  }
+}

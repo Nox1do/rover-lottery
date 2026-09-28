@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.4
+// @version      3.0.5
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @match        https://www.roversport.lol/adm/es/lottery.php
@@ -779,26 +779,43 @@
         if (verificado.estado === 'DONE') autoReflejar(reloj, codigo, estado.resultado);
     }
 
+    function autoResolverConflicto(resultadoGuardado, resultadoFuente, snap) {
+        if (!autoResultadoValido(resultadoFuente)) {
+            return { estado: 'CONFLICT', resultado: resultadoGuardado,
+                motivo: 'La fuente actual no devolvió un resultado válido.' };
+        }
+        if (!snap?.encontrada) {
+            return { estado: 'CONFLICT', resultado: resultadoFuente,
+                motivo: 'Conflicto pendiente: fila no encontrada en Rover.' };
+        }
+        if (snap.procesada && autoIguales(snap.valores, resultadoFuente)) {
+            const cambioFuente = autoResultadoValido(resultadoGuardado) &&
+                !autoIguales(resultadoGuardado, resultadoFuente);
+            return { estado: 'DONE', resultado: resultadoFuente,
+                motivo: cambioFuente
+                    ? 'Fuente actualizada y Rover confirmado.'
+                    : 'Corrección manual confirmada en Rover.' };
+        }
+        return { estado: 'CONFLICT', resultado: resultadoFuente,
+            motivo: 'Rover todavía no coincide con el resultado actual de la fuente.' };
+    }
+
     async function autoRevalidarConflicto(reloj, codigo, estado) {
-        if (!autoResultadoValido(estado.resultado)) return;
         if (Date.now() - Number(estado.lastConflictCheckAt || 0) < AUTO_CONFLICT_RECHECK_MS) return;
 
-        const snap = await autoConsultar(reloj, codigo, null, true);
-        if (!snap.encontrada) {
+        let resultadoFuente;
+        try {
+            resultadoFuente = await autoFuente(codigo, reloj.fechaUs);
+        } catch (error) {
             autoGuardar(reloj, codigo, { estado: 'CONFLICT', lastConflictCheckAt: Date.now(),
-                motivo: 'Conflicto pendiente: fila no encontrada en Rover.' });
+                motivo: `No se pudo revalidar la fuente: ${error.message}` });
             return;
         }
 
-        if (snap.procesada && autoIguales(snap.valores, estado.resultado)) {
-            autoGuardar(reloj, codigo, { estado: 'DONE', lastConflictCheckAt: Date.now(),
-                motivo: 'Corrección manual confirmada en Rover.' });
-            autoReflejar(reloj, codigo, estado.resultado);
-            return;
-        }
-
-        autoGuardar(reloj, codigo, { estado: 'CONFLICT', lastConflictCheckAt: Date.now(),
-            motivo: 'Rover todavía no coincide con el resultado de la fuente.' });
+        const snap = await autoConsultar(reloj, codigo, null, true);
+        const decision = autoResolverConflicto(estado.resultado, resultadoFuente, snap);
+        autoGuardar(reloj, codigo, { ...decision, lastConflictCheckAt: Date.now() });
+        if (decision.estado === 'DONE') autoReflejar(reloj, codigo, decision.resultado);
     }
     async function autoProcesar(reloj, codigo, resultado) {
         const visible = autoVisible(reloj, codigo);

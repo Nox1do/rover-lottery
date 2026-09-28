@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.3
+// @version      3.0.4
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @match        https://www.roversport.lol/adm/es/lottery.php
@@ -545,6 +545,7 @@
     const AUTO_REINTENTOS_MIN = [1, 3, 5, 8, 12, 20, 30, 45, 60, 90, 120];
     const AUTO_VERIFY_MS = [700, 1200, 2500, 5000, 8000];
     const AUTO_TICK_MS = 20000;
+    const AUTO_CONFLICT_RECHECK_MS = 20000;
     const AUTO_EMISOR_KEY = 'vl:auto:emisor';
     const AUTO_MODO_KEY = 'vl:auto:modo';
     const AUTO_PREFIJO = 'vl:auto:v3:';
@@ -777,6 +778,28 @@
                 ? 'Envío anterior no confirmado; no se repetirá automáticamente.' : '' });
         if (verificado.estado === 'DONE') autoReflejar(reloj, codigo, estado.resultado);
     }
+
+    async function autoRevalidarConflicto(reloj, codigo, estado) {
+        if (!autoResultadoValido(estado.resultado)) return;
+        if (Date.now() - Number(estado.lastConflictCheckAt || 0) < AUTO_CONFLICT_RECHECK_MS) return;
+
+        const snap = await autoConsultar(reloj, codigo, null, true);
+        if (!snap.encontrada) {
+            autoGuardar(reloj, codigo, { estado: 'CONFLICT', lastConflictCheckAt: Date.now(),
+                motivo: 'Conflicto pendiente: fila no encontrada en Rover.' });
+            return;
+        }
+
+        if (snap.procesada && autoIguales(snap.valores, estado.resultado)) {
+            autoGuardar(reloj, codigo, { estado: 'DONE', lastConflictCheckAt: Date.now(),
+                motivo: 'Corrección manual confirmada en Rover.' });
+            autoReflejar(reloj, codigo, estado.resultado);
+            return;
+        }
+
+        autoGuardar(reloj, codigo, { estado: 'CONFLICT', lastConflictCheckAt: Date.now(),
+            motivo: 'Rover todavía no coincide con el resultado de la fuente.' });
+    }
     async function autoProcesar(reloj, codigo, resultado) {
         const visible = autoVisible(reloj, codigo);
         if (visible && autoConflicto(visible.valores, resultado)) {
@@ -869,7 +892,11 @@
         autoEnCurso.add(codigo);
         try {
             let estado = autoEstado(reloj, codigo);
-            if (['DONE', 'CONFLICT', 'DUPLICATE'].includes(estado.estado)) return;
+            if (['DONE', 'DUPLICATE'].includes(estado.estado)) return;
+            if (estado.estado === 'CONFLICT') {
+                await autoRevalidarConflicto(reloj, codigo, estado);
+                return;
+            }
             if (estado.estado === 'ERROR' &&
                 transcurridos < Number(estado.nextAttemptMin ?? 1)) return;
             if (!autoProximoChequeo(estado, Date.now()) &&

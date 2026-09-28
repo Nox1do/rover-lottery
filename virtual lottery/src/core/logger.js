@@ -1,0 +1,1 @@
+(function(VL){'use strict'; function createLogger(prefix='[AUTO]'){return{log:(...a)=>console.log(prefix,...a),warn:(...a)=>console.warn(prefix,...a),error:(...a)=>console.error(prefix,...a)}}VL.createLogger=createLogger;})(globalThis.__VL__ ||= {});

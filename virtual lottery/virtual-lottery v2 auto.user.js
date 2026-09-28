@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.2
+// @version      3.0.3
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @match        https://www.roversport.lol/adm/es/lottery.php
@@ -40,6 +40,10 @@
     }
     let revisionFecha = 0;
     const solicitudes = new WeakMap();
+    // Conserva en esta sesión los resultados que el script ya mostró en Rover.
+    // Rover reemplaza la tabla al pulsar Search; después de ese reemplazo los
+    // resultados se vuelven a aplicar únicamente si la fila sigue vacía o coincide.
+    const resultadosVisibles = new Map();
 
     const LOTERIAS = {
         'EXTRA': { fuente: 'extra', hora: 'Diario' },
@@ -739,6 +743,7 @@
         return tr ? { tr, valores: autoValores(tr) } : null;
     }
     function autoReflejar(reloj, codigo, resultado) {
+        guardarResultadoVisible(reloj.fechaUs, codigo, resultado, AUTO_CAMPOS);
         const visible = autoVisible(reloj, codigo);
         if (!visible || autoConflicto(visible.valores, resultado)) return false;
         const inputs = AUTO_CAMPOS.map(c => visible.tr.querySelector(`input[name="${c}"]`));
@@ -1233,6 +1238,78 @@
     }
 
 
+    function claveResultadoVisible(fecha, codigo) {
+        return `${fecha}|${codigo}`;
+    }
+
+    function guardarResultadoVisible(fecha, codigo, resultado, campos = null) {
+        if (!fecha || !codigo || !resultado) return;
+        const lista = campos || (LOTERIAS[codigo]?.fuente === 'extra'
+            ? ['primera', 'segunda', 'tercera']
+            : ['primera', 'segunda', 'tercera', 'pick3', 'pick4']);
+        if (!lista.every(campo => typeof resultado[campo] === 'string' && resultado[campo] !== '')) return;
+        resultadosVisibles.set(claveResultadoVisible(fecha, codigo), {
+            campos: [...lista],
+            resultado: Object.fromEntries(lista.map(campo => [campo, resultado[campo]]))
+        });
+    }
+
+    function restaurarResultadosVisibles() {
+        const fecha = obtenerFechaRover();
+        if (!fecha) return 0;
+
+        // Los estados AUTO sobreviven a un reload. Los incorporamos al cache de UI
+        // para que un Search posterior tampoco borre un resultado ya encontrado.
+        const reloj = autoAhoraRD();
+        if (fecha === reloj.fechaUs) {
+            for (const codigo of Object.keys(autoConfig)) {
+                const estado = autoEstado(reloj, codigo);
+                if (!['RESULT_READY', 'PROCESSING', 'VERIFYING', 'DONE', 'PROCESS_UNCERTAIN'].includes(estado.estado)) continue;
+                if (!autoResultadoValido(estado.resultado)) continue;
+                guardarResultadoVisible(fecha, codigo, estado.resultado, AUTO_CAMPOS);
+            }
+        }
+
+        let restaurados = 0;
+        for (const codigo of Object.keys(LOTERIAS)) {
+            const guardado = resultadosVisibles.get(claveResultadoVisible(fecha, codigo));
+            if (!guardado) continue;
+
+            const inputBase = buscarInputLoteria(codigo);
+            const tr = inputBase?.closest('tr');
+            if (!tr) continue;
+
+            const actuales = Object.fromEntries(guardado.campos.map(campo => [
+                campo, String(tr.querySelector(`input[name="${campo}"]`)?.value ?? '').trim()
+            ]));
+            const conflicto = guardado.campos.some(campo => {
+                const actual = actuales[campo] === '---' ? '' : actuales[campo];
+                return actual !== '' && actual !== guardado.resultado[campo];
+            });
+            if (conflicto) continue;
+
+            const inputs = guardado.campos.map(campo => tr.querySelector(`input[name="${campo}"]`));
+            if (inputs.some(input => !input)) continue;
+
+            let cambio = false;
+            guardado.campos.forEach((campo, i) => {
+                const actual = String(inputs[i].value ?? '').trim();
+                if (actual === '' || actual === '---') {
+                    escribirInput(inputs[i], guardado.resultado[campo]);
+                    cambio = true;
+                }
+            });
+            if (cambio) {
+                resaltarInputs(inputs);
+                restaurados++;
+            }
+
+            const btn = tr.querySelector(`.rs-source-fetch-btn[data-codigo="${codigo}"]`);
+            if (btn) botonExito(btn);
+        }
+        return restaurados;
+    }
+
     function escribirInput(input, valor) {
         if (!input) return;
         input.value = String(valor);
@@ -1344,6 +1421,7 @@
             if (inputs.some(input => !input)) {
                 throw new Error('No se encontraron todos los inputs necesarios de Rover');
             }
+            guardarResultadoVisible(fecha, codigo, resultado, campos);
             campos.forEach((campo, i) => escribirInput(inputs[i], resultado[campo]));
             resaltarInputs(inputs);
 
@@ -1431,6 +1509,7 @@
         instalarBotones();
         instalarListenerFecha();
         instalarControlAuto();
+        restaurarResultadosVisibles();
     }
 
     iniciarAutoLoterias();
@@ -1468,6 +1547,7 @@
         reinyeccionTimer = setTimeout(() => {
             reinyeccionTimer = null;
             if (necesitaReinyeccion()) iniciar();
+            else restaurarResultadosVisibles();
         }, REINYECCION_DEBOUNCE_MS);
     }
 

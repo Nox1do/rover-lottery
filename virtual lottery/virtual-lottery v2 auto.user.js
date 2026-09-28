@@ -2,7 +2,7 @@
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
 // @version      3.0.0
-// @description  Virtual Lotteries v2: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
+// @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @match        https://www.roversport.lol/adm/es/lottery.php
 // @match        https://www.roversport.net/adm/es/lottery.php

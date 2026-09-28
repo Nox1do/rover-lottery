@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.1
+// @version      3.0.2
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @match        https://www.roversport.lol/adm/es/lottery.php
@@ -114,6 +114,7 @@
             background: #475569; color: white; font-size: 12px; cursor: pointer;
         }
         .rs-auto-mode.rs-emisor { background: #15803d; }
+        .rs-auto-mode option { background: white; color: #1e293b; }
         input.rs-source-filled {
             background-color: rgba(34, 197, 94, .18) !important;
             box-shadow: inset 0 0 0 1px rgba(34, 197, 94, .28) !important;
@@ -541,6 +542,7 @@
     const AUTO_VERIFY_MS = [700, 1200, 2500, 5000, 8000];
     const AUTO_TICK_MS = 20000;
     const AUTO_EMISOR_KEY = 'vl:auto:emisor';
+    const AUTO_MODO_KEY = 'vl:auto:modo';
     const AUTO_PREFIJO = 'vl:auto:v3:';
     const autoEnCurso = new Set();
     const autoCache = new Map();
@@ -564,6 +566,17 @@
         .map(([codigo, config]) => [codigo, {
             ...config, minuto: autoMinuto(AUTO_QUEEN_HORAS[codigo] || config.hora)
         }]));
+
+    function autoModo() {
+        const modo = GM_getValue(AUTO_MODO_KEY, null);
+        if (['OBSERVAR', 'RAPID', 'TODOS'].includes(modo)) return modo;
+        return GM_getValue(AUTO_EMISOR_KEY, false) ? 'TODOS' : 'OBSERVAR';
+    }
+    function autoPuedeEmitir(codigo) {
+        const modo = autoModo();
+        return !!autoConfig[codigo] && (modo === 'TODOS' ||
+            (modo === 'RAPID' && autoConfig[codigo].fuente === 'rapid'));
+    }
 
     function autoAhoraRD() {
         const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
@@ -785,10 +798,10 @@
         }
         // En observación se puede ver y comprobar el resultado sin enviarlo.
         autoReflejar(reloj, codigo, resultado);
-        if (!GM_getValue(AUTO_EMISOR_KEY, false)) {
+        if (!autoPuedeEmitir(codigo)) {
             autoGuardar(reloj, codigo, { estado: 'RESULT_READY', resultado,
                 lastCheckAt: Date.now(),
-                motivo: 'Observación: activar un solo emisor para procesar.' });
+                motivo: 'Observación: esta fuente no tiene emisión activada.' });
             return;
         }
         if (!navigator.locks?.request) {
@@ -820,7 +833,7 @@
                     resultado, motivo: 'Rover cambió antes del envío.' });
                 return;
             }
-            if (!GM_getValue(AUTO_EMISOR_KEY, false)) return;
+            if (!autoPuedeEmitir(codigo)) return;
             if (autoAhoraRD().fechaIso !== reloj.fechaIso) return;
             // Persistir antes del POST: ante cierre/timeout, recuperar leyendo Rover.
             autoGuardar(reloj, codigo, { estado: 'PROCESSING', resultado, processSentAt: Date.now() });
@@ -855,7 +868,7 @@
             if (estado.estado === 'ERROR' &&
                 transcurridos < Number(estado.nextAttemptMin ?? 1)) return;
             if (!autoProximoChequeo(estado, Date.now()) &&
-                !GM_getValue(AUTO_EMISOR_KEY, false)) return;
+                !autoPuedeEmitir(codigo)) return;
             if (autoDebeSoloVerificar(estado.estado)) {
                 await autoRecuperar(reloj, codigo, estado);
                 return;
@@ -909,7 +922,7 @@
     }
     function iniciarAutoLoterias() {
         console.log('[AUTO LOTERÍAS] 25 sorteos; EXTRA manual. Modo:',
-            GM_getValue(AUTO_EMISOR_KEY, false) ? 'emisor' : 'observación');
+            autoModo());
         autoResumen(autoAhoraRD());
         autoTick();
         setInterval(autoTick, AUTO_TICK_MS);
@@ -918,25 +931,29 @@
     function instalarControlAuto() {
         const fecha = document.querySelector('#fecha');
         if (!fecha || document.querySelector('.rs-auto-mode')) return;
-        const boton = document.createElement('button');
-        boton.type = 'button';
-        boton.className = 'rs-auto-mode';
-        const pintar = () => {
-            const emisor = GM_getValue(AUTO_EMISOR_KEY, false);
-            boton.textContent = emisor ? 'AUTO: EMISOR' : 'AUTO: OBSERVAR';
-            boton.classList.toggle('rs-emisor', emisor);
-            boton.title = emisor
-                ? 'Este navegador procesa. Mantén los otros puestos en observación.'
-                : 'Consulta sin enviar. Activa solo un emisor entre los tres puestos.';
-        };
-        boton.addEventListener('click', event => {
-            event.preventDefault();
-            GM_setValue(AUTO_EMISOR_KEY, !GM_getValue(AUTO_EMISOR_KEY, false));
-            pintar();
+        const selector = document.createElement('select');
+        selector.className = 'rs-auto-mode';
+        for (const [valor, texto] of [
+            ['OBSERVAR', 'AUTO: OBSERVAR'],
+            ['RAPID', 'AUTO: RAPID'],
+            ['TODOS', 'AUTO: TODOS']
+        ]) {
+            const opcion = document.createElement('option');
+            opcion.value = valor;
+            opcion.textContent = texto;
+            selector.appendChild(opcion);
+        }
+        selector.value = autoModo();
+        selector.classList.toggle('rs-emisor', selector.value !== 'OBSERVAR');
+        selector.title = 'Activa solo un puesto emisor entre los tres usuarios.';
+        selector.addEventListener('change', () => {
+            GM_setValue(AUTO_MODO_KEY, selector.value);
+            GM_setValue(AUTO_EMISOR_KEY, selector.value === 'TODOS');
+            selector.classList.toggle('rs-emisor', selector.value !== 'OBSERVAR');
+            console.log('[AUTO LOTERÍAS] Modo:', selector.value);
             autoTick();
         });
-        fecha.insertAdjacentElement('afterend', boton);
-        pintar();
+        fecha.insertAdjacentElement('afterend', selector);
     }
 
 

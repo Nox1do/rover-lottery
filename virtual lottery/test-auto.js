@@ -10,7 +10,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null) {
     let beforeLock = () => {};
     const source = fs.readFileSync('virtual-lottery-v2-auto.user.js', 'utf8')
         .replace('const AUTO_BRAZIL_ENABLED = true;', 'const AUTO_BRAZIL_ENABLED = false;')
-        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoProximoChequeo, autoMinuto, autoUnico, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, parseRapid, LOTERIAS };\n})();');
+        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoProximoChequeo, autoMinuto, autoUnico, autoModo, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, parseRapid, LOTERIAS };\n})();');
     const result = { primera:'00', segunda:'05', tercera:'99', pick3:'007', pick4:'0001' };
     const inputs = Object.fromEntries(Object.keys(result).map(c => [c, {
         value: rowValues ? rowValues[c] : result[c],
@@ -42,7 +42,10 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null) {
         Event: class { constructor(type) { this.type = type; } },
         DOMParser: class { parseFromString() { return parsed; } },
         fetch: async (url) => { calls.push(url);
-            if (url.includes('procesarResultados.php')) processed = true;
+            if (url.includes('procesarResultados.php')) {
+                processed = true;
+                Object.keys(result).forEach(c => { inputs[c].value = result[c]; });
+            }
             return { ok: true, text: async () => '<table></table>' };
         },
         navigator: { locks: { request: async (_key, fn) => { beforeLock(); return fn(); } } },
@@ -89,6 +92,11 @@ assert.equal(rapidHoy.hora, '11:00 AM');
 assert.equal(rapidHoy.pick3, '063');
 assert.equal(rapidHoy.pick4, '6487');
 assert.equal(core.autoResultadoValido(rapidHoy), true);
+const politica = load();
+politica.values.set('vl:auto:modo', 'RAPID');
+assert.equal(politica.autoPuedeEmitir('RPL-11AM'), true);
+assert.equal(politica.autoPuedeEmitir('BRAZIL12PM'), false);
+assert.equal(politica.autoPuedeEmitir('EXTRA'), false);
 const reloj = { fechaUs:'09/28/2026', fechaIso:'2026-09-28', minutoDia:20*60 };
 const consola = load();
 consola.autoResumen(reloj);
@@ -134,6 +142,23 @@ assert.equal(rapid.values.get('vl:auto:v3:2026-09-28:RPL-11AM').estado, 'RESULT_
 assert.equal(rapid.inputs.primera.value, '00');
 assert.equal(rapid.inputs.pick4.value, '0001');
 assert.equal(rapid.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
-console.log('Motor: Rapid, observación, estados y recuperación sin segundo POST OK');
+const rapidEmisor = load(false, 'RPL-11AM', {
+    primera:'', segunda:'', tercera:'', pick3:'', pick4:''
+});
+rapidEmisor.values.set('vl:auto:modo', 'RAPID');
+rapidEmisor.values.set('vl:auto:v3:2026-09-28:RPL-11AM', {
+    estado:'RESULT_READY', resultado
+});
+await rapidEmisor.autoEvaluar(reloj, 'RPL-11AM');
+assert.equal(rapidEmisor.calls.filter(url => url.includes('procesarResultados.php')).length, 1);
+assert.equal(rapidEmisor.values.get('vl:auto:v3:2026-09-28:RPL-11AM').estado, 'DONE');
+const otro = load(false);
+otro.values.set('vl:auto:modo', 'RAPID');
+otro.values.set('vl:auto:v3:2026-09-28:BRAZIL12PM', {
+    estado:'RESULT_READY', resultado
+});
+await otro.autoEvaluar(reloj, 'BRAZIL12PM');
+assert.equal(otro.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
+console.log('Motor: Rapid automático, otras fuentes en observación y recuperación segura OK');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

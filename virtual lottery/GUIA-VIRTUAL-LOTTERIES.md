@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.0.5 — guía breve
+# Virtual Lotteries v3.0.6 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -28,3 +28,8 @@ La automatización solo usa la fecha actual de República Dominicana. Cambiar la
 Si un sorteo queda en `CONFLICT`, el motor vuelve a consultar tanto la fuente como Rover cada ~20 segundos. Esto evita que un resultado antiguo guardado mantenga un conflicto falso cuando la fuente ya cambió o fue corregida. Cuando Rover procesado coincide con la fuente actual, cambia automáticamente a `DONE` sin repetir el POST. Cuando Rover quede procesado con los cinco valores exactos de la fuente, el estado cambia automáticamente a `DONE` sin repetir el POST.\n\nLos detalles de cada sorteo se consultan en `console.table` y en el almacenamiento de Tampermonkey bajo `vl:auto:v3:AAAA-MM-DD:CÓDIGO`. No borres un estado `PROCESSING`, `VERIFYING` o `PROCESS_UNCERTAIN` para forzar otro envío: verifica primero la fila de Rover.
 
 **Límite:** los navegadores de tres operadores no comparten un bloqueo atómico. Por eso solo uno debe ser emisor; esta versión no puede impedir por sí sola una carrera con un procesamiento manual simultáneo en otro equipo. Antes de habilitar los tres puestos como emisores se necesita una garantía del lado del servidor.
+
+
+## Mensajes DONE
+
+Cuando un resultado fue enviado por el motor y posteriormente confirmado en Rover, el estado `DONE` muestra `Procesado y verificado en Rover.` en vez de un motivo vacío. Los estados DONE históricos sin motivo también usan este texto como fallback visual.

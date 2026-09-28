@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.5
+// @version      3.0.6
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @match        https://www.roversport.lol/adm/es/lottery.php
@@ -610,6 +610,13 @@
             estado: 'WAITING_TIME', resultado: null, nextAttemptMin: 1
         };
     }
+    function autoMotivoVisible(estado) {
+        const motivo = String(estado?.motivo ?? '').trim();
+        if (motivo) return motivo;
+        if (estado?.estado === 'DONE') return 'Procesado y verificado en Rover.';
+        return '';
+    }
+
     function autoGuardar(reloj, codigo, patch) {
         const anterior = autoEstado(reloj, codigo);
         const next = { ...anterior, ...patch,
@@ -619,7 +626,7 @@
             ['WAITING_RESULT', 'RESULT_READY', 'DONE', 'CONFLICT', 'DUPLICATE',
                 'PROCESS_UNCERTAIN', 'ERROR'].includes(next.estado)) {
             console.table([{ Loteria: codigo, Fecha: reloj.fechaUs,
-                Fuente: nombreFuente(next.fuente), Estado: next.estado, Motivo: next.motivo || '' }]);
+                Fuente: nombreFuente(next.fuente), Estado: next.estado, Motivo: autoMotivoVisible(next) }]);
         }
         return next;
     }
@@ -775,7 +782,10 @@
         const verificado = await autoVerificar(reloj, codigo, estado.resultado, [0]);
         autoGuardar(reloj, codigo, { ...verificado, lastVerifyAt: Date.now(),
             motivo: verificado.estado === 'PROCESS_UNCERTAIN'
-                ? 'Envío anterior no confirmado; no se repetirá automáticamente.' : '' });
+                ? 'Envío anterior no confirmado; no se repetirá automáticamente.'
+                : verificado.estado === 'DONE'
+                    ? 'Procesado y verificado en Rover.'
+                    : '' });
         if (verificado.estado === 'DONE') autoReflejar(reloj, codigo, estado.resultado);
     }
 
@@ -894,7 +904,10 @@
                 const verificado = await autoVerificar(reloj, codigo, resultado);
                 autoGuardar(reloj, codigo, { ...verificado,
                     lastVerifyAt: Date.now(), motivo: verificado.estado === 'PROCESS_UNCERTAIN'
-                        ? 'POST no confirmado; no se repetirá automáticamente.' : '' });
+                        ? 'POST no confirmado; no se repetirá automáticamente.'
+                        : verificado.estado === 'DONE'
+                            ? 'Procesado y verificado en Rover.'
+                            : '' });
                 if (verificado.estado === 'DONE') autoReflejar(reloj, codigo, resultado);
             } catch (error) {
                 autoGuardar(reloj, codigo, { estado: 'PROCESS_UNCERTAIN', resultado,
@@ -965,7 +978,7 @@
                 const estado = autoEstado(reloj, codigo);
                 return { Loteria: codigo, Fecha: reloj.fechaUs,
                     Fuente: nombreFuente(config.fuente), Estado: estado.estado,
-                    Motivo: estado.motivo || '' };
+                    Motivo: autoMotivoVisible(estado) };
             });
         if (activos.length) console.table(activos);
     }

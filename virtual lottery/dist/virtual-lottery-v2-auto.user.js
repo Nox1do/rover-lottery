@@ -1,3 +1,298 @@
+// ==UserScript==
+// @name         Virtual Lotteries v2 Auto
+// @namespace    noeg
+// @version      2.1.0
+// @description  Virtual Lotteries v2: modo manual + Brazil/QPlay automático modular, configuración persistente y procesamiento/verificación en segundo plano.
+// @author       noeg
+// @match        https://www.roversport.lol/adm/es/lottery.php
+// @match        https://www.roversport.net/adm/es/lottery.php
+// @match        https://www.lotterypost.com/results/qc/extra/past*
+// @grant        GM_openInTab
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_removeValueChangeListener
+// @grant        GM_xmlhttpRequest
+// @connect      www.nationjl.com
+// @connect      rapidlottery.app
+// @connect      api.lotocentral.net
+// @connect      qplay777.net
+// @connect      www.thequeenlottery.com
+// @run-at       document-idle
+// ==/UserScript==
+
+(function (VL) {
+  'use strict';
+  const draw = (label, time, extra={}) => ({ label, time, enabledByDefault:true, ...extra });
+  const LOTTERY_REGISTRY = Object.freeze({
+    extra: {
+      name:'EXTRA', source:'extra', automationSupported:false, enabledByDefault:false,
+      draws:{ EXTRA: draw('EXTRA', null, { roverCode:'EXTRA', hora:'Diario' }) }
+    },
+    winner: {
+      name:'Winner', source:'nationjl', automationSupported:false, enabledByDefault:false,
+      draws:{
+        'WIN-10-00PM':draw('10:00 PM','22:00',{roverCode:'WIN-10-00PM',hora:'10:00 PM'}),
+        'WIN-7-30PM':draw('7:30 PM','19:30',{roverCode:'WIN-7-30PM',hora:'07:30 PM'}),
+        'WIN-5-30PM':draw('5:30 PM','17:30',{roverCode:'WIN-5-30PM',hora:'05:30 PM'}),
+        'WIN-1-00PM':draw('1:00 PM','13:00',{roverCode:'WIN-1-00PM',hora:'01:00 PM'}),
+        'WIN-11-00AM':draw('11:00 AM','11:00',{roverCode:'WIN-11-00AM',hora:'11:00 AM'}),
+        'WIN-9-30AM':draw('9:30 AM','09:30',{roverCode:'WIN-9-30AM',hora:'09:30 AM'})
+      }
+    },
+    rapid: {
+      name:'Rapid', source:'rapid', automationSupported:false, enabledByDefault:false,
+      draws:{
+        'RPL-11AM':draw('11:00 AM','11:00',{roverCode:'RPL-11AM',hora:'11:00 AM',hora24:'11:00'}),
+        'RPL-1PM':draw('1:00 PM','13:00',{roverCode:'RPL-1PM',hora:'01:00 PM',hora24:'13:00'}),
+        'RPL-3PM':draw('3:00 PM','15:00',{roverCode:'RPL-3PM',hora:'03:00 PM',hora24:'15:00'}),
+        'RPL-5PM':draw('5:00 PM','17:00',{roverCode:'RPL-5PM',hora:'05:00 PM',hora24:'17:00'}),
+        'RPL-7PM':draw('7:00 PM','19:00',{roverCode:'RPL-7PM',hora:'07:00 PM',hora24:'19:00'}),
+        'RPL-9PM':draw('9:00 PM','21:00',{roverCode:'RPL-9PM',hora:'09:00 PM',hora24:'21:00'})
+      }
+    },
+    premier: {
+      name:'Premier', source:'premier', automationSupported:false, enabledByDefault:false,
+      draws:{
+        PREMIER12PM:draw('12:00 PM','12:00',{roverCode:'PREMIER12PM',hora:'12:00 PM',premierKey:'12PM'}),
+        PREMIER03PM:draw('3:00 PM','15:00',{roverCode:'PREMIER03PM',hora:'03:00 PM',premierKey:'3PM'}),
+        PREMIER07PM:draw('7:00 PM','19:00',{roverCode:'PREMIER07PM',hora:'07:00 PM',premierKey:'7PM'}),
+        PREMIER08PM:draw('8:00 PM','20:00',{roverCode:'PREMIER08PM',hora:'08:00 PM',premierKey:'8PM'})
+      }
+    },
+    brazil: {
+      name:'Brazil', source:'qplay', automationSupported:true, enabledByDefault:true,
+      retryPolicy:{ offsets:[1,3,5,8,12,20,30,45,60,90,120], afterLast:30 },
+      draws:{
+        BRAZIL12PM:draw('12:00 PM','12:00',{roverCode:'BRAZIL12PM',hora:'12:00 PM'}),
+        BRAZIL03PM:draw('3:00 PM','15:00',{roverCode:'BRAZIL03PM',hora:'03:00 PM'}),
+        BRAZIL07PM:draw('7:00 PM','19:00',{roverCode:'BRAZIL07PM',hora:'07:00 PM'}),
+        BRAZIL08PM:draw('8:00 PM','20:00',{roverCode:'BRAZIL08PM',hora:'08:00 PM'})
+      }
+    },
+    queen: {
+      name:'Queen', source:'queen', automationSupported:false, enabledByDefault:false,
+      draws:{
+        'QLT-MORNING':draw('Morning',null,{roverCode:'QLT-MORNING',hora:'Morning',queenKey:'QL MORNING'}),
+        'QLT-MIDDAY':draw('Midday',null,{roverCode:'QLT-MIDDAY',hora:'Midday',queenKey:'QL MIDDAY'}),
+        'QLT-AFTN':draw('Afternoon',null,{roverCode:'QLT-AFTN',hora:'Afternoon',queenKey:'QL AFTERNOON'}),
+        'QLT-EVENING':draw('Evening',null,{roverCode:'QLT-EVENING',hora:'Evening',queenKey:'QL EVENING'}),
+        'QLT-NIGHT':draw('Night',null,{roverCode:'QLT-NIGHT',hora:'Night',queenKey:'QL NIGHT'})
+      }
+    }
+  });
+  const hasOwn = (obj,key) => !!obj && Object.prototype.hasOwnProperty.call(obj,key);
+  function getDrawByCode(code) {
+    if (typeof code !== 'string') return null;
+    for (const lotteryId of Object.keys(LOTTERY_REGISTRY)) {
+      const lottery = LOTTERY_REGISTRY[lotteryId];
+      if (hasOwn(lottery.draws, code)) return { lotteryId, lottery, draw: lottery.draws[code] };
+    }
+    return null;
+  }
+  Object.assign(VL,{LOTTERY_REGISTRY,getDrawByCode,hasOwn});
+})(globalThis.__VL__ ||= {});
+
+
+(function (VL) {
+  'use strict';
+  function createGMStorage(api=globalThis) {
+    return {
+      get(key,fallback){ try { const value=api.GM_getValue(key,fallback); return value === undefined ? fallback : value; } catch { return fallback; } },
+      set(key,value){ return api.GM_setValue(key,value); },
+      delete(key){ return api.GM_deleteValue(key); }
+    };
+  }
+  VL.createGMStorage=createGMStorage;
+})(globalThis.__VL__ ||= {});
+
+
+(function (VL) {
+  'use strict';
+  const SETTINGS_KEY='vl:auto:settings';
+  const hasOwn=(obj,key)=>!!obj && Object.prototype.hasOwnProperty.call(obj,key);
+  const validTime = v => typeof v==='string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v);
+  const validPolicy = p => !!p && Array.isArray(p.offsets) && p.offsets.length>0 && p.offsets.every(Number.isInteger) && p.offsets.every(n=>n>0) && p.offsets.every((n,i,a)=>i===0||n>a[i-1]) && Number.isInteger(p.afterLast) && p.afterLast>0;
+  const clone = v => structuredClone(v);
+
+  function createDefaultSettings(registry) {
+    const lotteries={};
+    for (const lotteryId of Object.keys(registry)) {
+      const lottery=registry[lotteryId];
+      const draws={};
+      for (const code of Object.keys(lottery.draws)) {
+        const d=lottery.draws[code];
+        draws[code]={enabled: lottery.automationSupported ? d.enabledByDefault !== false : false, ...(d.time ? {time:d.time}:{})};
+      }
+      lotteries[lotteryId]={
+        enabled: lottery.automationSupported ? lottery.enabledByDefault !== false : false,
+        draws,
+        ...(lottery.retryPolicy ? {retryPolicy:clone(lottery.retryPolicy)}:{})
+      };
+    }
+    return {masterEnabled:true,lotteries};
+  }
+
+  function mergeSettings(raw, defaults, registry) {
+    const out=clone(defaults);
+    if (!raw || typeof raw!=='object' || Array.isArray(raw)) return out;
+    if (typeof raw.masterEnabled==='boolean') out.masterEnabled=raw.masterEnabled;
+    if (!raw.lotteries || typeof raw.lotteries!=='object' || Array.isArray(raw.lotteries)) return out;
+    for (const lotteryId of Object.keys(registry)) {
+      if (!hasOwn(raw.lotteries,lotteryId)) continue;
+      const src=raw.lotteries[lotteryId];
+      if (!src || typeof src!=='object' || Array.isArray(src)) continue;
+      if (typeof src.enabled==='boolean') out.lotteries[lotteryId].enabled=src.enabled;
+      if (validPolicy(src.retryPolicy)) out.lotteries[lotteryId].retryPolicy=clone(src.retryPolicy);
+      if (src.draws && typeof src.draws==='object' && !Array.isArray(src.draws)) {
+        for (const code of Object.keys(registry[lotteryId].draws)) {
+          if (!hasOwn(src.draws,code)) continue;
+          const d=src.draws[code];
+          if (!d || typeof d!=='object' || Array.isArray(d)) continue;
+          if (typeof d.enabled==='boolean') out.lotteries[lotteryId].draws[code].enabled=d.enabled;
+          if (hasOwn(out.lotteries[lotteryId].draws[code],'time') && validTime(d.time)) out.lotteries[lotteryId].draws[code].time=d.time;
+          if (validPolicy(d.retryPolicy)) out.lotteries[lotteryId].draws[code].retryPolicy=clone(d.retryPolicy);
+        }
+      }
+    }
+    return out;
+  }
+
+  function createSettingsStore(storage, registry) {
+    let cache=null;
+    const defaults=createDefaultSettings(registry);
+    function load(){ cache=mergeSettings(storage.get(SETTINGS_KEY,null),defaults,registry); return clone(cache); }
+    function save(settings){ cache=mergeSettings(settings,defaults,registry); storage.set(SETTINGS_KEY,cache); return clone(cache); }
+    function update(mutator){ const next=load(); mutator(next); return save(next); }
+    function resolve(lotteryId,drawCode){
+      if (!hasOwn(registry,lotteryId)) return null;
+      const lottery=registry[lotteryId];
+      if (!hasOwn(lottery.draws,drawCode)) return null;
+      const settings=load();
+      const ls=settings.lotteries[lotteryId];
+      const ds=ls.draws[drawCode];
+      const policy=ds.retryPolicy || ls.retryPolicy || lottery.retryPolicy || null;
+      return {masterEnabled:settings.masterEnabled,lotteryEnabled:ls.enabled,drawEnabled:ds.enabled,effectiveEnabled:!!(settings.masterEnabled&&lottery.automationSupported&&ls.enabled&&ds.enabled),time:ds.time||lottery.draws[drawCode].time||null,retryPolicy:policy?clone(policy):null,lottery,draw:lottery.draws[drawCode]};
+    }
+    return {load,save,update,resolve,defaults:()=>clone(defaults)};
+  }
+  Object.assign(VL,{SETTINGS_KEY,createDefaultSettings,createSettingsStore,mergeSettings,validTime,validPolicy});
+})(globalThis.__VL__ ||= {});
+
+
+(function (VL) {
+  'use strict';
+  const INDEX_KEY='vl:auto:state:index';
+  const ALLOWED=['state','result','sourceSeenAt','processSentAt','verifiedAt','lastAttemptElapsedMin','lastError','updatedAt'];
+  const key=(dateIso,drawCode)=>`vl:auto:state:${dateIso}:${drawCode}`;
+  const parseDate=s=>new Date(`${s}T00:00:00Z`);
+  function createStateStore(storage,{retentionDays=7,now=()=>Date.now()}={}){
+    function get(dateIso,drawCode){ return storage.get(key(dateIso,drawCode),null); }
+    function sanitize(patch){ const out={}; for(const k of ALLOWED) if(Object.prototype.hasOwnProperty.call(patch||{},k)) out[k]=structuredClone(patch[k]); return out; }
+    function addIndex(k){ const idx=storage.get(INDEX_KEY,[]); if(!idx.includes(k)){idx.push(k);storage.set(INDEX_KEY,idx);} }
+    function patch(dateIso,drawCode,changes){ const k=key(dateIso,drawCode); const current=get(dateIso,drawCode)||{state:'WAITING_TIME'}; const next={...current,...sanitize(changes),updatedAt:now()}; storage.set(k,next); addIndex(k); return structuredClone(next); }
+    function remove(dateIso,drawCode){ const k=key(dateIso,drawCode); storage.delete(k); storage.set(INDEX_KEY,storage.get(INDEX_KEY,[]).filter(x=>x!==k)); }
+    function gc(todayIso){
+      const today=parseDate(todayIso); if(!Number.isFinite(today.getTime())) return;
+      const min=new Date(today); min.setUTCDate(min.getUTCDate()-retentionDays);
+      const kept=[];
+      for(const k of storage.get(INDEX_KEY,[])){
+        const m=k.match(/^vl:auto:state:(\d{4}-\d{2}-\d{2}):/); if(!m){continue;}
+        const d=parseDate(m[1]);
+        if(d>=min && d<=today) kept.push(k); else storage.delete(k);
+      }
+      storage.set(INDEX_KEY,kept);
+    }
+    function migrateLegacyBrazil(todayIso,brazilDrawCodes){
+      const today=parseDate(todayIso); if(!Number.isFinite(today.getTime())) return;
+      for(let i=0;i<=retentionDays;i++){
+        const d=new Date(today); d.setUTCDate(d.getUTCDate()-i); const dateIso=d.toISOString().slice(0,10);
+        for(const code of brazilDrawCodes){
+          const oldKey=`vl:auto:brazil:${dateIso}:${code}`; const old=storage.get(oldKey,null); if(!old) continue;
+          if(!get(dateIso,code)) patch(dateIso,code,{
+            state:old.estado||old.state||'WAITING_TIME', result:old.resultado||old.result||null,
+            sourceSeenAt:old.sourceSeenAt??old.foundAt??0, processSentAt:old.processSentAt??0,
+            verifiedAt:old.verifiedAt??0, lastAttemptElapsedMin:old.lastAttemptElapsedMin,
+            lastError:old.lastError||old.motivo||''
+          });
+          storage.delete(oldKey);
+        }
+      }
+    }
+    return {get,patch,remove,gc,migrateLegacyBrazil,key};
+  }
+  Object.assign(VL,{STATE_INDEX_KEY:INDEX_KEY,createStateStore});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ function parseTimeToMinute(time){ if(typeof time!=='string'||!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) return NaN; const [h,m]=time.split(':').map(Number); return h*60+m; }
+ function nextRetryOffset(elapsedMinutes,policy){ const offsets=policy?.offsets||[]; const next=offsets.find(n=>n>elapsedMinutes); return next ?? (elapsedMinutes+(policy?.afterLast||30)); }
+ function resolveRetryPolicy(settings,registry,lotteryId,drawCode){ const ls=settings?.lotteries?.[lotteryId]; const ds=ls?.draws?.[drawCode]; return structuredClone(ds?.retryPolicy||ls?.retryPolicy||registry?.[lotteryId]?.retryPolicy||{offsets:[1],afterLast:30}); }
+ Object.assign(VL,{parseTimeToMinute,nextRetryOffset,resolveRetryPolicy});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ function createRDClock(now=new Date()){
+   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(now).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
+   return {dateUs:`${parts.month}/${parts.day}/${parts.year}`,dateIso:`${parts.year}-${parts.month}-${parts.day}`,minuteOfDay:Number(parts.hour)*60+Number(parts.minute),second:Number(parts.second)};
+ }
+ function shouldAttemptDraw({clock,drawTime,state={},policy}){
+   if(!clock||!clock.dateIso) return false;
+   if(state.dateIso && state.dateIso!==clock.dateIso) return false;
+   if(['DONE','CONFLICT','DUPLICATE','PROCESS_UNCERTAIN'].includes(state.state)) return false;
+   const drawMin=VL.parseTimeToMinute(drawTime); if(!Number.isFinite(drawMin)) return false;
+   const elapsed=clock.minuteOfDay-drawMin; if(elapsed<0) return false;
+   const first=policy?.offsets?.[0] ?? 1; if(elapsed<first) return false;
+   if(!Number.isFinite(state.lastAttemptElapsedMin)) return true;
+   return elapsed>=VL.nextRetryOffset(state.lastAttemptElapsedMin,policy);
+ }
+ Object.assign(VL,{createRDClock,shouldAttemptDraw});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict'; function createLogger(prefix='[AUTO]'){return{log:(...a)=>console.log(prefix,...a),warn:(...a)=>console.warn(prefix,...a),error:(...a)=>console.error(prefix,...a)}}VL.createLogger=createLogger;})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ const FIELDS=['primera','segunda','tercera','pick3','pick4'];
+ function normalizeRoverValue(value){const v=String(value??'').trim().toUpperCase();return v==='---'?'':v}
+ function hasConflict(values,result){return FIELDS.some(f=>{const a=normalizeRoverValue(values?.[f]);const b=normalizeRoverValue(result?.[f]);return a!==''&&a!==b})}
+ function isExactMatch(values,result){return FIELDS.every(f=>normalizeRoverValue(values?.[f])===normalizeRoverValue(result?.[f]))}
+ function findDuplicates(rows,drawCode,result){return (rows||[]).filter(r=>r.code&&r.code!==drawCode&&normalizeRoverValue(r.values.primera)===result.primera&&normalizeRoverValue(r.values.segunda)===result.segunda&&normalizeRoverValue(r.values.tercera)===result.tercera).map(r=>({code:r.code,name:r.name||r.code}))}
+ Object.assign(VL,{ROVER_FIELDS:FIELDS,normalizeRoverValue,hasConflict,isExactMatch,findDuplicates});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ function attr(attrs,name){const m=String(attrs).match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`,'i'));return m?m[1]:''}
+ function strip(html){return String(html||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}
+ function parseRoverRows(html){const rows=[];const re=/<tr\b([^>]*)>([\s\S]*?)<\/tr>/gi;let m;while((m=re.exec(html))){const body=m[2];if(!/\bres_tr\b/i.test(attr(m[1],'class')+' '+body))continue;const inputs={};let rawCode='';const ir=/<input\b([^>]*)>/gi;let im;while((im=ir.exec(body))){const a=im[1],name=attr(a,'name');if(!VL.ROVER_FIELDS.includes(name))continue;inputs[name]=attr(a,'value');if(!rawCode)rawCode=attr(a,'loteria')}if(!rawCode)continue;const nm=body.match(/class\s*=\s*["'][^"']*loteria-nombre[^"']*[#'][^>]*>([\s\S]*?)<\//i);rows.push({rawCode,code:rawCode.trim(),processed:/status-circle[^"']*status-ok|status-ok[^"']*status-circle/i.test(body),values:Object.fromEntries(VL.ROVER_FIELDS.map(f=>[f,inputs[f]??''])),name:nm?strip(nm[1]):rawCode.trim()})}return rows}
+ function createRoverReader({fetchFn=fetch}={}){return{async read({dateUs,drawCode,result=null}){const response=await fetchFn('__inc/verResultados2.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8','X-Requested-With':'XMLHttpRequest'},body:new URLSearchParams({loteria:'',fecha:dateUs}).toString()});if(!response.ok)throw new Error(`Rover HTTP ${response.status} en __inc/verResultados2.php`);const html=await response.text();const rows=parseRoverRows(html);const row=rows.find(r=>r.code===drawCode);if(!row)return{found:false};return{found:true,rawCode:row.rawCode,processed:row.processed,values:row.values,duplicates:result?VL.findDuplicates(rows,drawCode,result):[]}}}}
+ Object.assign(VL,{parseRoverRows,createRoverReader});
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ function createRoverProcessor({fetchFn=fetch}={}){return{async process({dateIso,rawCode,result}){const response=await fetchFn('__inc/procesarResultados.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8','X-Requested-With':'XMLHttpRequest'},body:new URLSearchParams({fecha:dateIso,loteria:rawCode,primera:result.primera,segunda:result.segunda,tercera:result.tercera,pick3:result.pick3,pick4:result.pick4}).toString()});const text=await response.text();if(!response.ok)throw new Error(`Rover HTTP ${response.status} en __inc/procesarResultados.php`);return{httpOk:true,text}}}}
+ VL.createRoverProcessor=createRoverProcessor;
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ async function verifyProcessed({reader,wait=ms=>new Promise(r=>setTimeout(r,ms)),delays=[700,1200,2500,5000,8000],dateUs,drawCode,result}){for(const delay of delays){await wait(delay);const snap=await reader.read({dateUs,drawCode});if(!snap.found)continue;if(snap.processed&&VL.isExactMatch(snap.values,result))return{state:'DONE',snapshot:snap};if((snap.processed&&!VL.isExactMatch(snap.values,result))||VL.hasConflict(snap.values,result))return{state:'CONFLICT',snapshot:snap}}return{state:'PROCESS_UNCERTAIN'}}
+ VL.verifyProcessed=verifyProcessed;
+})(globalThis.__VL__ ||= {});
+
+
+(function(VL){'use strict';
+ function requestText(url,headers={'Cache-Control':'no-cache'}){return new Promise((resolve,reject)=>{GM_xmlhttpRequest({method:'GET',url,headers,timeout:15000,onload:r=>r.status>=200&&r.status<300?resolve(r.responseText??r.response??''):reject(new Error(`HTTP ${r.status} en ${url}`)),onerror:()=>reject(new Error(`Error de red consultando ${url}`)),ontimeout:()=>reject(new Error(`Timeout consultando ${url}`))})})}
+ VL.requestText=requestText;
+})(globalThis.__VL__ ||= {});
+
+
 (function(VL){'use strict'; const URL='https://qplay777.net/';
  function parseFH(t){const m=String(t).trim().match(/^(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{1,2}):(\d{2})(am|pm)$/i);return m?{fecha:m[1],hora:`${String(m[2]).padStart(2,'0')}:${m[3]} ${m[4].toUpperCase()}`}:null}
  function values(srcs){let mode='main';const a=[],b=[],c=[];for(const raw of srcs){const s=String(raw).toLowerCase();if(/\/img\/pick3\.png(?:[?#]|$)/.test(s)){mode='p3';continue}if(/\/img\/pick4\.png(?:[?#]|$)/.test(s)){mode='p4';continue}const m=s.match(/\/img\/balls\/([0-9])\.png(?:[?#]|$)/);if(!m)continue;(mode==='main'?a:mode==='p3'?b:c).push(m[1])}if(a.length<6||b.length<3||c.length<4)return null;return{primera:a.slice(0,2).join(''),segunda:a.slice(2,4).join(''),tercera:a.slice(4,6).join(''),pick3:b.slice(0,3).join(''),pick4:c.slice(0,4).join('')}}
@@ -154,3 +449,4 @@
  const ensure=()=>{manual.installButtons();manual.installDateListener();VL.ensureToolbar({root:document,settingsStore,stateStore,registry:VL.LOTTERY_REGISTRY,onSettingsChanged:()=>engine.onSettingsChanged()})};ensure();engine.start();
  const observer=new MutationObserver(()=>manual.scheduleReinjection(ensure));observer.observe(document.documentElement,{childList:true,subtree:true});
 })(globalThis.__VL__ ||= {});
+

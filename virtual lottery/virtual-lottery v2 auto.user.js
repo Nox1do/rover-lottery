@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.12
-// @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
+// @version      3.1.0
+// @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
 // @source       https://github.com/Nox1do/rover-lottery/blob/main/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
@@ -29,8 +29,8 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.0.12';
-    console.info(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · UI reactiva validada`);
+    const SCRIPT_VERSION = '3.1.0';
+    console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
     const RAPID_URL = 'https://rapidlottery.app/api/res.php';
@@ -90,6 +90,7 @@
     const ICON_SEARCH = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>`;
     const ICON_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 12 4 4L19 6"></path></svg>`;
     const ICON_X = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12"></path><path d="M18 6 6 18"></path></svg>`;
+    const ICON_GEAR = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.1 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2.3V9.6h.1A1.7 1.7 0 0 0 4.1 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 8.5 4.1a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2.3h4v.1A1.7 1.7 0 0 0 15 4.1a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 8.5a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1A1.7 1.7 0 0 0 19.4 15Z"></path></svg>`;
 
     const style = document.createElement('style');
     style.textContent = `
@@ -120,12 +121,240 @@
         .rs-source-fetch-btn.rs-searching { background: #64748b; cursor: wait; }
         .rs-source-fetch-btn.rs-success { background: #16a34a; }
         .rs-source-fetch-btn.rs-error { background: #dc2626; }
-        .rs-auto-mode {
-            margin: 6px 0; padding: 4px 8px; border: 0; border-radius: 4px;
-            background: #475569; color: white; font-size: 12px; cursor: pointer;
+        .rs-auto-date-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
         }
-        .rs-auto-mode.rs-emisor { background: #15803d; }
-        .rs-auto-mode option { background: white; color: #1e293b; }
+        .rs-auto-date-row #fecha {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: auto !important;
+        }
+        .rs-auto-settings-btn {
+            flex: 0 0 38px;
+            width: 38px;
+            height: 34px;
+            padding: 0;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            color: #475569;
+            cursor: pointer;
+            transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+        }
+        .rs-auto-settings-btn:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+        .rs-auto-settings-btn.rs-active {
+            background: #15803d;
+            border-color: #15803d;
+            color: #fff;
+        }
+        .rs-auto-settings-btn svg { width: 18px; height: 18px; }
+        .rs-auto-modal-open { overflow: hidden !important; }
+        .rs-auto-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 20000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: rgba(15, 23, 42, .58);
+        }
+        .rs-auto-modal-backdrop[hidden] { display: none !important; }
+        .rs-auto-modal {
+            width: min(760px, 96vw);
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-radius: 10px;
+            background: #fff;
+            color: #1e293b;
+            box-shadow: 0 24px 70px rgba(0,0,0,.28);
+        }
+        .rs-auto-modal-header,
+        .rs-auto-modal-footer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px;
+            border-color: #e2e8f0;
+            border-style: solid;
+        }
+        .rs-auto-modal-header {
+            justify-content: space-between;
+            border-width: 0 0 1px;
+        }
+        .rs-auto-modal-footer {
+            justify-content: flex-end;
+            border-width: 1px 0 0;
+        }
+        .rs-auto-modal-title {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 700;
+        }
+        .rs-auto-modal-close {
+            width: 32px;
+            height: 32px;
+            border: 0;
+            border-radius: 4px;
+            background: transparent;
+            color: #64748b;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .rs-auto-modal-close:hover { background: #f1f5f9; color: #0f172a; }
+        .rs-auto-modal-body {
+            overflow: auto;
+            padding: 16px;
+        }
+        .rs-auto-global-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            border: 1px solid #dbe4ee;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+        .rs-auto-global-card strong { display: block; font-size: 14px; }
+        .rs-auto-global-card small { display: block; margin-top: 2px; color: #64748b; }
+        .rs-auto-toggle {
+            width: 18px;
+            height: 18px;
+            accent-color: #15803d;
+            cursor: pointer;
+        }
+        .rs-auto-settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .rs-auto-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+        }
+        .rs-auto-field select {
+            width: 100%;
+            height: 34px;
+            padding: 4px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background: #fff;
+            color: #1e293b;
+            font-size: 13px;
+        }
+        .rs-auto-note {
+            margin: 0 0 14px;
+            padding: 9px 11px;
+            border-left: 3px solid #d97706;
+            border-radius: 4px;
+            background: #fff7ed;
+            color: #7c2d12;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .rs-auto-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .rs-auto-toolbar-title {
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .rs-auto-toolbar-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .rs-auto-small-btn,
+        .rs-auto-footer-btn {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background: #fff;
+            color: #334155;
+            cursor: pointer;
+        }
+        .rs-auto-small-btn { padding: 4px 8px; font-size: 11px; }
+        .rs-auto-footer-btn { padding: 7px 13px; font-size: 12px; font-weight: 600; }
+        .rs-auto-footer-btn.rs-primary {
+            border-color: #15803d;
+            background: #15803d;
+            color: #fff;
+        }
+        .rs-auto-source-group {
+            margin-bottom: 12px;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        .rs-auto-source-title {
+            margin: 0 0 8px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #334155;
+        }
+        .rs-auto-lottery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+        }
+        .rs-auto-lottery-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            padding: 7px 8px;
+            border-radius: 5px;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+        .rs-auto-lottery-item:hover { background: #f1f5f9; }
+        .rs-auto-lottery-item input {
+            flex: 0 0 auto;
+            accent-color: #15803d;
+        }
+        .rs-auto-lottery-text {
+            min-width: 0;
+            line-height: 1.2;
+        }
+        .rs-auto-lottery-code {
+            display: block;
+            overflow: hidden;
+            color: #1e293b;
+            font-size: 12px;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .rs-auto-lottery-time {
+            display: block;
+            margin-top: 2px;
+            color: #64748b;
+            font-size: 11px;
+        }
+        @media (max-width: 640px) {
+            .rs-auto-settings-grid,
+            .rs-auto-lottery-grid { grid-template-columns: 1fr; }
+        }
         input.rs-source-filled {
             background-color: rgba(34, 197, 94, .18) !important;
             box-shadow: inset 0 0 0 1px rgba(34, 197, 94, .28) !important;
@@ -549,17 +778,19 @@
     // MOTOR AUTOMÁTICO — cinco fuentes; EXTRA continúa manual
     // ============================================================
     const AUTO_CAMPOS = ['primera', 'segunda', 'tercera', 'pick3', 'pick4'];
-    const AUTO_REINTENTOS_MIN = [1, 3, 5, 8, 12, 20, 30, 45, 60, 90, 120];
     const AUTO_VERIFY_MS = [700, 1200, 2500, 5000, 8000];
-    const AUTO_TICK_MS = 20000;
     const AUTO_CONFLICT_RECHECK_MS = 20000;
-    const AUTO_EMISOR_KEY = 'vl:auto:emisor';
-    const AUTO_MODO_KEY = 'vl:auto:modo';
+    const AUTO_EMISOR_KEY = 'vl:auto:emisor'; // solo migración desde <= 3.0.x
+    const AUTO_MODO_KEY = 'vl:auto:modo'; // solo migración desde <= 3.0.x
+    const AUTO_SETTINGS_KEY = 'vl:auto:settings:v1';
+    const AUTO_INTERVALOS_MS = [10000, 15000, 30000, 60000, 120000];
+    const AUTO_MAX_BUSQUEDAS = [0, 3, 5, 10, 15];
     const AUTO_PREFIJO = 'vl:auto:v3:';
     const autoEnCurso = new Set();
     const autoCache = new Map();
     const autoRoverCache = new Map();
     let autoDia = '';
+    let autoSchedulerTimer = null;
 
     function autoMinuto(hora) {
         const m = String(hora).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -579,15 +810,75 @@
             ...config, minuto: autoMinuto(AUTO_QUEEN_HORAS[codigo] || config.hora)
         }]));
 
-    function autoModo() {
+    function autoModoLegacy() {
         const modo = GM_getValue(AUTO_MODO_KEY, null);
         if (['OBSERVAR', 'RAPID', 'TODOS'].includes(modo)) return modo;
         return GM_getValue(AUTO_EMISOR_KEY, false) ? 'TODOS' : 'OBSERVAR';
     }
+
+    function autoConfiguracionPredeterminada() {
+        const modo = autoModoLegacy();
+        const lotteries = Object.fromEntries(Object.keys(autoConfig).map(codigo => [
+            codigo,
+            { enabled: modo === 'TODOS' || (modo === 'RAPID' && autoConfig[codigo].fuente === 'rapid') }
+        ]));
+        return {
+            enabled: modo !== 'OBSERVAR',
+            intervalMs: 30000,
+            maxRetries: 0,
+            lotteries
+        };
+    }
+
+    function autoNormalizarConfiguracion(raw) {
+        const base = autoConfiguracionPredeterminada();
+        if (!raw || typeof raw !== 'object') return base;
+
+        const intervalMs = AUTO_INTERVALOS_MS.includes(Number(raw.intervalMs))
+            ? Number(raw.intervalMs) : base.intervalMs;
+        const maxRetries = AUTO_MAX_BUSQUEDAS.includes(Number(raw.maxRetries))
+            ? Number(raw.maxRetries) : base.maxRetries;
+        const lotteries = Object.fromEntries(Object.keys(autoConfig).map(codigo => {
+            const value = raw.lotteries?.[codigo]?.enabled;
+            return [codigo, { enabled: typeof value === 'boolean' ? value : base.lotteries[codigo].enabled }];
+        }));
+
+        return {
+            enabled: typeof raw.enabled === 'boolean' ? raw.enabled : base.enabled,
+            intervalMs,
+            maxRetries,
+            lotteries
+        };
+    }
+
+    function autoConfiguracion() {
+        const guardada = GM_getValue(AUTO_SETTINGS_KEY, null);
+        if (guardada) return autoNormalizarConfiguracion(guardada);
+
+        const migrada = autoConfiguracionPredeterminada();
+        GM_setValue(AUTO_SETTINGS_KEY, migrada);
+        return migrada;
+    }
+
+    function autoGuardarConfiguracion(config) {
+        const normalizada = autoNormalizarConfiguracion(config);
+        GM_setValue(AUTO_SETTINGS_KEY, normalizada);
+        return normalizada;
+    }
+
     function autoPuedeEmitir(codigo) {
-        const modo = autoModo();
-        return !!autoConfig[codigo] && (modo === 'TODOS' ||
-            (modo === 'RAPID' && autoConfig[codigo].fuente === 'rapid'));
+        const config = autoConfiguracion();
+        return !!config.enabled && !!autoConfig[codigo] &&
+            config.lotteries[codigo]?.enabled === true;
+    }
+
+    function autoIntentosAgotados(estado, config = autoConfiguracion()) {
+        const max = Number(config.maxRetries || 0);
+        return max > 0 && Number(estado?.searchAttempts || 0) >= max;
+    }
+
+    function autoTextoIntento(intentos, max) {
+        return Number(max) > 0 ? `${intentos}/${max}` : `${intentos}/∞`;
     }
 
     function autoAhoraRD() {
@@ -614,7 +905,7 @@
             }
         }
         return {
-            estado: 'WAITING_TIME', resultado: null, nextAttemptMin: 1
+            estado: 'WAITING_TIME', resultado: null, searchAttempts: 0
         };
     }
     function autoMotivoVisible(estado) {
@@ -655,13 +946,6 @@
     }
     function autoIguales(valores, resultado) {
         return AUTO_CAMPOS.every(c => autoNormalizar(valores[c]) === resultado[c]);
-    }
-    function autoSiguienteMinuto(transcurridos) {
-        return AUTO_REINTENTOS_MIN.find(m => m > transcurridos) ?? transcurridos + 30;
-    }
-    function autoProximoChequeo(estado, ahora) {
-        return estado.estado !== 'RESULT_READY' ||
-            ahora - Number(estado.lastCheckAt || 0) >= 120000;
     }
     function autoEsperar(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
     function autoUnico(resultados, coincide) {
@@ -846,6 +1130,18 @@
         if (decision.estado === 'DONE') autoReflejar(reloj, codigo, decision.resultado);
     }
     async function autoProcesar(reloj, codigo, resultado) {
+        // Si AUTO se desactiva mientras una consulta de fuente está en vuelo,
+        // conservar el resultado listo pero no tocar Rover ni la fila visible.
+        if (!autoPuedeEmitir(codigo)) {
+            autoGuardar(reloj, codigo, {
+                estado: 'RESULT_READY',
+                resultado,
+                lastCheckAt: Date.now(),
+                motivo: 'AUTO desactivado antes del envío.'
+            });
+            return;
+        }
+
         const visible = autoVisible(reloj, codigo);
         if (visible && autoConflicto(visible.valores, resultado)) {
             autoGuardar(reloj, codigo, { estado: 'CONFLICT', resultado, motivo: 'Fila visible distinta.' });
@@ -869,14 +1165,7 @@
                 motivo: `Duplicado con ${snap.duplicados.join(', ')}` });
             return;
         }
-        // En observación se puede ver y comprobar el resultado sin enviarlo.
         autoReflejar(reloj, codigo, resultado);
-        if (!autoPuedeEmitir(codigo)) {
-            autoGuardar(reloj, codigo, { estado: 'RESULT_READY', resultado,
-                lastCheckAt: Date.now(),
-                motivo: 'Observación: esta fuente no tiene emisión activada.' });
-            return;
-        }
         if (!navigator.locks?.request) {
             autoGuardar(reloj, codigo, { estado: 'RESULT_READY', resultado,
                 lastCheckAt: Date.now(),
@@ -935,105 +1224,424 @@
     }
     async function autoEvaluar(reloj, codigo) {
         if (autoEnCurso.has(codigo)) return;
+
         const transcurridos = reloj.minutoDia - autoConfig[codigo].minuto;
         if (transcurridos < 1) return;
+
         autoEnCurso.add(codigo);
         try {
             let estado = autoEstado(reloj, codigo);
+
             if (['DONE', 'DUPLICATE'].includes(estado.estado)) return;
-            if (estado.estado === 'CONFLICT') {
-                await autoRevalidarConflicto(reloj, codigo, estado);
-                return;
-            }
-            if (estado.estado === 'ERROR' &&
-                transcurridos < Number(estado.nextAttemptMin ?? 1)) return;
-            if (!autoProximoChequeo(estado, Date.now()) &&
-                !autoPuedeEmitir(codigo)) return;
+
+            // Si hubo un POST previo, terminar su verificación aunque el usuario
+            // haya desactivado AUTO mientras estaba en curso.
             if (autoDebeSoloVerificar(estado.estado)) {
                 await autoRecuperar(reloj, codigo, estado);
                 return;
             }
+
+            if (!autoPuedeEmitir(codigo)) return;
+
+            if (estado.estado === 'CONFLICT') {
+                await autoRevalidarConflicto(reloj, codigo, estado);
+                return;
+            }
+
+            const config = autoConfiguracion();
             let resultado = estado.resultado;
+
             if (!autoResultadoValido(resultado)) {
-                if (transcurridos < Number(estado.nextAttemptMin ?? 1)) return;
-                autoGuardar(reloj, codigo, { estado: 'SEARCHING', lastSearchAt: Date.now() });
-                resultado = await autoFuente(codigo, reloj.fechaUs);
-                if (!autoResultadoValido(resultado)) {
-                    const nextAttemptMin = autoSiguienteMinuto(transcurridos);
-                    autoGuardar(reloj, codigo, { estado: 'WAITING_RESULT', resultado: null,
-                        nextAttemptMin, motivo: 'Fuente pendiente o resultado incompleto.' });
+                if (autoIntentosAgotados(estado, config)) {
+                    const max = Number(config.maxRetries || 0);
+                    const intentos = Number(estado.searchAttempts || 0);
+                    autoGuardar(reloj, codigo, {
+                        estado: 'WAITING_RESULT',
+                        resultado: null,
+                        motivo: `Límite de búsquedas alcanzado (${autoTextoIntento(intentos, max)}).`
+                    });
                     return;
                 }
-                autoGuardar(reloj, codigo, { estado: 'RESULT_READY', resultado, foundAt: Date.now() });
+
+                const searchAttempts = Number(estado.searchAttempts || 0) + 1;
+                autoGuardar(reloj, codigo, {
+                    estado: 'SEARCHING',
+                    searchAttempts,
+                    lastSearchAt: Date.now(),
+                    motivo: ''
+                });
+
+                resultado = await autoFuente(codigo, reloj.fechaUs);
+
+                if (!autoResultadoValido(resultado)) {
+                    autoGuardar(reloj, codigo, {
+                        estado: 'WAITING_RESULT',
+                        resultado: null,
+                        searchAttempts,
+                        motivo: `Fuente pendiente o resultado incompleto. Intento ${autoTextoIntento(
+                            searchAttempts, config.maxRetries
+                        )}.`
+                    });
+                    return;
+                }
+
+                autoGuardar(reloj, codigo, {
+                    estado: 'RESULT_READY',
+                    resultado,
+                    searchAttempts,
+                    foundAt: Date.now(),
+                    motivo: 'Resultado encontrado; validando Rover.'
+                });
             }
+
             await autoProcesar(reloj, codigo, resultado);
         } catch (error) {
             const estado = autoEstado(reloj, codigo);
             if (autoDebeSoloVerificar(estado.estado)) {
-                autoGuardar(reloj, codigo, { estado: 'PROCESS_UNCERTAIN',
-                    resultado: estado.resultado, lastVerifyAt: Date.now(), motivo: error.message });
+                autoGuardar(reloj, codigo, {
+                    estado: 'PROCESS_UNCERTAIN',
+                    resultado: estado.resultado,
+                    lastVerifyAt: Date.now(),
+                    motivo: error.message
+                });
             } else {
-                autoGuardar(reloj, codigo, { estado: 'ERROR', motivo: error.message,
-                    nextAttemptMin: transcurridos + 5 });
+                autoGuardar(reloj, codigo, {
+                    estado: 'ERROR',
+                    motivo: error.message
+                });
             }
             console.error('[AUTO LOTERÍAS]', codigo, error);
-        } finally { autoEnCurso.delete(codigo); }
+        } finally {
+            autoEnCurso.delete(codigo);
+        }
     }
+
     function autoTick() {
         if (!document.querySelector('#fecha')) return;
+
         const reloj = autoAhoraRD();
+        const config = autoConfiguracion();
+
         if (autoDia !== reloj.fechaIso) {
-            autoDia = reloj.fechaIso; autoCache.clear(); autoRoverCache.clear();
+            autoDia = reloj.fechaIso;
+            autoCache.clear();
+            autoRoverCache.clear();
         }
+
         for (const codigo of Object.keys(autoConfig)) {
-            autoEvaluar(reloj, codigo).catch(error => console.error('[AUTO LOTERÍAS]', codigo, error));
+            const estado = autoEstado(reloj, codigo);
+            const recuperar = autoDebeSoloVerificar(estado.estado);
+            const habilitada = config.enabled && config.lotteries[codigo]?.enabled === true;
+            if (!recuperar && !habilitada) continue;
+
+            autoEvaluar(reloj, codigo)
+                .catch(error => console.error('[AUTO LOTERÍAS]', codigo, error));
         }
     }
+
     function autoResumen(reloj) {
+        const config = autoConfiguracion();
         const activos = Object.entries(autoConfig)
-            .filter(([, config]) => reloj.minutoDia >= config.minuto)
-            .map(([codigo, config]) => {
+            .filter(([codigo, item]) =>
+                config.enabled &&
+                config.lotteries[codigo]?.enabled === true &&
+                reloj.minutoDia >= item.minuto
+            )
+            .map(([codigo, item]) => {
                 const estado = autoEstado(reloj, codigo);
-                return { Loteria: codigo, Fecha: reloj.fechaUs,
-                    Fuente: nombreFuente(config.fuente), Estado: estado.estado,
-                    Motivo: autoMotivoVisible(estado) };
+                return {
+                    Loteria: codigo,
+                    Fecha: reloj.fechaUs,
+                    Fuente: nombreFuente(item.fuente),
+                    Estado: estado.estado,
+                    Motivo: autoMotivoVisible(estado)
+                };
             });
+
         if (activos.length) console.table(activos);
     }
+
+    function autoDetenerScheduler() {
+        if (autoSchedulerTimer !== null) {
+            clearTimeout(autoSchedulerTimer);
+            autoSchedulerTimer = null;
+        }
+    }
+
+    function autoProgramarSiguiente(delay = null) {
+        autoDetenerScheduler();
+        const config = autoConfiguracion();
+        const espera = delay === null ? config.intervalMs : delay;
+
+        autoSchedulerTimer = setTimeout(() => {
+            autoSchedulerTimer = null;
+            autoTick();
+            autoProgramarSiguiente();
+        }, espera);
+    }
+
+    function autoReiniciarScheduler(inmediato = true) {
+        autoDetenerScheduler();
+        if (inmediato) autoTick();
+        autoProgramarSiguiente();
+    }
+
     function iniciarAutoLoterias() {
-        console.log('[AUTO LOTERÍAS] 25 sorteos; EXTRA manual. Modo:',
-            autoModo());
+        const config = autoConfiguracion();
+        const habilitadas = Object.keys(autoConfig)
+            .filter(codigo => config.lotteries[codigo]?.enabled === true).length;
+
+        console.log(
+            '[AUTO LOTERÍAS]',
+            config.enabled ? 'ACTIVO' : 'OFF',
+            '· habilitadas:', habilitadas,
+            '· intervalo:', `${config.intervalMs / 1000}s`,
+            '· máximo:', config.maxRetries || 'sin límite'
+        );
+
         autoResumen(autoAhoraRD());
-        autoTick();
-        setInterval(autoTick, AUTO_TICK_MS);
+        autoReiniciarScheduler(true);
+    }
+
+    function autoIntervaloTexto(ms) {
+        if (ms === 60000) return '1 minuto';
+        if (ms === 120000) return '2 minutos';
+        return `${ms / 1000} segundos`;
+    }
+
+    function autoMaxTexto(value) {
+        return Number(value) === 0 ? 'Sin límite' : `${value} búsquedas`;
+    }
+
+    function actualizarBotonAuto() {
+        const btn = document.querySelector('.rs-auto-settings-btn');
+        if (!btn) return;
+
+        const config = autoConfiguracion();
+        const activas = Object.keys(autoConfig)
+            .filter(codigo => config.lotteries[codigo]?.enabled === true).length;
+
+        btn.classList.toggle('rs-active', config.enabled);
+        btn.title = config.enabled
+            ? `AUTO activo: ${activas} loterías · cada ${autoIntervaloTexto(config.intervalMs)}`
+            : 'Configuración AUTO · actualmente desactivado';
+        btn.setAttribute('aria-label', btn.title);
+    }
+
+    function asegurarModalAuto() {
+        let backdrop = document.querySelector('.rs-auto-modal-backdrop');
+        if (backdrop) return backdrop;
+        if (!document.body) return null;
+
+        backdrop = document.createElement('div');
+        backdrop.className = 'rs-auto-modal-backdrop';
+        backdrop.hidden = true;
+        backdrop.innerHTML = `
+            <section class="rs-auto-modal" role="dialog" aria-modal="true" aria-labelledby="rs-auto-modal-title">
+                <div class="rs-auto-modal-header">
+                    <h3 class="rs-auto-modal-title" id="rs-auto-modal-title">Configuración AUTO</h3>
+                    <button type="button" class="rs-auto-modal-close" aria-label="Cerrar">&times;</button>
+                </div>
+                <div class="rs-auto-modal-body">
+                    <div class="rs-auto-global-card">
+                        <div>
+                            <strong>Automatización global</strong>
+                            <small>Activa únicamente las loterías seleccionadas debajo.</small>
+                        </div>
+                        <input type="checkbox" class="rs-auto-global-enabled rs-auto-toggle" aria-label="Activar automatización global">
+                    </div>
+                    <div class="rs-auto-settings-grid">
+                        <div class="rs-auto-field">
+                            <label>Buscar resultado cada</label>
+                            <select class="rs-auto-interval"></select>
+                        </div>
+                        <div class="rs-auto-field">
+                            <label>Máximo de búsquedas por sorteo</label>
+                            <select class="rs-auto-max-retries"></select>
+                        </div>
+                    </div>
+                    <p class="rs-auto-note">
+                        Esta configuración se guarda en esta PC/navegador. Evita activar la misma lotería
+                        como emisora automática en más de una PC al mismo tiempo. EXTRA continúa manual.
+                    </p>
+                    <div class="rs-auto-toolbar">
+                        <span class="rs-auto-toolbar-title">Loterías automáticas</span>
+                        <div class="rs-auto-toolbar-actions">
+                            <button type="button" class="rs-auto-small-btn rs-auto-select-all">Todas</button>
+                            <button type="button" class="rs-auto-small-btn rs-auto-select-none">Ninguna</button>
+                        </div>
+                    </div>
+                    <div class="rs-auto-lottery-groups"></div>
+                </div>
+                <div class="rs-auto-modal-footer">
+                    <button type="button" class="rs-auto-footer-btn rs-auto-cancel">Cancelar</button>
+                    <button type="button" class="rs-auto-footer-btn rs-primary rs-auto-save">Guardar</button>
+                </div>
+            </section>
+        `;
+
+        const intervalSelect = backdrop.querySelector('.rs-auto-interval');
+        for (const ms of AUTO_INTERVALOS_MS) {
+            const option = document.createElement('option');
+            option.value = String(ms);
+            option.textContent = autoIntervaloTexto(ms);
+            intervalSelect.appendChild(option);
+        }
+
+        const maxSelect = backdrop.querySelector('.rs-auto-max-retries');
+        for (const max of AUTO_MAX_BUSQUEDAS) {
+            const option = document.createElement('option');
+            option.value = String(max);
+            option.textContent = autoMaxTexto(max);
+            maxSelect.appendChild(option);
+        }
+
+        const groupsRoot = backdrop.querySelector('.rs-auto-lottery-groups');
+        const fuentes = [...new Set(Object.values(autoConfig).map(item => item.fuente))];
+        for (const fuente of fuentes) {
+            const group = document.createElement('section');
+            group.className = 'rs-auto-source-group';
+
+            const title = document.createElement('h4');
+            title.className = 'rs-auto-source-title';
+            title.textContent = nombreFuente(fuente);
+            group.appendChild(title);
+
+            const grid = document.createElement('div');
+            grid.className = 'rs-auto-lottery-grid';
+
+            for (const [codigo, item] of Object.entries(autoConfig).filter(([, x]) => x.fuente === fuente)) {
+                const label = document.createElement('label');
+                label.className = 'rs-auto-lottery-item';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'rs-auto-lottery-check';
+                checkbox.dataset.codigo = codigo;
+
+                const text = document.createElement('span');
+                text.className = 'rs-auto-lottery-text';
+
+                const code = document.createElement('span');
+                code.className = 'rs-auto-lottery-code';
+                code.textContent = codigo;
+
+                const time = document.createElement('span');
+                time.className = 'rs-auto-lottery-time';
+                time.textContent = AUTO_QUEEN_HORAS[codigo] || item.hora;
+
+                text.appendChild(code);
+                text.appendChild(time);
+                label.appendChild(checkbox);
+                label.appendChild(text);
+                grid.appendChild(label);
+            }
+
+            group.appendChild(grid);
+            groupsRoot.appendChild(group);
+        }
+
+        const cerrar = () => cerrarModalAuto();
+        backdrop.querySelector('.rs-auto-modal-close').addEventListener('click', cerrar);
+        backdrop.querySelector('.rs-auto-cancel').addEventListener('click', cerrar);
+        backdrop.addEventListener('click', event => {
+            if (event.target === backdrop) cerrar();
+        });
+        backdrop.querySelector('.rs-auto-select-all').addEventListener('click', () => {
+            backdrop.querySelectorAll('.rs-auto-lottery-check').forEach(input => { input.checked = true; });
+        });
+        backdrop.querySelector('.rs-auto-select-none').addEventListener('click', () => {
+            backdrop.querySelectorAll('.rs-auto-lottery-check').forEach(input => { input.checked = false; });
+        });
+        backdrop.querySelector('.rs-auto-save').addEventListener('click', () => {
+            const lotteries = Object.fromEntries(Object.keys(autoConfig).map(codigo => {
+                const input = backdrop.querySelector(`.rs-auto-lottery-check[data-codigo="${codigo}"]`);
+                return [codigo, { enabled: !!input?.checked }];
+            }));
+
+            const guardada = autoGuardarConfiguracion({
+                enabled: backdrop.querySelector('.rs-auto-global-enabled').checked,
+                intervalMs: Number(backdrop.querySelector('.rs-auto-interval').value),
+                maxRetries: Number(backdrop.querySelector('.rs-auto-max-retries').value),
+                lotteries
+            });
+
+            cerrarModalAuto();
+            actualizarBotonAuto();
+            autoReiniciarScheduler(true);
+
+            console.log('[AUTO LOTERÍAS] Configuración guardada:', {
+                enabled: guardada.enabled,
+                intervalMs: guardada.intervalMs,
+                maxRetries: guardada.maxRetries,
+                habilitadas: Object.values(guardada.lotteries).filter(x => x.enabled).length
+            });
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !backdrop.hidden) cerrarModalAuto();
+        });
+
+        document.body.appendChild(backdrop);
+        return backdrop;
+    }
+
+    function abrirModalAuto() {
+        const backdrop = asegurarModalAuto();
+        if (!backdrop) return;
+
+        const config = autoConfiguracion();
+        backdrop.querySelector('.rs-auto-global-enabled').checked = config.enabled;
+        backdrop.querySelector('.rs-auto-interval').value = String(config.intervalMs);
+        backdrop.querySelector('.rs-auto-max-retries').value = String(config.maxRetries);
+
+        for (const codigo of Object.keys(autoConfig)) {
+            const input = backdrop.querySelector(`.rs-auto-lottery-check[data-codigo="${codigo}"]`);
+            if (input) input.checked = config.lotteries[codigo]?.enabled === true;
+        }
+
+        backdrop.hidden = false;
+        document.body.classList.add('rs-auto-modal-open');
+        backdrop.querySelector('.rs-auto-modal-close')?.focus();
+    }
+
+    function cerrarModalAuto() {
+        const backdrop = document.querySelector('.rs-auto-modal-backdrop');
+        if (!backdrop) return;
+        backdrop.hidden = true;
+        document.body?.classList.remove('rs-auto-modal-open');
     }
 
     function instalarControlAuto() {
         const fecha = document.querySelector('#fecha');
-        if (!fecha || document.querySelector('.rs-auto-mode')) return;
-        const selector = document.createElement('select');
-        selector.className = 'rs-auto-mode';
-        for (const [valor, texto] of [
-            ['OBSERVAR', 'AUTO: OBSERVAR'],
-            ['RAPID', 'AUTO: RAPID'],
-            ['TODOS', 'AUTO: TODOS']
-        ]) {
-            const opcion = document.createElement('option');
-            opcion.value = valor;
-            opcion.textContent = texto;
-            selector.appendChild(opcion);
+        if (!fecha) return;
+
+        let row = fecha.closest('.rs-auto-date-row');
+        if (!row) {
+            const parent = fecha.parentElement;
+            if (!parent) return;
+
+            row = document.createElement('div');
+            row.className = 'rs-auto-date-row';
+            parent.insertBefore(row, fecha);
+            row.appendChild(fecha);
         }
-        selector.value = autoModo();
-        selector.classList.toggle('rs-emisor', selector.value !== 'OBSERVAR');
-        selector.title = 'Activa solo un puesto emisor entre los tres usuarios.';
-        selector.addEventListener('change', () => {
-            GM_setValue(AUTO_MODO_KEY, selector.value);
-            GM_setValue(AUTO_EMISOR_KEY, selector.value === 'TODOS');
-            selector.classList.toggle('rs-emisor', selector.value !== 'OBSERVAR');
-            console.log('[AUTO LOTERÍAS] Modo:', selector.value);
-            autoTick();
-        });
-        fecha.insertAdjacentElement('afterend', selector);
+
+        let btn = row.querySelector('.rs-auto-settings-btn');
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'rs-auto-settings-btn';
+            btn.innerHTML = ICON_GEAR;
+            btn.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                abrirModalAuto();
+            });
+            row.appendChild(btn);
+        }
+
+        actualizarBotonAuto();
     }
 
 

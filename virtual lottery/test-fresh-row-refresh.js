@@ -10,7 +10,7 @@ function makeRow(code) {
     return {
         querySelector(selector) {
             if (selector === '.status-circle.status-ok') return null;
-            const name=selector.match(/^input\[name="([^"]+)"(?:\[loteria\])?\]$/)?.[1];
+            const name=selector.match(/^input\[name="([^"]+)"\](?:\[loteria\])?$/)?.[1];
             if (!name) return null;
             if (name === 'primera' && selector.includes('[loteria]')) {
                 return { getAttribute:n=>n==='loteria'?code:'', value:values.primera };

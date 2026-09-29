@@ -9,7 +9,8 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null) {
     let processed = initialProcessed;
     let beforeLock = () => {};
     const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
-        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoProximoChequeo, autoMinuto, autoUnico, autoModo, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, parseRapid, LOTERIAS };\n})();');
+        .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();\n', '')
+        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, parseRapid, LOTERIAS };\n})();');
     const result = { primera:'00', segunda:'05', tercera:'99', pick3:'007', pick4:'0001' };
     const inputs = Object.fromEntries(Object.keys(result).map(c => [c, {
         value: rowValues ? rowValues[c] : result[c],
@@ -28,6 +29,16 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null) {
         return selector === 'input[name="primera"][loteria]'
             ? [{ getAttribute: () => code, closest: () => row }] : [];
     } };
+    const RealDate = Date;
+    class FixedDate extends RealDate {
+        constructor(...args) {
+            super(...(args.length ? args : ['2026-09-28T20:00:00-04:00']));
+        }
+        static now() {
+            return new RealDate('2026-09-28T20:00:00-04:00').getTime();
+        }
+    }
+
     const context = {
         location: { hostname: 'www.roversport.net' },
         document: {
@@ -51,9 +62,9 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null) {
         GM_getValue: (key, fallback) => values.get(key) ?? fallback,
         GM_setValue: (key, value) => values.set(key, value),
         setInterval() {}, setTimeout(fn) { fn(); return 1; }, clearTimeout() {},
-        console: { log() {}, warn() {}, error: console.error,
+        console: { log() {}, info() {}, warn() {}, error: console.error,
             table(rows) { tables.push(rows); } },
-        Intl, Date, URL, URLSearchParams, Symbol, WeakMap, Set
+        Intl, Date: FixedDate, URL, URLSearchParams, Symbol, WeakMap, Set, Map
     };
     vm.createContext(context);
     vm.runInContext(source, context);
@@ -78,8 +89,6 @@ assert.equal(core.autoMinuto('9:30 AM'), core.autoMinuto('09:30 AM'));
 assert.equal(core.autoConfig['QLT-NIGHT'].minuto, 21 * 60 + 25);
 assert.equal(core.autoUnico([{ id:1 }, { id:2 }], r => r.id === 1).id, 1);
 assert.equal(core.autoUnico([{ id:1 }, { id:1 }], r => r.id === 1), null);
-assert.equal(core.autoProximoChequeo({ estado: 'RESULT_READY', lastCheckAt: 1000 }, 30000), false);
-assert.equal(core.autoProximoChequeo({ estado: 'RESULT_READY', lastCheckAt: 1000 }, 122000), true);
 assert.equal(core.autoResultadoValido({ primera:'00', segunda:'05', tercera:'99', pick3:'007', pick4:'0001' }), true);
 assert.equal(core.autoResultadoValido({ primera:'0', segunda:'05', tercera:'99', pick3:'007', pick4:'0001' }), false);
 const rapidHoy = core.parseRapid({ history:[{
@@ -98,6 +107,7 @@ assert.equal(politica.autoPuedeEmitir('BRAZIL12PM'), false);
 assert.equal(politica.autoPuedeEmitir('EXTRA'), false);
 const reloj = { fechaUs:'09/28/2026', fechaIso:'2026-09-28', minutoDia:20*60 };
 const consola = load();
+consola.values.set('vl:auto:modo', 'RAPID');
 consola.autoResumen(reloj);
 assert.equal(consola.tables.some(rows => rows.some(r => r.Loteria === 'RPL-11AM')), true);
 consola.autoGuardar(reloj, 'RPL-11AM', { estado:'RESULT_READY' });
@@ -138,8 +148,8 @@ const rapid = load(false, 'RPL-11AM', {
 rapid.showToday();
 await rapid.autoProcesar(reloj, 'RPL-11AM', resultado);
 assert.equal(rapid.values.get('vl:auto:v3:2026-09-28:RPL-11AM').estado, 'RESULT_READY');
-assert.equal(rapid.inputs.primera.value, '00');
-assert.equal(rapid.inputs.pick4.value, '0001');
+assert.equal(rapid.inputs.primera.value, '');
+assert.equal(rapid.inputs.pick4.value, '');
 assert.equal(rapid.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
 const rapidEmisor = load(false, 'RPL-11AM', {
     primera:'', segunda:'', tercera:'', pick3:'', pick4:''
@@ -158,6 +168,6 @@ otro.values.set('vl:auto:v3:2026-09-28:BRAZIL12PM', {
 });
 await otro.autoEvaluar(reloj, 'BRAZIL12PM');
 assert.equal(otro.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
-console.log('Motor: Rapid automático, otras fuentes en observación y recuperación segura OK');
+console.log('Motor: configuración por lotería, apagado seguro y recuperación OK');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

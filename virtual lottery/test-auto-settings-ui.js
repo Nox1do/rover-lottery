@@ -1,0 +1,32 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+
+const source = fs.readFileSync('virtual-lottery v2 auto.user.js','utf8');
+
+assert.match(source,/^\/\/ @version\s+3\.1\.0$/m);
+assert.match(source,/^\/\/ @run-at\s+document-idle$/m);
+assert.ok(source.includes("const ICON_GEAR ="));
+assert.ok(source.includes("row.className = 'rs-auto-date-row'"));
+assert.ok(source.includes("btn.className = 'rs-auto-settings-btn'"));
+assert.ok(source.includes("row.appendChild(fecha);"));
+assert.ok(source.includes("row.appendChild(btn);"));
+assert.ok(source.includes("backdrop.className = 'rs-auto-modal-backdrop'"));
+assert.ok(source.includes('Configuración AUTO'));
+assert.ok(source.includes('Buscar resultado cada'));
+assert.ok(source.includes('Máximo de búsquedas por sorteo'));
+assert.ok(source.includes('rs-auto-select-all'));
+assert.ok(source.includes('rs-auto-select-none'));
+assert.ok(source.includes('EXTRA continúa manual'));
+assert.ok(source.includes('autoReiniciarScheduler(true)'));
+
+assert.equal(source.includes('.rs-auto-mode'),false);
+assert.equal(source.includes('AUTO_TICK_MS'),false);
+assert.equal(source.includes('AUTO_REINTENTOS_MIN'),false);
+
+const controlStart=source.indexOf('function instalarControlAuto()');
+const controlEnd=source.indexOf('// ============================================================\n    // THE QUEEN LOTTERY',controlStart);
+const control=source.slice(controlStart,controlEnd);
+assert.ok(control.indexOf("row.appendChild(fecha);") < control.indexOf("row.appendChild(btn);"));
+
+new Function(source);
+console.log('UI AUTO: engrane junto a fecha + modal sin selector legacy OK');

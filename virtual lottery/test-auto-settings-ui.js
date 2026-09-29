@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('virtual-lottery v2 auto.user.js','utf8');
 
-assert.match(source,/^\/\/ @version\s+3\.1\.3$/m);
+assert.match(source,/^\/\/ @version\s+3\.1\.4$/m);
 assert.match(source,/^\/\/ @run-at\s+document-idle$/m);
 assert.ok(source.includes("const ICON_GEAR ="));
 assert.ok(source.includes("row.className = 'rs-auto-date-row'"));
@@ -37,16 +37,16 @@ assert.ok(source.includes("function cerrarAcordeones(excepto = null)"));
 assert.ok(source.includes("selectAll.indeterminate"));
 assert.ok(source.includes("count.textContent ="));
 assert.ok(source.includes("const AUTO_INTERVALOS_MS = [60000, 300000, 600000];"));
-assert.ok(source.includes("background: transparent !important;"));
-assert.ok(source.includes("box-shadow: none !important;"));
+assert.ok(source.includes("background: #03a9f3 !important;"));
+assert.ok(source.includes("background: #0398db !important;"));
+assert.ok(source.includes("border-radius: 50%;"));
 assert.ok(source.includes("pointer-events: none;"));
-assert.ok(source.includes("width: 20px;"));
+assert.ok(source.includes("width: 19px;"));
 const gearCssStart=source.indexOf('.rs-auto-settings-btn {');
 const gearCssEnd=source.indexOf('.rs-auto-modal-open',gearCssStart);
 const gearCss=source.slice(gearCssStart,gearCssEnd);
-assert.equal(gearCss.includes('background: #15803d;'),false);
-assert.equal(gearCss.includes('border-color: #15803d;'),false);
-assert.equal(gearCss.includes('color: #fff;'),false);
+assert.ok(gearCss.includes('color: #fff;'));
+assert.equal(gearCss.includes('color: #15803d;'),false);
 
 assert.equal(source.includes('.rs-auto-mode'),false);
 assert.equal(source.includes('AUTO_TICK_MS'),false);
@@ -58,4 +58,4 @@ const control=source.slice(controlStart,controlEnd);
 assert.ok(control.indexOf("row.appendChild(fecha);") < control.indexOf("row.appendChild(btn);"));
 
 new Function(source);
-console.log('UI AUTO: engrane SVG sin fondo + acordeones + intervalos 1/5/10 min OK');
+console.log('UI AUTO: engrane azul Search + acordeones + intervalos 1/5/10 min OK');

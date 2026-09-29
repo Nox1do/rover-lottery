@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.0.8 — guía breve
+# Virtual Lotteries v3.0.9 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -43,3 +43,8 @@ El motor no depende del último **Search** visible del usuario. Si una consulta 
 ## Actualización automática desde GitHub
 
 Desde v3.0.8 el encabezado del userscript define `@updateURL` y `@downloadURL` apuntando al archivo canónico de `main` en GitHub. Una vez instalada manualmente esta versión, Tampermonkey puede detectar versiones posteriores comparando `@version` y descargar el mismo archivo desde GitHub. No edites la copia local de Tampermonkey; las modificaciones deben hacerse en GitHub y cada release debe incrementar `@version`.
+
+
+## Inyección inmediata de botones
+
+Desde v3.0.9 el userscript arranca en `document-start` y observa los nodos que Rover agrega a la tabla. Cada nueva fila `tr.res_tr` se procesa directamente en el callback de `MutationObserver`, sin el debounce anterior de 450 ms ni un barrido tardío de toda la tabla. Esto permite que los botones aparezcan en el mismo ciclo visual de la fila, manteniendo la lógica de Rover sin interceptar ni sobrescribir sus funciones AJAX.

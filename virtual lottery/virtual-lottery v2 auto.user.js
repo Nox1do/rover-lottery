@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.8
+// @version      3.0.9
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -23,7 +23,7 @@
 // @connect      api.lotocentral.net
 // @connect      qplay777.net
 // @connect      www.thequeenlottery.com
-// @run-at       document-idle
+// @run-at       document-start
 // ==/UserScript==
 
 (() => {
@@ -89,6 +89,7 @@
     const ICON_X = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12"></path><path d="M18 6 6 18"></path></svg>`;
 
     const style = document.createElement('style');
+    style.dataset.rsVirtualLotteries = '1';
     style.textContent = `
         .rs-source-fetch-btn {
             position: static;
@@ -129,7 +130,13 @@
             transition: background-color .25s ease, box-shadow .25s ease;
         }
     `;
-    document.head.appendChild(style);
+    function instalarEstilos() {
+        if (style.isConnected) return;
+        const destino = document.head || document.documentElement;
+        if (destino) destino.appendChild(style);
+    }
+
+    instalarEstilos();
 
     function buscarInputLoteria(codigo) {
         return [...document.querySelectorAll('input[loteria]')].find(input =>
@@ -1284,7 +1291,7 @@
             GM_setValue(`vl-extra-response:${id}`, respuesta);
         };
         observer = new MutationObserver(leer);
-        observer.observe(document.documentElement, { childList: true, subtree: true });
+        observer.observe(document, { childList: true, subtree: true });
         timer = setTimeout(detener, Math.max(0, EXTRA_ESPERA_MS - (Date.now() - solicitud.creada)));
         leer();
     }
@@ -1326,58 +1333,72 @@
         });
     }
 
-    function restaurarResultadosVisibles() {
+    function filasDesde(root = document) {
+        const filas = [];
+        if (!root) return filas;
+        if (root.nodeType === 1 && root.matches?.('tr.res_tr')) filas.push(root);
+        root.querySelectorAll?.('tr.res_tr').forEach(tr => filas.push(tr));
+        return filas;
+    }
+
+    function sincronizarResultadosAutoVisibles(fecha) {
+        if (!fecha) return;
+        const reloj = autoAhoraRD();
+        if (fecha !== reloj.fechaUs) return;
+
+        for (const codigo of Object.keys(autoConfig)) {
+            const estado = autoEstado(reloj, codigo);
+            if (!['RESULT_READY', 'PROCESSING', 'VERIFYING', 'DONE', 'PROCESS_UNCERTAIN'].includes(estado.estado)) continue;
+            if (!autoResultadoValido(estado.resultado)) continue;
+            guardarResultadoVisible(fecha, codigo, estado.resultado, AUTO_CAMPOS);
+        }
+    }
+
+    function restaurarResultadoFila(tr, fecha = obtenerFechaRover()) {
+        if (!tr || !fecha) return false;
+
+        const inputBase = tr.querySelector('input[name="primera"][loteria]');
+        const codigo = String(inputBase?.getAttribute('loteria') || '').trim();
+        if (!codigo || !LOTERIAS[codigo]) return false;
+
+        const guardado = resultadosVisibles.get(claveResultadoVisible(fecha, codigo));
+        if (!guardado) return false;
+
+        const actuales = Object.fromEntries(guardado.campos.map(campo => [
+            campo, String(tr.querySelector(`input[name="${campo}"]`)?.value ?? '').trim()
+        ]));
+        const conflicto = guardado.campos.some(campo => {
+            const actual = actuales[campo] === '---' ? '' : actuales[campo];
+            return actual !== '' && actual !== guardado.resultado[campo];
+        });
+        if (conflicto) return false;
+
+        const inputs = guardado.campos.map(campo => tr.querySelector(`input[name="${campo}"]`));
+        if (inputs.some(input => !input)) return false;
+
+        let cambio = false;
+        guardado.campos.forEach((campo, i) => {
+            const actual = String(inputs[i].value ?? '').trim();
+            if (actual === '' || actual === '---') {
+                escribirInput(inputs[i], guardado.resultado[campo]);
+                cambio = true;
+            }
+        });
+        if (cambio) resaltarInputs(inputs);
+
+        const btn = tr.querySelector(`.rs-source-fetch-btn[data-codigo="${codigo}"]`);
+        if (btn) botonExito(btn);
+        return cambio;
+    }
+
+    function restaurarResultadosVisibles(root = document) {
         const fecha = obtenerFechaRover();
         if (!fecha) return 0;
 
-        // Los estados AUTO sobreviven a un reload. Los incorporamos al cache de UI
-        // para que un Search posterior tampoco borre un resultado ya encontrado.
-        const reloj = autoAhoraRD();
-        if (fecha === reloj.fechaUs) {
-            for (const codigo of Object.keys(autoConfig)) {
-                const estado = autoEstado(reloj, codigo);
-                if (!['RESULT_READY', 'PROCESSING', 'VERIFYING', 'DONE', 'PROCESS_UNCERTAIN'].includes(estado.estado)) continue;
-                if (!autoResultadoValido(estado.resultado)) continue;
-                guardarResultadoVisible(fecha, codigo, estado.resultado, AUTO_CAMPOS);
-            }
-        }
-
+        sincronizarResultadosAutoVisibles(fecha);
         let restaurados = 0;
-        for (const codigo of Object.keys(LOTERIAS)) {
-            const guardado = resultadosVisibles.get(claveResultadoVisible(fecha, codigo));
-            if (!guardado) continue;
-
-            const inputBase = buscarInputLoteria(codigo);
-            const tr = inputBase?.closest('tr');
-            if (!tr) continue;
-
-            const actuales = Object.fromEntries(guardado.campos.map(campo => [
-                campo, String(tr.querySelector(`input[name="${campo}"]`)?.value ?? '').trim()
-            ]));
-            const conflicto = guardado.campos.some(campo => {
-                const actual = actuales[campo] === '---' ? '' : actuales[campo];
-                return actual !== '' && actual !== guardado.resultado[campo];
-            });
-            if (conflicto) continue;
-
-            const inputs = guardado.campos.map(campo => tr.querySelector(`input[name="${campo}"]`));
-            if (inputs.some(input => !input)) continue;
-
-            let cambio = false;
-            guardado.campos.forEach((campo, i) => {
-                const actual = String(inputs[i].value ?? '').trim();
-                if (actual === '' || actual === '---') {
-                    escribirInput(inputs[i], guardado.resultado[campo]);
-                    cambio = true;
-                }
-            });
-            if (cambio) {
-                resaltarInputs(inputs);
-                restaurados++;
-            }
-
-            const btn = tr.querySelector(`.rs-source-fetch-btn[data-codigo="${codigo}"]`);
-            if (btn) botonExito(btn);
+        for (const tr of filasDesde(root)) {
+            if (restaurarResultadoFila(tr, fecha)) restaurados++;
         }
         return restaurados;
     }
@@ -1518,44 +1539,43 @@
         }
     }
 
-    function instalarBotones() {
-        if (!esPaginaRoverValida()) return;
+    function instalarBotonFila(tr) {
+        if (!tr) return false;
 
+        const input = tr.querySelector('input[name="primera"][loteria]');
+        const codigo = String(input?.getAttribute('loteria') || '').trim();
+        if (!codigo || !LOTERIAS[codigo]) return false;
+
+        if (tr.querySelector(`.rs-source-fetch-btn[data-codigo="${codigo}"]`)) return false;
+
+        const abrev = tr.querySelector('.loteria-abrev');
+        if (!abrev) return false;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'rs-source-fetch-btn';
+        btn.dataset.codigo = codigo;
+        btn.innerHTML = ICON_SEARCH;
+        btn.title = `Buscar en ${nombreFuente(LOTERIAS[codigo].fuente)}`;
+
+        btn.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (btn.disabled) return;
+            buscarResultado(codigo, tr, btn);
+        });
+
+        abrev.insertAdjacentElement('afterend', btn);
+        return true;
+    }
+
+    function instalarBotones(root = document) {
         let agregados = 0;
-
-        for (const [codigo] of Object.entries(LOTERIAS)) {
-            const input = buscarInputLoteria(codigo);
-            if (!input) continue;
-
-            const tr = input.closest('tr');
-            if (!tr) continue;
-
-            if (tr.querySelector(`.rs-source-fetch-btn[data-codigo="${codigo}"]`)) continue;
-
-            const abrev = tr.querySelector('.loteria-abrev');
-            if (!abrev) continue;
-
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'rs-source-fetch-btn';
-            btn.dataset.codigo = codigo;
-            btn.innerHTML = ICON_SEARCH;
-            btn.title = `Buscar en ${nombreFuente(
-                LOTERIAS[codigo].fuente
-            )}`;
-
-            btn.addEventListener('click', event => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (btn.disabled) return;
-                buscarResultado(codigo, tr, btn);
-            });
-
-            abrev.insertAdjacentElement('afterend', btn);
-            agregados++;
+        for (const tr of filasDesde(root)) {
+            if (instalarBotonFila(tr)) agregados++;
         }
-
         if (agregados) console.log(`[Fuentes] ✅ Botones instalados: ${agregados}`);
+        return agregados;
     }
 
     function instalarListenerFecha() {
@@ -1577,55 +1597,73 @@
     }
 
     function iniciar() {
-        if (!esPaginaRoverValida()) return;
-        instalarBotones();
+        instalarEstilos();
         instalarListenerFecha();
         instalarControlAuto();
-        restaurarResultadosVisibles();
+        if (!esPaginaRoverValida()) return;
+        instalarBotones(document);
+        restaurarResultadosVisibles(document);
     }
 
-    iniciarAutoLoterias();
-    iniciar();
+    function recolectarFilasAgregadas(node, filas) {
+        if (!node || node.nodeType !== 1) return false;
+        const el = node;
 
-    // Rover reemplaza #resultadosLoteria varias veces durante Search/filtros.
-    // Agrupamos esas mutaciones y solo reinyectamos si realmente falta algo.
-    const REINYECCION_DEBOUNCE_MS = 450;
-    let reinyeccionTimer = null;
+        if (el.matches?.('.rs-source-fetch-btn, .rs-auto-mode, style[data-rs-virtual-lotteries]')) {
+            return false;
+        }
 
-    function necesitaReinyeccion() {
-        if (!esPaginaRoverValida()) return false;
+        let encontroFecha = el.matches?.('#fecha') || false;
+        if (!encontroFecha && el.querySelector?.('#fecha')) encontroFecha = true;
 
-        const fecha = document.querySelector('#fecha');
-        if (fecha && !fecha.dataset.rsSourcesListenerInstalled) return true;
-        if (fecha && !document.querySelector('.rs-auto-mode')) return true;
+        const filaPropia = el.matches?.('tr.res_tr') ? el : el.closest?.('tr.res_tr');
+        if (filaPropia) filas.add(filaPropia);
+        el.querySelectorAll?.('tr.res_tr').forEach(tr => filas.add(tr));
 
-        for (const [codigo] of Object.entries(LOTERIAS)) {
-            const input = buscarInputLoteria(codigo);
-            if (!input) continue;
+        return encontroFecha;
+    }
 
-            const tr = input.closest('tr');
-            if (!tr) continue;
+    function procesarMutacionesUI(mutations) {
+        instalarEstilos();
 
-            if (!tr.querySelector(`.rs-source-fetch-btn[data-codigo="${codigo}"]`)) {
-                return true;
+        const filas = new Set();
+        let fechaAgregada = false;
+
+        for (const mutation of mutations) {
+            for (const node of mutation.addedNodes) {
+                if (recolectarFilasAgregadas(node, filas)) fechaAgregada = true;
             }
         }
 
-        return false;
+        instalarListenerFecha();
+        instalarControlAuto();
+
+        if (filas.size) {
+            const fecha = obtenerFechaRover();
+            sincronizarResultadosAutoVisibles(fecha);
+
+            let agregados = 0;
+            for (const tr of filas) {
+                if (!tr.isConnected) continue;
+                if (instalarBotonFila(tr)) agregados++;
+                restaurarResultadoFila(tr, fecha);
+            }
+
+            if (agregados) console.log(`[Fuentes] ✅ Botones instalados: ${agregados}`);
+        }
+
+        if (fechaAgregada || filas.size) autoTick();
     }
 
-    function programarReinyeccion() {
-        clearTimeout(reinyeccionTimer);
-        reinyeccionTimer = setTimeout(() => {
-            reinyeccionTimer = null;
-            if (necesitaReinyeccion()) iniciar();
-            else restaurarResultadosVisibles();
-        }, REINYECCION_DEBOUNCE_MS);
-    }
-
-    const observer = new MutationObserver(() => programarReinyeccion());
-    observer.observe(document.documentElement, {
+    // Se observa document desde document-start. MutationObserver corre antes del
+    // siguiente render del navegador, por lo que las filas nuevas reciben su botón
+    // en el mismo ciclo visual en que Rover inserta la tabla.
+    const observer = new MutationObserver(procesarMutacionesUI);
+    observer.observe(document, {
         childList: true,
         subtree: true
     });
+
+    iniciarAutoLoterias();
+    iniciar();
 })();

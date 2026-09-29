@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('virtual-lottery v2 auto.user.js','utf8');
 
-assert.match(source,/^\/\/ @version\s+3\.1\.1$/m);
+assert.match(source,/^\/\/ @version\s+3\.1\.2$/m);
 assert.match(source,/^\/\/ @run-at\s+document-idle$/m);
 assert.ok(source.includes("const ICON_GEAR ="));
 assert.ok(source.includes("row.className = 'rs-auto-date-row'"));
@@ -20,6 +20,12 @@ assert.ok(source.includes('EXTRA continúa manual'));
 assert.ok(source.includes('autoReiniciarScheduler(true)'));
 assert.ok(source.includes("className = 'rs-auto-accordion-toggle'"));
 assert.ok(source.includes("className = 'rs-auto-accordion-panel'"));
+assert.ok(source.includes("const group = document.createElement('div');"));
+assert.equal(source.includes("const group = document.createElement('section');"), false);
+assert.ok(source.includes("height: auto !important;"));
+assert.ok(source.includes("min-height: 0 !important;"));
+assert.ok(source.includes(".rs-auto-accordion-panel[hidden]"));
+assert.ok(source.includes("height: 0 !important;"));
 assert.ok(source.includes("className = 'rs-auto-group-all'"));
 assert.ok(source.includes("selectAllText.textContent = 'Todas'"));
 assert.ok(source.includes("titulo: 'Pick and Win'"));
@@ -42,4 +48,4 @@ const control=source.slice(controlStart,controlEnd);
 assert.ok(control.indexOf("row.appendChild(fecha);") < control.indexOf("row.appendChild(btn);"));
 
 new Function(source);
-console.log('UI AUTO: engrane + acordeones + selección por grupo + intervalos 1/5/10 min OK');
+console.log('UI AUTO: acordeones sin altura fantasma + selección por grupo + intervalos 1/5/10 min OK');

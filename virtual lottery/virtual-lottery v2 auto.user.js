@@ -1,9 +1,13 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.7
+// @version      3.0.8
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
+// @homepageURL  https://github.com/Nox1do/rover-lottery
+// @source       https://github.com/Nox1do/rover-lottery/blob/main/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
+// @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/main/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
+// @downloadURL  https://raw.githubusercontent.com/Nox1do/rover-lottery/main/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
 // @match        https://www.roversport.lol/adm/es/lottery.php
 // @match        https://www.roversport.net/adm/es/lottery.php
 // @match        https://www.lotterypost.com/results/qc/extra/past*

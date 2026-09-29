@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.0.7 — guía breve
+# Virtual Lotteries v3.0.8 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -38,3 +38,8 @@ Cuando un resultado fue enviado por el motor y posteriormente confirmado en Rove
 ## Filas que aparecen por horario
 
 El motor no depende del último **Search** visible del usuario. Si una consulta normal a `verResultados2.php` usa un snapshot reciente pero todavía no contiene la fila del sorteo, descarta ese snapshot y hace una segunda consulta fresca inmediatamente. Solo si la fila sigue ausente después de esa segunda lectura se considera no encontrada. Esto cubre, por ejemplo, una Rapid de las 7 PM cuando la tabla visible se consultó por última vez a las 5:30 PM.
+
+
+## Actualización automática desde GitHub
+
+Desde v3.0.8 el encabezado del userscript define `@updateURL` y `@downloadURL` apuntando al archivo canónico de `main` en GitHub. Una vez instalada manualmente esta versión, Tampermonkey puede detectar versiones posteriores comparando `@version` y descargar el mismo archivo desde GitHub. No edites la copia local de Tampermonkey; las modificaciones deben hacerse en GitHub y cada release debe incrementar `@version`.

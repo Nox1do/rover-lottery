@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.1
+// @version      3.1.2
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -29,7 +29,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.1';
+    const SCRIPT_VERSION = '3.1.2';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -301,11 +301,18 @@
             color: #fff;
         }
         .rs-auto-source-group {
-            margin-bottom: 8px;
+            display: block !important;
+            position: static !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            margin: 0 0 8px !important;
+            padding: 0 !important;
             overflow: hidden;
             border: 1px solid #dbe4ee;
             border-radius: 8px;
             background: #fff;
+            box-sizing: border-box !important;
         }
         .rs-auto-accordion-header {
             display: flex;
@@ -374,7 +381,14 @@
             padding: 8px 10px 10px;
             border-top: 1px solid #e2e8f0;
         }
-        .rs-auto-accordion-panel[hidden] { display: none !important; }
+        .rs-auto-accordion-panel[hidden] {
+            display: none !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            overflow: hidden !important;
+        }
         .rs-auto-lottery-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1571,7 +1585,7 @@
             const items = Object.entries(autoConfig)
                 .filter(([, item]) => item.fuente === grupo.fuente);
 
-            const group = document.createElement('section');
+            const group = document.createElement('div');
             group.className = 'rs-auto-source-group';
             group.dataset.fuente = grupo.fuente;
 

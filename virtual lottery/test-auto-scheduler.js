@@ -44,16 +44,16 @@ vm.runInContext(source,context);
 const api=context.__test;
 const lotteries=Object.fromEntries(Object.keys(api.autoConfig).map(c=>[c,{enabled:c==='RPL-11AM'}]));
 
-api.autoGuardarConfiguracion({enabled:true,intervalMs:15000,maxRetries:0,lotteries});
+api.autoGuardarConfiguracion({enabled:true,intervalMs:60000,maxRetries:0,lotteries});
 api.autoReiniciarScheduler(false);
-assert.equal(timers.at(-1).ms,15000);
+assert.equal(timers.at(-1).ms,60000);
 
-api.autoGuardarConfiguracion({enabled:true,intervalMs:120000,maxRetries:0,lotteries});
+api.autoGuardarConfiguracion({enabled:true,intervalMs:600000,maxRetries:0,lotteries});
 api.autoReiniciarScheduler(false);
-assert.equal(timers.at(-1).ms,120000);
+assert.equal(timers.at(-1).ms,600000);
 assert.ok(cleared.length>=1);
 
 api.autoDetenerScheduler();
 assert.ok(cleared.length>=2);
 
-console.log('AUTO scheduler: fixed interval restart and timer cleanup OK');
+console.log('AUTO scheduler: 1/5/10 minute intervals and timer cleanup OK');

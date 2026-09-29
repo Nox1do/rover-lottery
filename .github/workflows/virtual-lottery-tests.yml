@@ -1,0 +1,27 @@
+name: Virtual Lottery Tests
+
+on:
+  push:
+    branches:
+      - main
+      - feature/virtual-lottery-auto-settings
+    paths:
+      - 'virtual lottery/**'
+      - '.github/workflows/virtual-lottery-tests.yml'
+  pull_request:
+    paths:
+      - 'virtual lottery/**'
+      - '.github/workflows/virtual-lottery-tests.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run Virtual Lottery regression suite
+        working-directory: virtual lottery
+        run: node test-all.js

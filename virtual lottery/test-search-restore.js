@@ -4,7 +4,7 @@ const vm = require('node:vm');
 
 const file = process.argv[2] || 'virtual-lottery v2 auto.user.js';
 let source = fs.readFileSync(file, 'utf8')
-  .replace('    iniciarAutoLoterias();\n    iniciar();', '')
+  .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();', '')
   .replace(/\}\)\(\);\s*$/, `globalThis.__test = { guardarResultadoVisible, restaurarResultadosVisibles };\n})();`);
 
 const result = { primera:'45', segunda:'63', tercera:'91', pick3:'245', pick4:'6391' };

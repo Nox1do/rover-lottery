@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.0.10 — guía breve
+# Virtual Lotteries v3.0.11 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -55,3 +55,10 @@ Desde v3.0.9 el userscript arranca en `document-start` y observa los nodos que R
 Se revirtió únicamente la experimentación de v3.0.9 con `document-start` y observación global incremental porque podía interferir con la carga normal de la tabla de Rover. Se restaura el ciclo estable de v3.0.8: `document-idle` y reinyección controlada tras las mutaciones. Las mejoras del motor AUTO, verificación, refresh fresco de `verResultados2.php` y actualización automática desde GitHub permanecen intactas.
 
 La consola ahora identifica explícitamente la versión cargada con `[Virtual Lotteries] v3.0.10 cargado · UI estable`.
+
+
+## v3.0.11 — inyección inmediata sin feedback loop
+
+Se mantiene `document-idle` para no interferir con la construcción inicial de Rover. El retraso fijo de 450 ms fue eliminado. Un observer dedicado vigila únicamente `#resultadosLoteria` y reacciona solo cuando el nodo agregado es una `tr.res_tr` o contiene filas nuevas. No usa `closest('tr.res_tr')`, por lo que cambios internos del botón (SVG, texto, estados) no vuelven a promover la fila ni generan ciclos. El observer de UI no llama a `autoTick()`; el motor AUTO sigue siendo independiente.
+
+Un segundo observer liviano solo sirve para reenganchar el observer dedicado si Rover reemplaza el contenedor o el campo de fecha. La prueba de regresión simula 100 mutaciones internas consecutivas del botón y exige cero reinyecciones.

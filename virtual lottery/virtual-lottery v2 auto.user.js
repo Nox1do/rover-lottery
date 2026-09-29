@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.10
+// @version      3.0.11
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -29,8 +29,8 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.0.10';
-    console.info(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · UI estable`);
+    const SCRIPT_VERSION = '3.0.11';
+    console.info(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · UI reactiva segura`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
     const RAPID_URL = 'https://rapidlottery.app/api/res.php';
@@ -1587,47 +1587,82 @@
         restaurarResultadosVisibles();
     }
 
+    // UI reactiva sin debounce:
+    // 1) observamos únicamente #resultadosLoteria para filas nuevas;
+    // 2) ignoramos mutaciones internas de botones/SVG porque no son ni contienen tr.res_tr;
+    // 3) un observer externo solo reengancha si Rover reemplaza el contenedor o #fecha.
+    // El motor AUTO permanece completamente independiente de estas mutaciones.
+    let resultadosObserver = null;
+    let resultadosObservado = null;
+
+    function nodoContieneFilaResultado(node) {
+        if (!node || node.nodeType !== 1) return false;
+        return !!(
+            node.matches?.('tr.res_tr') ||
+            node.querySelector?.('tr.res_tr')
+        );
+    }
+
+    function mutacionesContienenFilasResultado(mutations) {
+        return mutations.some(mutation =>
+            [...mutation.addedNodes].some(nodoContieneFilaResultado)
+        );
+    }
+
+    function procesarCambiosResultados(mutations) {
+        if (!mutacionesContienenFilasResultado(mutations)) return;
+
+        // El callback de MutationObserver corre tras el cambio DOM y antes del
+        // siguiente render. No esperamos timers ni llamamos al motor AUTO.
+        instalarBotones();
+        restaurarResultadosVisibles();
+    }
+
+    function observarResultadosLoteria() {
+        const contenedor = document.querySelector('#resultadosLoteria');
+        if (!contenedor || contenedor === resultadosObservado) return false;
+
+        resultadosObserver?.disconnect();
+        resultadosObservado = contenedor;
+        resultadosObserver = new MutationObserver(procesarCambiosResultados);
+        resultadosObserver.observe(contenedor, {
+            childList: true,
+            subtree: true
+        });
+
+        // Si el contenedor ya llegó con filas, sincronizarlo una sola vez.
+        if (contenedor.querySelector('tr.res_tr')) {
+            instalarBotones();
+            restaurarResultadosVisibles();
+        }
+        return true;
+    }
+
+    function nodoContieneShellRover(node) {
+        if (!node || node.nodeType !== 1) return false;
+        return !!(
+            node.matches?.('#resultadosLoteria, #fecha') ||
+            node.querySelector?.('#resultadosLoteria, #fecha')
+        );
+    }
+
+    function procesarCambiosShell(mutations) {
+        const cambioShell = mutations.some(mutation =>
+            [...mutation.addedNodes].some(nodoContieneShellRover)
+        );
+        if (!cambioShell) return;
+
+        instalarListenerFecha();
+        instalarControlAuto();
+        observarResultadosLoteria();
+    }
+
     iniciarAutoLoterias();
     iniciar();
+    observarResultadosLoteria();
 
-    // Rover reemplaza #resultadosLoteria varias veces durante Search/filtros.
-    // Agrupamos esas mutaciones y solo reinyectamos si realmente falta algo.
-    const REINYECCION_DEBOUNCE_MS = 450;
-    let reinyeccionTimer = null;
-
-    function necesitaReinyeccion() {
-        if (!esPaginaRoverValida()) return false;
-
-        const fecha = document.querySelector('#fecha');
-        if (fecha && !fecha.dataset.rsSourcesListenerInstalled) return true;
-        if (fecha && !document.querySelector('.rs-auto-mode')) return true;
-
-        for (const [codigo] of Object.entries(LOTERIAS)) {
-            const input = buscarInputLoteria(codigo);
-            if (!input) continue;
-
-            const tr = input.closest('tr');
-            if (!tr) continue;
-
-            if (!tr.querySelector(`.rs-source-fetch-btn[data-codigo="${codigo}"]`)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    function programarReinyeccion() {
-        clearTimeout(reinyeccionTimer);
-        reinyeccionTimer = setTimeout(() => {
-            reinyeccionTimer = null;
-            if (necesitaReinyeccion()) iniciar();
-            else restaurarResultadosVisibles();
-        }, REINYECCION_DEBOUNCE_MS);
-    }
-
-    const observer = new MutationObserver(() => programarReinyeccion());
-    observer.observe(document.documentElement, {
+    const shellObserver = new MutationObserver(procesarCambiosShell);
+    shellObserver.observe(document.documentElement, {
         childList: true,
         subtree: true
     });

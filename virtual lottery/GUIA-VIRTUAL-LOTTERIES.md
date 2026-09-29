@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.1 — guía breve
+# Virtual Lotteries v3.1.2 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -88,3 +88,8 @@ Para evitar carreras entre equipos, una misma lotería debe configurarse como em
 El modal AUTO muestra cinco grupos explícitos y siempre visibles como encabezados: **Pick and Win**, **Rapid**, **Premier**, **Brazil** y **Queen**. Los grupos se comportan como acordeón: al abrir uno se cierran los demás. Cada grupo incluye un check **Todas** con estado marcado, parcial o vacío según sus sorteos.
 
 Los intervalos automáticos disponibles pasan a ser únicamente **1 minuto, 5 minutos y 10 minutos**. Una configuración anterior guardada con 10, 15, 30 segundos o 2 minutos se normaliza automáticamente a **1 minuto** sin perder qué loterías estaban seleccionadas.
+
+
+## v3.1.2 — acordeones compactos
+
+Los grupos del modal dejan de usar elementos `section` y pasan a contenedores `div` neutrales para evitar que estilos globales de Rover impongan alturas mínimas. Cada grupo fuerza `height:auto`, `min-height:0` y `padding:0`; el panel colapsado fuerza `display:none` y altura cero. Un acordeón cerrado ocupa únicamente la altura de su encabezado y el margen de 8 px con el siguiente grupo.

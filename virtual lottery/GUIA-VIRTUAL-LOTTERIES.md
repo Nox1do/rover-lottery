@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.2 — guía breve
+# Virtual Lotteries v3.1.3 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -93,3 +93,8 @@ Los intervalos automáticos disponibles pasan a ser únicamente **1 minuto, 5 mi
 ## v3.1.2 — acordeones compactos
 
 Los grupos del modal dejan de usar elementos `section` y pasan a contenedores `div` neutrales para evitar que estilos globales de Rover impongan alturas mínimas. Cada grupo fuerza `height:auto`, `min-height:0` y `padding:0`; el panel colapsado fuerza `display:none` y altura cero. Un acordeón cerrado ocupa únicamente la altura de su encabezado y el margen de 8 px con el siguiente grupo.
+
+
+## v3.1.3 — engrane sin fondo
+
+El acceso a Configuración AUTO queda como un icono SVG de engrane sin caja, borde ni fondo. Cuando AUTO está activo, solo cambia el color del engrane a verde; el fondo permanece transparente. El hover también mantiene fondo transparente.

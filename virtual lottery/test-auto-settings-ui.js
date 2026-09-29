@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('virtual-lottery v2 auto.user.js','utf8');
 
-assert.match(source,/^\/\/ @version\s+3\.1\.0$/m);
+assert.match(source,/^\/\/ @version\s+3\.1\.1$/m);
 assert.match(source,/^\/\/ @run-at\s+document-idle$/m);
 assert.ok(source.includes("const ICON_GEAR ="));
 assert.ok(source.includes("row.className = 'rs-auto-date-row'"));
@@ -18,6 +18,19 @@ assert.ok(source.includes('rs-auto-select-all'));
 assert.ok(source.includes('rs-auto-select-none'));
 assert.ok(source.includes('EXTRA continúa manual'));
 assert.ok(source.includes('autoReiniciarScheduler(true)'));
+assert.ok(source.includes("className = 'rs-auto-accordion-toggle'"));
+assert.ok(source.includes("className = 'rs-auto-accordion-panel'"));
+assert.ok(source.includes("className = 'rs-auto-group-all'"));
+assert.ok(source.includes("selectAllText.textContent = 'Todas'"));
+assert.ok(source.includes("titulo: 'Pick and Win'"));
+assert.ok(source.includes("titulo: 'Rapid'"));
+assert.ok(source.includes("titulo: 'Premier'"));
+assert.ok(source.includes("titulo: 'Brazil'"));
+assert.ok(source.includes("titulo: 'Queen'"));
+assert.ok(source.includes("function cerrarAcordeones(excepto = null)"));
+assert.ok(source.includes("selectAll.indeterminate"));
+assert.ok(source.includes("count.textContent ="));
+assert.ok(source.includes("const AUTO_INTERVALOS_MS = [60000, 300000, 600000];"));
 
 assert.equal(source.includes('.rs-auto-mode'),false);
 assert.equal(source.includes('AUTO_TICK_MS'),false);
@@ -29,4 +42,4 @@ const control=source.slice(controlStart,controlEnd);
 assert.ok(control.indexOf("row.appendChild(fecha);") < control.indexOf("row.appendChild(btn);"));
 
 new Function(source);
-console.log('UI AUTO: engrane junto a fecha + modal sin selector legacy OK');
+console.log('UI AUTO: engrane + acordeones + selección por grupo + intervalos 1/5/10 min OK');

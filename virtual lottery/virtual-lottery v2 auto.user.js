@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.0
+// @version      3.1.1
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -29,7 +29,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.0';
+    const SCRIPT_VERSION = '3.1.1';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -301,17 +301,80 @@
             color: #fff;
         }
         .rs-auto-source-group {
-            margin-bottom: 12px;
-            padding: 10px;
-            border: 1px solid #e2e8f0;
+            margin-bottom: 8px;
+            overflow: hidden;
+            border: 1px solid #dbe4ee;
             border-radius: 8px;
+            background: #fff;
+        }
+        .rs-auto-accordion-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 0 10px;
+            background: #f8fafc;
+        }
+        .rs-auto-accordion-toggle {
+            flex: 1 1 auto;
+            min-width: 0;
+            height: 40px;
+            padding: 0;
+            border: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: transparent;
+            color: #334155;
+            text-align: left;
+            cursor: pointer;
         }
         .rs-auto-source-title {
-            margin: 0 0 8px;
+            overflow: hidden;
             font-size: 12px;
             font-weight: 800;
-            color: #334155;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
+        .rs-auto-source-count {
+            flex: 0 0 auto;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .rs-auto-accordion-chevron {
+            flex: 0 0 auto;
+            margin-left: auto;
+            font-size: 15px;
+            line-height: 1;
+            transition: transform .15s ease;
+        }
+        .rs-auto-accordion-toggle[aria-expanded="true"] .rs-auto-accordion-chevron {
+            transform: rotate(180deg);
+        }
+        .rs-auto-group-all-label {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+        .rs-auto-group-all {
+            width: 14px;
+            height: 14px;
+            margin: 0;
+            accent-color: #15803d;
+            cursor: pointer;
+        }
+        .rs-auto-accordion-panel {
+            padding: 8px 10px 10px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .rs-auto-accordion-panel[hidden] { display: none !important; }
         .rs-auto-lottery-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -783,7 +846,7 @@
     const AUTO_EMISOR_KEY = 'vl:auto:emisor'; // solo migración desde <= 3.0.x
     const AUTO_MODO_KEY = 'vl:auto:modo'; // solo migración desde <= 3.0.x
     const AUTO_SETTINGS_KEY = 'vl:auto:settings:v1';
-    const AUTO_INTERVALOS_MS = [10000, 15000, 30000, 60000, 120000];
+    const AUTO_INTERVALOS_MS = [60000, 300000, 600000];
     const AUTO_MAX_BUSQUEDAS = [0, 3, 5, 10, 15];
     const AUTO_PREFIJO = 'vl:auto:v3:';
     const autoEnCurso = new Set();
@@ -810,6 +873,14 @@
             ...config, minuto: autoMinuto(AUTO_QUEEN_HORAS[codigo] || config.hora)
         }]));
 
+    const AUTO_GRUPOS = [
+        { fuente: 'nationjl', titulo: 'Pick and Win' },
+        { fuente: 'rapid', titulo: 'Rapid' },
+        { fuente: 'premier', titulo: 'Premier' },
+        { fuente: 'qplay', titulo: 'Brazil' },
+        { fuente: 'queen', titulo: 'Queen' }
+    ];
+
     function autoModoLegacy() {
         const modo = GM_getValue(AUTO_MODO_KEY, null);
         if (['OBSERVAR', 'RAPID', 'TODOS'].includes(modo)) return modo;
@@ -824,7 +895,7 @@
         ]));
         return {
             enabled: modo !== 'OBSERVAR',
-            intervalMs: 30000,
+            intervalMs: 60000,
             maxRetries: 0,
             lotteries
         };
@@ -1404,9 +1475,8 @@
     }
 
     function autoIntervaloTexto(ms) {
-        if (ms === 60000) return '1 minuto';
-        if (ms === 120000) return '2 minutos';
-        return `${ms / 1000} segundos`;
+        const minutos = Number(ms) / 60000;
+        return minutos === 1 ? '1 minuto' : `${minutos} minutos`;
     }
 
     function autoMaxTexto(value) {
@@ -1497,20 +1567,61 @@
         }
 
         const groupsRoot = backdrop.querySelector('.rs-auto-lottery-groups');
-        const fuentes = [...new Set(Object.values(autoConfig).map(item => item.fuente))];
-        for (const fuente of fuentes) {
+        for (const grupo of AUTO_GRUPOS) {
+            const items = Object.entries(autoConfig)
+                .filter(([, item]) => item.fuente === grupo.fuente);
+
             const group = document.createElement('section');
             group.className = 'rs-auto-source-group';
+            group.dataset.fuente = grupo.fuente;
 
-            const title = document.createElement('h4');
+            const header = document.createElement('div');
+            header.className = 'rs-auto-accordion-header';
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'rs-auto-accordion-toggle';
+            toggle.setAttribute('aria-expanded', 'false');
+
+            const title = document.createElement('span');
             title.className = 'rs-auto-source-title';
-            title.textContent = nombreFuente(fuente);
-            group.appendChild(title);
+            title.textContent = grupo.titulo;
+
+            const count = document.createElement('span');
+            count.className = 'rs-auto-source-count';
+            count.textContent = `0/${items.length}`;
+
+            const chevron = document.createElement('span');
+            chevron.className = 'rs-auto-accordion-chevron';
+            chevron.textContent = '⌄';
+            chevron.setAttribute('aria-hidden', 'true');
+
+            toggle.appendChild(title);
+            toggle.appendChild(count);
+            toggle.appendChild(chevron);
+
+            const selectAllLabel = document.createElement('label');
+            selectAllLabel.className = 'rs-auto-group-all-label';
+
+            const selectAll = document.createElement('input');
+            selectAll.type = 'checkbox';
+            selectAll.className = 'rs-auto-group-all';
+            selectAll.dataset.fuente = grupo.fuente;
+
+            const selectAllText = document.createElement('span');
+            selectAllText.textContent = 'Todas';
+
+            selectAllLabel.appendChild(selectAll);
+            selectAllLabel.appendChild(selectAllText);
+
+            const panel = document.createElement('div');
+            panel.className = 'rs-auto-accordion-panel';
+            panel.hidden = true;
 
             const grid = document.createElement('div');
             grid.className = 'rs-auto-lottery-grid';
 
-            for (const [codigo, item] of Object.entries(autoConfig).filter(([, x]) => x.fuente === fuente)) {
+            for (const [codigo, item] of items) {
                 const label = document.createElement('label');
                 label.className = 'rs-auto-lottery-item';
 
@@ -1518,6 +1629,7 @@
                 checkbox.type = 'checkbox';
                 checkbox.className = 'rs-auto-lottery-check';
                 checkbox.dataset.codigo = codigo;
+                checkbox.dataset.fuente = grupo.fuente;
 
                 const text = document.createElement('span');
                 text.className = 'rs-auto-lottery-text';
@@ -1537,9 +1649,63 @@
                 grid.appendChild(label);
             }
 
-            group.appendChild(grid);
+            panel.appendChild(grid);
+            header.appendChild(toggle);
+            header.appendChild(selectAllLabel);
+            group.appendChild(header);
+            group.appendChild(panel);
             groupsRoot.appendChild(group);
         }
+
+        function actualizarGrupo(group) {
+            if (!group) return;
+            const checks = [...group.querySelectorAll('.rs-auto-lottery-check')];
+            const seleccionadas = checks.filter(input => input.checked).length;
+            const selectAll = group.querySelector('.rs-auto-group-all');
+            const count = group.querySelector('.rs-auto-source-count');
+
+            if (selectAll) {
+                selectAll.checked = checks.length > 0 && seleccionadas === checks.length;
+                selectAll.indeterminate = seleccionadas > 0 && seleccionadas < checks.length;
+            }
+            if (count) count.textContent = `${seleccionadas}/${checks.length}`;
+        }
+
+        function actualizarTodosLosGrupos() {
+            backdrop.querySelectorAll('.rs-auto-source-group').forEach(actualizarGrupo);
+        }
+
+        function cerrarAcordeones(excepto = null) {
+            backdrop.querySelectorAll('.rs-auto-source-group').forEach(group => {
+                if (group === excepto) return;
+                group.querySelector('.rs-auto-accordion-panel').hidden = true;
+                group.querySelector('.rs-auto-accordion-toggle')
+                    .setAttribute('aria-expanded', 'false');
+            });
+        }
+
+        backdrop.querySelectorAll('.rs-auto-source-group').forEach(group => {
+            const toggle = group.querySelector('.rs-auto-accordion-toggle');
+            const panel = group.querySelector('.rs-auto-accordion-panel');
+            const selectAll = group.querySelector('.rs-auto-group-all');
+
+            toggle.addEventListener('click', () => {
+                const abrir = panel.hidden;
+                cerrarAcordeones(abrir ? group : null);
+                panel.hidden = !abrir;
+                toggle.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+            });
+
+            selectAll.addEventListener('change', () => {
+                group.querySelectorAll('.rs-auto-lottery-check')
+                    .forEach(input => { input.checked = selectAll.checked; });
+                actualizarGrupo(group);
+            });
+
+            group.querySelectorAll('.rs-auto-lottery-check').forEach(input => {
+                input.addEventListener('change', () => actualizarGrupo(group));
+            });
+        });
 
         const cerrar = () => cerrarModalAuto();
         backdrop.querySelector('.rs-auto-modal-close').addEventListener('click', cerrar);
@@ -1549,9 +1715,11 @@
         });
         backdrop.querySelector('.rs-auto-select-all').addEventListener('click', () => {
             backdrop.querySelectorAll('.rs-auto-lottery-check').forEach(input => { input.checked = true; });
+            actualizarTodosLosGrupos();
         });
         backdrop.querySelector('.rs-auto-select-none').addEventListener('click', () => {
             backdrop.querySelectorAll('.rs-auto-lottery-check').forEach(input => { input.checked = false; });
+            actualizarTodosLosGrupos();
         });
         backdrop.querySelector('.rs-auto-save').addEventListener('click', () => {
             const lotteries = Object.fromEntries(Object.keys(autoConfig).map(codigo => {
@@ -1582,6 +1750,7 @@
             if (event.key === 'Escape' && !backdrop.hidden) cerrarModalAuto();
         });
 
+        actualizarTodosLosGrupos();
         document.body.appendChild(backdrop);
         return backdrop;
     }
@@ -1599,6 +1768,23 @@
             const input = backdrop.querySelector(`.rs-auto-lottery-check[data-codigo="${codigo}"]`);
             if (input) input.checked = config.lotteries[codigo]?.enabled === true;
         }
+
+        backdrop.querySelectorAll('.rs-auto-source-group').forEach(group => {
+            group.querySelector('.rs-auto-accordion-panel').hidden = true;
+            group.querySelector('.rs-auto-accordion-toggle')
+                .setAttribute('aria-expanded', 'false');
+
+            const checks = [...group.querySelectorAll('.rs-auto-lottery-check')];
+            const seleccionadas = checks.filter(input => input.checked).length;
+            const selectAll = group.querySelector('.rs-auto-group-all');
+            const count = group.querySelector('.rs-auto-source-count');
+
+            if (selectAll) {
+                selectAll.checked = checks.length > 0 && seleccionadas === checks.length;
+                selectAll.indeterminate = seleccionadas > 0 && seleccionadas < checks.length;
+            }
+            if (count) count.textContent = `${seleccionadas}/${checks.length}`;
+        });
 
         backdrop.hidden = false;
         document.body.classList.add('rs-auto-modal-open');

@@ -30,7 +30,7 @@
     'use strict';
 
     const SCRIPT_VERSION = '3.1.0';
-    console.info(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
+    console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
     const RAPID_URL = 'https://rapidlottery.app/api/res.php';
@@ -1130,6 +1130,18 @@
         if (decision.estado === 'DONE') autoReflejar(reloj, codigo, decision.resultado);
     }
     async function autoProcesar(reloj, codigo, resultado) {
+        // Si AUTO se desactiva mientras una consulta de fuente está en vuelo,
+        // conservar el resultado listo pero no tocar Rover ni la fila visible.
+        if (!autoPuedeEmitir(codigo)) {
+            autoGuardar(reloj, codigo, {
+                estado: 'RESULT_READY',
+                resultado,
+                lastCheckAt: Date.now(),
+                motivo: 'AUTO desactivado antes del envío.'
+            });
+            return;
+        }
+
         const visible = autoVisible(reloj, codigo);
         if (visible && autoConflicto(visible.valores, resultado)) {
             autoGuardar(reloj, codigo, { estado: 'CONFLICT', resultado, motivo: 'Fila visible distinta.' });
@@ -1153,14 +1165,7 @@
                 motivo: `Duplicado con ${snap.duplicados.join(', ')}` });
             return;
         }
-        // En observación se puede ver y comprobar el resultado sin enviarlo.
         autoReflejar(reloj, codigo, resultado);
-        if (!autoPuedeEmitir(codigo)) {
-            autoGuardar(reloj, codigo, { estado: 'RESULT_READY', resultado,
-                lastCheckAt: Date.now(),
-                motivo: 'Observación: esta fuente no tiene emisión activada.' });
-            return;
-        }
         if (!navigator.locks?.request) {
             autoGuardar(reloj, codigo, { estado: 'RESULT_READY', resultado,
                 lastCheckAt: Date.now(),

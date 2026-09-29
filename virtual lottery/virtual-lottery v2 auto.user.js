@@ -2,7 +2,7 @@
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
 // @version      3.1.0
-// @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
+// @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
 // @source       https://github.com/Nox1do/rover-lottery/blob/main/virtual%20lottery/virtual-lottery%20v2%20auto.user.js

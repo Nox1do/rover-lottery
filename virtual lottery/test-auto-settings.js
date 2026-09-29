@@ -10,7 +10,7 @@ const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
     .replace(/\}\)\(\);\s*$/, `
 globalThis.__test = {
     autoConfig, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir,
-    autoIntentosAgotados, autoTextoIntento, AUTO_INTERVALOS_MS, AUTO_MAX_BUSQUEDAS
+    autoIntentosAgotados, autoTextoIntento, AUTO_INTERVALOS_MS, AUTO_MAX_BUSQUEDAS, AUTO_GRUPOS
 };
 })();`);
 
@@ -60,9 +60,9 @@ const lotteries = Object.fromEntries(Object.keys(custom.autoConfig).map(codigo =
     codigo, {enabled: codigo === 'QLT-MIDDAY'}
 ]));
 const saved = custom.autoGuardarConfiguracion({
-    enabled:true, intervalMs:15000, maxRetries:3, lotteries
+    enabled:true, intervalMs:300000, maxRetries:3, lotteries
 });
-assert.equal(saved.intervalMs,15000);
+assert.equal(saved.intervalMs,300000);
 assert.equal(saved.maxRetries,3);
 assert.equal(custom.autoPuedeEmitir('QLT-MIDDAY'),true);
 assert.equal(custom.autoPuedeEmitir('RPL-11AM'),false);
@@ -70,7 +70,35 @@ assert.equal(custom.autoIntentosAgotados({searchAttempts:2},saved),false);
 assert.equal(custom.autoIntentosAgotados({searchAttempts:3},saved),true);
 assert.equal(custom.autoTextoIntento(4,0),'4/∞');
 
-assert.deepEqual([...custom.AUTO_INTERVALOS_MS],[10000,15000,30000,60000,120000]);
+assert.deepEqual([...custom.AUTO_INTERVALOS_MS],[60000,300000,600000]);
 assert.deepEqual([...custom.AUTO_MAX_BUSQUEDAS],[0,3,5,10,15]);
 
-console.log('Configuración AUTO: migración, selección, intervalos y límites OK');
+const grupos = Object.fromEntries(custom.AUTO_GRUPOS.map(grupo => [
+    grupo.titulo,
+    Object.values(custom.autoConfig).filter(item => item.fuente === grupo.fuente).length
+]));
+assert.deepEqual(grupos,{
+    'Pick and Win':6,
+    'Rapid':6,
+    'Premier':4,
+    'Brazil':4,
+    'Queen':5
+});
+
+// Una configuración 3.1.0 guardada a 30 s migra a 1 minuto sin perder selección.
+const legacyInterval = load('RAPID');
+legacyInterval.values.set('vl:auto:settings:v1',{
+    enabled:true,
+    intervalMs:30000,
+    maxRetries:0,
+    lotteries:Object.fromEntries(Object.keys(legacyInterval.autoConfig).map(codigo => [
+        codigo, {enabled: codigo === 'QLT-NIGHT'}
+    ]))
+});
+const migrated = legacyInterval.autoConfiguracion();
+assert.equal(migrated.intervalMs,60000);
+assert.equal(migrated.lotteries['QLT-NIGHT'].enabled,true);
+assert.equal(migrated.lotteries['RPL-11AM'].enabled,false);
+
+console.log('Configuración AUTO: migración, acordeones, intervalos y límites OK');
+

@@ -10,7 +10,7 @@ assert.ok(source.includes("row.className = 'rs-auto-date-row'"));
 assert.ok(source.includes("btn.className = 'rs-auto-settings-btn'"));
 assert.ok(source.includes("row.appendChild(fecha);"));
 assert.ok(source.includes("row.appendChild(btn);"));
-assert.ok(source.includes('class="rs-auto-modal-backdrop"'));
+assert.ok(source.includes("backdrop.className = 'rs-auto-modal-backdrop'"));
 assert.ok(source.includes('Configuración AUTO'));
 assert.ok(source.includes('Buscar resultado cada'));
 assert.ok(source.includes('Máximo de búsquedas por sorteo'));

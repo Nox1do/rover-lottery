@@ -29,6 +29,16 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null) {
         return selector === 'input[name="primera"][loteria]'
             ? [{ getAttribute: () => code, closest: () => row }] : [];
     } };
+    const RealDate = Date;
+    class FixedDate extends RealDate {
+        constructor(...args) {
+            super(...(args.length ? args : ['2026-09-28T20:00:00-04:00']));
+        }
+        static now() {
+            return new RealDate('2026-09-28T20:00:00-04:00').getTime();
+        }
+    }
+
     const context = {
         location: { hostname: 'www.roversport.net' },
         document: {
@@ -54,7 +64,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null) {
         setInterval() {}, setTimeout(fn) { fn(); return 1; }, clearTimeout() {},
         console: { log() {}, info() {}, warn() {}, error: console.error,
             table(rows) { tables.push(rows); } },
-        Intl, Date, URL, URLSearchParams, Symbol, WeakMap, Set
+        Intl, Date: FixedDate, URL, URLSearchParams, Symbol, WeakMap, Set, Map
     };
     vm.createContext(context);
     vm.runInContext(source, context);

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.0.11
+// @version      3.0.12
 // @description  Virtual Lotteries v3: 25 sorteos automáticos de cinco fuentes, EXTRA manual, verificación en Rover y modo de observación.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -29,8 +29,8 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.0.11';
-    console.info(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · UI reactiva segura`);
+    const SCRIPT_VERSION = '3.0.12';
+    console.info(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · UI reactiva validada`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
     const RAPID_URL = 'https://rapidlottery.app/api/res.php';
@@ -1580,10 +1580,12 @@
     }
 
     function iniciar() {
-        if (!esPaginaRoverValida()) return;
-        instalarBotones();
+        // Los controles superiores pueden existir antes que las filas.
+        // Instalarlos primero hace el ciclo robusto a cualquier orden de carga.
         instalarListenerFecha();
         instalarControlAuto();
+        if (!esPaginaRoverValida()) return;
+        instalarBotones();
         restaurarResultadosVisibles();
     }
 
@@ -1612,10 +1614,9 @@
     function procesarCambiosResultados(mutations) {
         if (!mutacionesContienenFilasResultado(mutations)) return;
 
-        // El callback de MutationObserver corre tras el cambio DOM y antes del
-        // siguiente render. No esperamos timers ni llamamos al motor AUTO.
-        instalarBotones();
-        restaurarResultadosVisibles();
+        // MutationObserver entrega este lote antes del siguiente render.
+        // iniciar() es idempotente y no ejecuta el motor AUTO.
+        iniciar();
     }
 
     function observarResultadosLoteria() {
@@ -1630,11 +1631,6 @@
             subtree: true
         });
 
-        // Si el contenedor ya llegó con filas, sincronizarlo una sola vez.
-        if (contenedor.querySelector('tr.res_tr')) {
-            instalarBotones();
-            restaurarResultadosVisibles();
-        }
         return true;
     }
 
@@ -1652,14 +1648,15 @@
         );
         if (!cambioShell) return;
 
-        instalarListenerFecha();
-        instalarControlAuto();
+        // Si Rover reemplaza el shell, enganchar primero el nuevo contenedor
+        // y después sincronizar controles/filas ya presentes.
         observarResultadosLoteria();
+        iniciar();
     }
 
     iniciarAutoLoterias();
-    iniciar();
     observarResultadosLoteria();
+    iniciar();
 
     const shellObserver = new MutationObserver(procesarCambiosShell);
     shellObserver.observe(document.documentElement, {

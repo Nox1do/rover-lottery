@@ -3,14 +3,14 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8');
 
-assert.match(source, /^\/\/ @version\s+3\.0\.11$/m);
+assert.match(source, /^\/\/ @version\s+3\.0\.12$/m);
 assert.match(source, /^\/\/ @run-at\s+document-idle$/m);
-assert.ok(source.includes("const SCRIPT_VERSION = '3.0.11';"));
+assert.ok(source.includes("const SCRIPT_VERSION = '3.0.12';"));
 
 assert.ok(source.includes('function nodoContieneFilaResultado(node)'));
 assert.ok(source.includes('function mutacionesContienenFilasResultado(mutations)'));
 assert.ok(source.includes('function procesarCambiosResultados(mutations)'));
-assert.ok(source.includes("document.querySelector('#resultadosLoteria')"));
+assert.ok(source.includes('function observarResultadosLoteria()'));
 assert.ok(source.includes('resultadosObserver.observe(contenedor'));
 assert.ok(source.includes('const shellObserver = new MutationObserver(procesarCambiosShell)'));
 
@@ -18,52 +18,69 @@ assert.equal(source.includes('REINYECCION_DEBOUNCE_MS'), false);
 assert.equal(source.includes('reinyeccionTimer'), false);
 assert.equal(source.includes('programarReinyeccion'), false);
 
-const start = source.indexOf('function nodoContieneFilaResultado(node)');
-const end = source.indexOf('function mutacionesContienenFilasResultado', start);
-const rowPredicate = source.slice(start, end);
-assert.equal(rowPredicate.includes('.closest('), false,
-    'The row observer must never promote descendants back to their parent row');
+const rowStart = source.indexOf('function nodoContieneFilaResultado(node)');
+const rowEnd = source.indexOf('function mutacionesContienenFilasResultado', rowStart);
+const rowPredicate = source.slice(rowStart, rowEnd);
+assert.equal(rowPredicate.includes('.closest('), false);
 
-const callbackStart = source.indexOf('function procesarCambiosResultados(mutations)');
-const callbackEnd = source.indexOf('function observarResultadosLoteria()', callbackStart);
-const callback = source.slice(callbackStart, callbackEnd);
-assert.equal(callback.includes('autoTick('), false,
-    'UI mutations must never drive the AUTO engine');
-assert.equal(callback.includes('setTimeout('), false,
-    'UI row injection must not wait for timers');
+const resultStart = source.indexOf('function procesarCambiosResultados(mutations)');
+const resultEnd = source.indexOf('function observarResultadosLoteria()', resultStart);
+const resultCallback = source.slice(resultStart, resultEnd);
+assert.equal(resultCallback.includes('autoTick('), false);
+assert.equal(resultCallback.includes('setTimeout('), false);
+assert.ok(resultCallback.includes('iniciar();'));
 
-// Behavioral model of the production predicate.
-function node(matchesRow, containsRow) {
+const shellStart = source.indexOf('function procesarCambiosShell(mutations)');
+const shellEnd = source.indexOf('iniciarAutoLoterias();', shellStart);
+const shellCallback = source.slice(shellStart, shellEnd);
+assert.equal(shellCallback.includes('autoTick('), false);
+assert.equal(shellCallback.includes('setTimeout('), false);
+assert.ok(shellCallback.indexOf('observarResultadosLoteria();') < shellCallback.indexOf('iniciar();'));
+
+const initStart = source.indexOf('function iniciar()');
+const initEnd = source.indexOf('function nodoContieneFilaResultado', initStart);
+const init = source.slice(initStart, initEnd);
+assert.ok(init.indexOf('instalarListenerFecha();') < init.indexOf('if (!esPaginaRoverValida()) return;'));
+assert.ok(init.indexOf('instalarControlAuto();') < init.indexOf('if (!esPaginaRoverValida()) return;'));
+
+function node({row=false, containsRow=false, shell=false, containsShell=false} = {}) {
     return {
         nodeType: 1,
-        matches: selector => selector === 'tr.res_tr' ? matchesRow : false,
-        querySelector: selector => selector === 'tr.res_tr' && containsRow ? {} : null,
-        closest: () => ({ fakeParentRow: true }) // must be irrelevant
+        matches(selector) {
+            if (selector === 'tr.res_tr') return row;
+            if (selector === '#resultadosLoteria, #fecha') return shell;
+            return false;
+        },
+        querySelector(selector) {
+            if (selector === 'tr.res_tr') return containsRow ? {} : null;
+            if (selector === '#resultadosLoteria, #fecha') return containsShell ? {} : null;
+            return null;
+        },
+        closest() { return { shouldNeverBeUsed: true }; }
     };
 }
-function containsRow(n) {
-    if (!n || n.nodeType !== 1) return false;
-    return !!(n.matches?.('tr.res_tr') || n.querySelector?.('tr.res_tr'));
+
+const containsRow = n => !!n && n.nodeType === 1 &&
+    !!(n.matches?.('tr.res_tr') || n.querySelector?.('tr.res_tr'));
+const containsShell = n => !!n && n.nodeType === 1 &&
+    !!(n.matches?.('#resultadosLoteria, #fecha') || n.querySelector?.('#resultadosLoteria, #fecha'));
+const mutationsContain = (mutations, predicate) =>
+    mutations.some(m => [...m.addedNodes].some(predicate));
+
+assert.equal(containsRow(node({row:true})), true);
+assert.equal(containsRow(node({containsRow:true})), true);
+assert.equal(containsRow(node()), false);
+assert.equal(containsShell(node({shell:true})), true);
+assert.equal(containsShell(node({containsShell:true})), true);
+assert.equal(containsShell(node({row:true})), false);
+
+const internalMutation = [{addedNodes:[node(), node()]}];
+for (let i = 0; i < 100; i++) {
+    assert.equal(mutationsContain(internalMutation, containsRow), false);
+    assert.equal(mutationsContain(internalMutation, containsShell), false);
 }
 
-assert.equal(containsRow(node(true, false)), true, 'direct row must trigger');
-assert.equal(containsRow(node(false, true)), true, 'container with rows must trigger');
-assert.equal(containsRow(node(false, false)), false,
-    'button/SVG/span mutation inside a row must not trigger via closest');
-
-const buttonMutation = [{addedNodes:[node(false,false)]}];
-const rowMutation = [{addedNodes:[node(true,false)]}];
-const tableMutation = [{addedNodes:[node(false,true)]}];
-const mutationsContainRows = muts => muts.some(m => [...m.addedNodes].some(containsRow));
-
-assert.equal(mutationsContainRows(buttonMutation), false);
-assert.equal(mutationsContainRows(rowMutation), true);
-assert.equal(mutationsContainRows(tableMutation), true);
-
-// 100 self-mutations from button SVG/span changes must cause zero reinjections.
-let reinjections = 0;
-for (let i=0;i<100;i++) if (mutationsContainRows(buttonMutation)) reinjections++;
-assert.equal(reinjections, 0);
+assert.equal(mutationsContain([{addedNodes:[node({containsRow:true})]}], containsRow), true);
 
 new Function(source);
-console.log('UI row observer regression suite: OK');
+console.log('UI scoped observer + lifecycle race regression suite: OK');

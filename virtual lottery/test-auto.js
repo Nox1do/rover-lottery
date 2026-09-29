@@ -8,8 +8,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null) {
     const tables = [];
     let processed = initialProcessed;
     let beforeLock = () => {};
-    const source = fs.readFileSync('virtual-lottery-v2-auto.user.js', 'utf8')
-        .replace('const AUTO_BRAZIL_ENABLED = true;', 'const AUTO_BRAZIL_ENABLED = false;')
+    const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
         .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoProximoChequeo, autoMinuto, autoUnico, autoModo, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, parseRapid, LOTERIAS };\n})();');
     const result = { primera:'00', segunda:'05', tercera:'99', pick3:'007', pick4:'0001' };
     const inputs = Object.fromEntries(Object.keys(result).map(c => [c, {

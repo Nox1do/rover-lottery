@@ -52,7 +52,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null) {
         GM_getValue: (key, fallback) => values.get(key) ?? fallback,
         GM_setValue: (key, value) => values.set(key, value),
         setInterval() {}, setTimeout(fn) { fn(); return 1; }, clearTimeout() {},
-        console: { log() {}, warn() {}, error: console.error,
+        console: { log() {}, info() {}, warn() {}, error: console.error,
             table(rows) { tables.push(rows); } },
         Intl, Date, URL, URLSearchParams, Symbol, WeakMap, Set
     };
@@ -138,8 +138,8 @@ const rapid = load(false, 'RPL-11AM', {
 rapid.showToday();
 await rapid.autoProcesar(reloj, 'RPL-11AM', resultado);
 assert.equal(rapid.values.get('vl:auto:v3:2026-09-28:RPL-11AM').estado, 'RESULT_READY');
-assert.equal(rapid.inputs.primera.value, '00');
-assert.equal(rapid.inputs.pick4.value, '0001');
+assert.equal(rapid.inputs.primera.value, '');
+assert.equal(rapid.inputs.pick4.value, '');
 assert.equal(rapid.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
 const rapidEmisor = load(false, 'RPL-11AM', {
     primera:'', segunda:'', tercera:'', pick3:'', pick4:''
@@ -158,6 +158,6 @@ otro.values.set('vl:auto:v3:2026-09-28:BRAZIL12PM', {
 });
 await otro.autoEvaluar(reloj, 'BRAZIL12PM');
 assert.equal(otro.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
-console.log('Motor: Rapid automático, otras fuentes en observación y recuperación segura OK');
+console.log('Motor: configuración por lotería, apagado seguro y recuperación OK');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

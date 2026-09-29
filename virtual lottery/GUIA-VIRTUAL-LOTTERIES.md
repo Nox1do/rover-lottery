@@ -1,17 +1,18 @@
-# Virtual Lotteries v3.1.0 — guía breve
+# Virtual Lotteries v3.1.1 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
 ## Activación
 
-1. Actualiza el userscript existente a v3.0.0 y desactiva cualquier copia anterior para que no haya dos motores en la misma página.
-2. Abre `lottery.php`. Junto al campo de fecha aparece **AUTO: OBSERVAR**. En este modo se buscan y contrastan resultados; si la fecha visible es hoy, se muestran en los inputs vacíos, pero no se envían a Rover. La consola muestra los sorteos activos y los estados `WAITING_RESULT` y `RESULT_READY`.
-3. Para probar el flujo completo de Rapid, elige **AUTO: RAPID** en **un solo puesto**. Los seis sorteos Rapid pueden enviarse y verificarse automáticamente; NationJL, Premier, Brazil y Queen siguen en observación. Los otros dos usuarios deben permanecer en **AUTO: OBSERVAR**. El ajuste se conserva en ese navegador.
-4. **AUTO: TODOS** habilita las cinco fuentes y requiere el mismo control de un solo emisor. Para pausar envíos, vuelve a **AUTO: OBSERVAR**. Un envío que ya comenzó se verifica antes de concluir; revisa la consola.
+1. Abre `lottery.php`. El botón de engrane **⚙️** aparece inmediatamente a la derecha del campo DATE.
+2. Pulsa el engrane para abrir **Configuración AUTO**. Activa o desactiva la automatización global y marca únicamente las loterías que esta PC debe procesar.
+3. Las loterías se agrupan en cinco acordeones: **Pick and Win**, **Rapid**, **Premier**, **Brazil** y **Queen**. Cada acordeón tiene su propio check **Todas** y también se puede seleccionar cada sorteo individualmente.
+4. El intervalo automático se elige entre **1 minuto, 5 minutos o 10 minutos**. También se puede limitar la cantidad máxima de búsquedas por sorteo o dejarla sin límite.
+5. **EXTRA continúa manual.** Evita habilitar la misma lotería como emisora automática en más de una PC al mismo tiempo.
 
 Al pulsar **Search** en Rover, si la tabla se reconstruye, los resultados que el userscript ya había encontrado se restauran automáticamente siempre que la fila siga vacía o coincida; nunca se sobrescriben valores distintos devueltos por Rover.
 
-La automatización solo usa la fecha actual de República Dominicana. Cambiar la fecha visible de Rover afecta a los botones manuales, no a los sorteos automáticos. El motor necesita que `lottery.php` esté abierto; la pestaña puede estar en segundo plano. Si el navegador no dispone de Web Locks, el script permanece sin enviar.
+La automatización usa la fecha actual de República Dominicana. Cambiar la fecha visible de Rover afecta a los botones manuales, no a los sorteos automáticos. El motor necesita que `lottery.php` esté abierto; la pestaña puede estar en segundo plano. Si el navegador no dispone de Web Locks, el script no realiza un POST automático.
 
 ## Estados y revisión
 
@@ -73,10 +74,17 @@ Antes de publicar se validaron: sintaxis completa, aislamiento del motor AUTO, 1
 
 ## v3.1.0 — configuración AUTO por lotería
 
-El selector AUTO de tres modos se reemplaza por un botón de engrane situado en la misma línea del campo DATE. El modal permite activar o desactivar la automatización global, elegir individualmente qué sorteos participan, seleccionar un intervalo fijo de 10 s, 15 s, 30 s, 1 min o 2 min y limitar las búsquedas a 3, 5, 10, 15 o dejarlas sin límite.
+El selector AUTO de tres modos se reemplaza por un botón de engrane situado en la misma línea del campo DATE. El modal permite activar o desactivar la automatización global y elegir individualmente qué sorteos participan.
 
 La primera ejecución migra la configuración anterior: RAPID activa únicamente los seis sorteos Rapid, TODOS activa los 25 sorteos y OBSERVAR deja la automatización global desactivada. EXTRA continúa manual. La configuración se guarda localmente en cada navegador/PC.
 
 Las loterías desactivadas no consultan automáticamente su fuente ni emiten resultados. Si ya existía un POST en PROCESSING, VERIFYING o PROCESS_UNCERTAIN, su verificación de seguridad continúa aunque AUTO se desactive, para no dejar un envío ambiguo sin confirmar.
 
 Para evitar carreras entre equipos, una misma lotería debe configurarse como emisora automática en una sola PC a la vez.
+
+
+## v3.1.1 — acordeones e intervalos
+
+El modal AUTO muestra cinco grupos explícitos y siempre visibles como encabezados: **Pick and Win**, **Rapid**, **Premier**, **Brazil** y **Queen**. Los grupos se comportan como acordeón: al abrir uno se cierran los demás. Cada grupo incluye un check **Todas** con estado marcado, parcial o vacío según sus sorteos.
+
+Los intervalos automáticos disponibles pasan a ser únicamente **1 minuto, 5 minutos y 10 minutos**. Una configuración anterior guardada con 10, 15, 30 segundos o 2 minutos se normaliza automáticamente a **1 minuto** sin perder qué loterías estaban seleccionadas.

@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.3 — guía breve
+# Virtual Lotteries v3.1.4 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -98,3 +98,8 @@ Los grupos del modal dejan de usar elementos `section` y pasan a contenedores `d
 ## v3.1.3 — engrane sin fondo
 
 El acceso a Configuración AUTO queda como un icono SVG de engrane sin caja, borde ni fondo. Cuando AUTO está activo, solo cambia el color del engrane a verde; el fondo permanece transparente. El hover también mantiene fondo transparente.
+
+
+## v3.1.4 — color Search
+
+El engrane AUTO usa el mismo azul dominante del botón Search de Rover (`#03A9F3`) con icono blanco y forma circular. El hover utiliza `#0398DB`. El estado AUTO activo ya no usa verde: el botón conserva el mismo lenguaje visual que Search.

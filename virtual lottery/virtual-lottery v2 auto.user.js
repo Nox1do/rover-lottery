@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.3
+// @version      3.1.4
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -29,7 +29,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.3';
+    const SCRIPT_VERSION = '3.1.4';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -133,36 +133,39 @@
             width: auto !important;
         }
         .rs-auto-settings-btn {
-            flex: 0 0 30px;
-            width: 30px;
-            height: 34px;
+            flex: 0 0 32px;
+            width: 32px;
+            height: 32px;
             padding: 0;
             border: 0 !important;
-            border-radius: 0;
+            border-radius: 50%;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: transparent !important;
+            background: #03a9f3 !important;
             box-shadow: none !important;
-            color: #64748b;
+            color: #fff;
             cursor: pointer;
-            transition: color .15s ease, transform .15s ease;
+            transition: background-color .15s ease, transform .15s ease;
         }
         .rs-auto-settings-btn:hover {
-            background: transparent !important;
-            color: #334155;
+            background: #0398db !important;
+            color: #fff;
         }
         .rs-auto-settings-btn:active {
-            transform: scale(.92);
+            transform: scale(.94);
         }
         .rs-auto-settings-btn.rs-active {
-            background: transparent !important;
+            background: #03a9f3 !important;
             border: 0 !important;
-            color: #15803d;
+            color: #fff;
+        }
+        .rs-auto-settings-btn.rs-active:hover {
+            background: #0398db !important;
         }
         .rs-auto-settings-btn svg {
-            width: 20px;
-            height: 20px;
+            width: 19px;
+            height: 19px;
             display: block;
             pointer-events: none;
         }

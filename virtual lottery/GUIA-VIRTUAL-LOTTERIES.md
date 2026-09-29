@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.0.9 — guía breve
+# Virtual Lotteries v3.0.10 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -48,3 +48,10 @@ Desde v3.0.8 el encabezado del userscript define `@updateURL` y `@downloadURL` a
 ## Inyección inmediata de botones
 
 Desde v3.0.9 el userscript arranca en `document-start` y observa los nodos que Rover agrega a la tabla. Cada nueva fila `tr.res_tr` se procesa directamente en el callback de `MutationObserver`, sin el debounce anterior de 450 ms ni un barrido tardío de toda la tabla. Esto permite que los botones aparezcan en el mismo ciclo visual de la fila, manteniendo la lógica de Rover sin interceptar ni sobrescribir sus funciones AJAX.
+
+
+## v3.0.10 — reversión preventiva del ciclo de vida UI
+
+Se revirtió únicamente la experimentación de v3.0.9 con `document-start` y observación global incremental porque podía interferir con la carga normal de la tabla de Rover. Se restaura el ciclo estable de v3.0.8: `document-idle` y reinyección controlada tras las mutaciones. Las mejoras del motor AUTO, verificación, refresh fresco de `verResultados2.php` y actualización automática desde GitHub permanecen intactas.
+
+La consola ahora identifica explícitamente la versión cargada con `[Virtual Lotteries] v3.0.10 cargado · UI estable`.

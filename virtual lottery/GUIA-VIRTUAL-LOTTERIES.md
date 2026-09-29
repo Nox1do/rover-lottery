@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.0.12 — guía breve
+# Virtual Lotteries v3.1.0 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -69,3 +69,14 @@ Un segundo observer liviano solo sirve para reenganchar el observer dedicado si 
 Se conserva la inyección inmediata de v3.0.11, pero el ciclo se endurece para cualquier orden de carga del DOM. `iniciar()` instala primero el listener de fecha y el selector AUTO, y luego procesa filas si ya existen. Tanto la llegada de filas como el reemplazo del shell pasan por el mismo inicializador idempotente. El observer de resultados sigue limitado a `#resultadosLoteria`, no usa `closest('tr.res_tr')`, no contiene timers y no llama a `autoTick()`.
 
 Antes de publicar se validaron: sintaxis completa, aislamiento del motor AUTO, 100 mutaciones internas consecutivas sin reinyección, indicador de carga ignorado, fila nueva detectada, reemplazo por Search con un único botón y el caso de carrera donde las filas existen antes que `#fecha`.
+
+
+## v3.1.0 — configuración AUTO por lotería
+
+El selector AUTO de tres modos se reemplaza por un botón de engrane situado en la misma línea del campo DATE. El modal permite activar o desactivar la automatización global, elegir individualmente qué sorteos participan, seleccionar un intervalo fijo de 10 s, 15 s, 30 s, 1 min o 2 min y limitar las búsquedas a 3, 5, 10, 15 o dejarlas sin límite.
+
+La primera ejecución migra la configuración anterior: RAPID activa únicamente los seis sorteos Rapid, TODOS activa los 25 sorteos y OBSERVAR deja la automatización global desactivada. EXTRA continúa manual. La configuración se guarda localmente en cada navegador/PC.
+
+Las loterías desactivadas no consultan automáticamente su fuente ni emiten resultados. Si ya existía un POST en PROCESSING, VERIFYING o PROCESS_UNCERTAIN, su verificación de seguridad continúa aunque AUTO se desactive, para no dejar un envío ambiguo sin confirmar.
+
+Para evitar carreras entre equipos, una misma lotería debe configurarse como emisora automática en una sola PC a la vez.

@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/virtual-lottery-auto-settings
+      - diagnostic-3.1.8D2
     paths:
       - 'virtual lottery/**'
       - '.github/workflows/virtual-lottery-tests.yml'

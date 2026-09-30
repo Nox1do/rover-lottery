@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.10 — guía breve
+# Virtual Lotteries v3.2.0 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -139,3 +139,16 @@ El selector **Buscar resultado cada** incorpora **3 minutos**. Los intervalos di
 Al desmarcar una lotería y guardar la configuración, cualquier ciclo AUTO no crítico que hubiera empezado antes deja de poder pintar, resaltar o restaurar resultados en esa fila. El motor vuelve a comprobar la configuración después de las esperas de red y `autoReflejar` también exige que la lotería siga habilitada.
 
 El caché visual distingue ahora entre resultados manuales y resultados AUTO. Un resultado manual puede seguir restaurándose después de un Search, pero un resultado originado por AUTO no se restaura si esa lotería está desmarcada. Las verificaciones de seguridad de un POST que ya hubiera sido enviado continúan en background, pero con AUTO deshabilitado no repintan la UI.
+
+
+## v3.2.0 — líder automático entre tabs
+
+Cuando hay varias pestañas con `lottery.php` abiertas en el mismo navegador/perfil, el userscript coordina sus instancias y solo una queda como **tab líder**. Únicamente ese tab ejecuta el scheduler AUTO; los demás quedan como **tab observador** y no consultan fuentes ni procesan resultados automáticamente.
+
+La elección es determinística: gana la instancia activa más antigua. Cada tab mantiene heartbeat. Si el líder se cierra, queda suspendido demasiado tiempo o deja de estar activo, otro tab toma el liderazgo. Un tab que reaparece después de quedar stale reingresa con una antigüedad nueva para no quitarle inmediatamente el liderazgo al reemplazo.
+
+El handoff conserva la hora compartida del último tick para que cambiar de líder no reinicie artificialmente el intervalo de **1/3/5/10 minutos**. Si existe un estado `PROCESSING`, `VERIFYING` o `PROCESS_UNCERTAIN`, el nuevo líder prioriza la verificación de seguridad.
+
+La coordinación utiliza `GM_getTab`, `GM_saveTab`, `GM_getTabs` y señales por `GM_addValueChangeListener`. El Web Lock `vl-auto-rover-post` continúa como segunda barrera justo antes del POST. La coordinación es por navegador/perfil; PCs, navegadores o perfiles distintos no comparten este liderazgo.
+
+Después de actualizar desde una versión anterior a 3.2.0, conviene recargar una vez todas las pestañas `lottery.php` que ya estaban abiertas para que todas participen en la elección.

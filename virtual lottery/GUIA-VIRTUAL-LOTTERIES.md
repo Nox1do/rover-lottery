@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.8F — guía breve
+# Virtual Lotteries v3.1.9 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -7,7 +7,7 @@ El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil
 1. Abre `lottery.php`. El botón de engrane **⚙️** aparece inmediatamente a la derecha del campo DATE.
 2. Pulsa el engrane para abrir **Configuración AUTO**. Activa o desactiva la automatización global y marca únicamente las loterías que esta PC debe procesar.
 3. Las loterías se agrupan en cinco acordeones: **Pick and Win**, **Rapid**, **Premier**, **Brazil** y **Queen**. Cada acordeón tiene su propio check **Todas** y también se puede seleccionar cada sorteo individualmente.
-4. El intervalo automático se elige entre **1 minuto, 5 minutos o 10 minutos**. También se puede limitar la cantidad máxima de búsquedas por sorteo o dejarla sin límite.
+4. El intervalo automático se elige entre **1 minuto, 3 minutos, 5 minutos o 10 minutos**. También se puede limitar la cantidad máxima de búsquedas por sorteo o dejarla sin límite.
 5. **EXTRA continúa manual.** Evita habilitar la misma lotería como emisora automática en más de una PC al mismo tiempo.
 
 Al pulsar **Search** en Rover, si la tabla se reconstruye, los resultados que el userscript ya había encontrado se restauran automáticamente siempre que la fila siga vacía o coincida; nunca se sobrescriben valores distintos devueltos por Rover.
@@ -87,7 +87,7 @@ Para evitar carreras entre equipos, una misma lotería debe configurarse como em
 
 El modal AUTO muestra cinco grupos explícitos y siempre visibles como encabezados: **Pick and Win**, **Rapid**, **Premier**, **Brazil** y **Queen**. Los grupos se comportan como acordeón: al abrir uno se cierran los demás. Cada grupo incluye un check **Todas** con estado marcado, parcial o vacío según sus sorteos.
 
-Los intervalos automáticos disponibles pasan a ser únicamente **1 minuto, 5 minutos y 10 minutos**. Una configuración anterior guardada con 10, 15, 30 segundos o 2 minutos se normaliza automáticamente a **1 minuto** sin perder qué loterías estaban seleccionadas.
+Los intervalos automáticos disponibles en esa versión pasaron a ser **1 minuto, 5 minutos y 10 minutos**. Una configuración anterior guardada con 10, 15, 30 segundos o 2 minutos se normaliza automáticamente a **1 minuto** sin perder qué loterías estaban seleccionadas.
 
 
 ## v3.1.2 — acordeones compactos
@@ -128,3 +128,7 @@ La identidad del sorteo se valida exclusivamente con el código lógico configur
 
 La suite incluye una regresión que ejecuta `autoTick()` sin `#fecha`, sin tabla y sin inputs visibles, habilita únicamente `BRAZIL12PM` y exige que el único POST use exactamente ese código. También verifica que una identidad Rover duplicada produzca cero POST.
 \n\n## v3.1.8D — diagnóstico temporal\n\nSe creó una release temporal con el evento de diagnóstico para forzar únicamente el horario de evaluación de un código AUTO, manteniendo las validaciones reales del motor. Esa versión queda preservada en el historial de GitHub para pruebas puntuales.\n\n## v3.1.8F — restauración final\n\nSe restauró el código productivo limpio de v3.1.8 y se eliminó por completo el diagnóstico temporal. Permanecen AUTO independiente de la vista AJAX e identidad única de Rover antes del POST.\n
+
+## v3.1.9 — intervalo de 3 minutos
+
+El selector **Buscar resultado cada** incorpora **3 minutos**. Los intervalos disponibles son ahora **1, 3, 5 y 10 minutos**. Las configuraciones existentes de 1, 5 o 10 minutos se conservan sin cambios, y las configuraciones antiguas no válidas continúan normalizándose a 1 minuto.

@@ -64,13 +64,17 @@ const saved = custom.autoGuardarConfiguracion({
 });
 assert.equal(saved.intervalMs,300000);
 assert.equal(saved.maxRetries,3);
+const threeMinute = custom.autoGuardarConfiguracion({
+    enabled:true, intervalMs:180000, maxRetries:3, lotteries
+});
+assert.equal(threeMinute.intervalMs,180000);
 assert.equal(custom.autoPuedeEmitir('QLT-MIDDAY'),true);
 assert.equal(custom.autoPuedeEmitir('RPL-11AM'),false);
 assert.equal(custom.autoIntentosAgotados({searchAttempts:2},saved),false);
 assert.equal(custom.autoIntentosAgotados({searchAttempts:3},saved),true);
 assert.equal(custom.autoTextoIntento(4,0),'4/∞');
 
-assert.deepEqual([...custom.AUTO_INTERVALOS_MS],[60000,300000,600000]);
+assert.deepEqual([...custom.AUTO_INTERVALOS_MS],[60000,180000,300000,600000]);
 assert.deepEqual([...custom.AUTO_MAX_BUSQUEDAS],[0,3,5,10,15]);
 
 const grupos = Object.fromEntries(custom.AUTO_GRUPOS.map(grupo => [

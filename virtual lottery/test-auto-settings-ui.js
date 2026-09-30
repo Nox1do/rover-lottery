@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('virtual-lottery v2 auto.user.js','utf8');
 
-assert.match(source,/^\/\/ @version\s+3\.1\.8F$/m);
+assert.match(source,/^\/\/ @version\s+3\.1\.9$/m);
 assert.match(source,/^\/\/ @run-at\s+document-idle$/m);
 assert.ok(source.includes("const ICON_GEAR ="));
 assert.ok(source.includes("row.className = 'rs-auto-date-row'"));
@@ -36,7 +36,7 @@ assert.ok(source.includes("titulo: 'Queen'"));
 assert.ok(source.includes("function cerrarAcordeones(excepto = null)"));
 assert.ok(source.includes("selectAll.indeterminate"));
 assert.ok(source.includes("count.textContent ="));
-assert.ok(source.includes("const AUTO_INTERVALOS_MS = [60000, 300000, 600000];"));
+assert.ok(source.includes("const AUTO_INTERVALOS_MS = [60000, 180000, 300000, 600000];"));
 assert.ok(source.includes("background: transparent !important;"));
 assert.ok(source.includes("color: #6b7280;"));
 assert.ok(source.includes("color: #4b5563;"));

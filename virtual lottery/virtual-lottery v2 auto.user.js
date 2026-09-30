@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.8D
+// @version      3.1.8D2
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -29,7 +29,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.8D';
+    const SCRIPT_VERSION = '3.1.8D2';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -1504,17 +1504,101 @@
         return estado;
     }
 
+    async function debugRecheckAuto(codigo) {
+        const target = String(codigo || '').trim();
+        if (!autoConfig[target]) {
+            console.error('[VL DEBUG] Código desconocido:', target || '(vacío)');
+            return null;
+        }
+
+        const reloj = autoAhoraRD();
+        const fuente = autoConfig[target].fuente;
+
+        // Forzar red real: no reutilizar snapshots de 10 s del motor.
+        autoCache.delete(fuente);
+        autoRoverCache.delete(reloj.fechaIso);
+
+        console.warn('[VL DEBUG] RECHECK solo lectura', {
+            codigo: target,
+            fecha: reloj.fechaUs,
+            fuente: nombreFuente(fuente),
+            estadoLocal: autoEstado(reloj, target).estado
+        });
+
+        let resultadoFuente = null;
+        let errorFuente = '';
+        try {
+            resultadoFuente = await autoFuente(target, reloj.fechaUs);
+        } catch (error) {
+            errorFuente = error.message;
+        }
+
+        let snap = null;
+        let errorRover = '';
+        try {
+            snap = await autoConsultar(reloj, target, resultadoFuente, true);
+        } catch (error) {
+            errorRover = error.message;
+        }
+
+        const fuenteValida = autoResultadoValido(resultadoFuente);
+        const roverValido = autoIdentidadRoverValida(target, snap);
+        const coincide = fuenteValida && roverValido
+            ? autoIguales(snap.valores, resultadoFuente)
+            : false;
+
+        const resumen = {
+            Codigo: target,
+            Fecha: reloj.fechaUs,
+            Fuente: nombreFuente(fuente),
+            FuenteValida: fuenteValida,
+            FuenteResultado: fuenteValida
+                ? AUTO_CAMPOS.map(c => resultadoFuente[c]).join(' | ')
+                : errorFuente || 'Sin resultado válido',
+            RoverEncontrada: !!snap?.encontrada,
+            RoverAmbigua: !!snap?.ambigua,
+            CodigoServidor: snap?.codigoServidor ?? '',
+            Procesada: !!snap?.procesada,
+            RoverResultado: snap?.encontrada
+                ? AUTO_CAMPOS.map(c => autoNormalizar(snap.valores[c])).join(' | ')
+                : errorRover || '',
+            Coincide: coincide,
+            Duplicados: Array.isArray(snap?.duplicados) ? snap.duplicados.join(', ') : ''
+        };
+
+        console.table([resumen]);
+        console.log('[VL DEBUG] RECHECK terminado · SOLO LECTURA · 0 POST de procesamiento', {
+            codigo: target,
+            resultadoFuente,
+            rover: snap,
+            errorFuente,
+            errorRover
+        });
+
+        return { codigo: target, reloj, resultadoFuente, rover: snap,
+            fuenteValida, roverValido, coincide, errorFuente, errorRover };
+    }
+
     function instalarDiagnosticoAuto() {
         if (typeof window === 'undefined') return;
+
+        const codigoEvento = event => typeof event.detail === 'string'
+            ? event.detail
+            : String(event.detail?.codigo || '');
+
         window.addEventListener('vl-debug-force', event => {
-            const codigo = typeof event.detail === 'string'
-                ? event.detail
-                : String(event.detail?.codigo || '');
-            debugForzarAuto(codigo).catch(error =>
+            debugForzarAuto(codigoEvento(event)).catch(error =>
                 console.error('[VL DEBUG] Error forzando evaluación:', error)
             );
         });
-        console.warn('[VL DEBUG] 3.1.8D activo · evento: vl-debug-force');
+
+        window.addEventListener('vl-debug-recheck', event => {
+            debugRecheckAuto(codigoEvento(event)).catch(error =>
+                console.error('[VL DEBUG] Error en recheck:', error)
+            );
+        });
+
+        console.warn('[VL DEBUG] 3.1.8D2 activo · eventos: vl-debug-force / vl-debug-recheck');
     }
 
     function autoResumen(reloj) {

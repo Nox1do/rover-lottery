@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.8D2
+// @version      3.1.8D3
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
-// @source       https://github.com/Nox1do/rover-lottery/blob/diagnostic-3.1.8D2/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
-// @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/diagnostic-3.1.8D2/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
-// @downloadURL  https://raw.githubusercontent.com/Nox1do/rover-lottery/diagnostic-3.1.8D2/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
+// @source       https://github.com/Nox1do/rover-lottery/blob/diagnostic-3.1.8D3/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
+// @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/diagnostic-3.1.8D3/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
+// @downloadURL  https://raw.githubusercontent.com/Nox1do/rover-lottery/diagnostic-3.1.8D3/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
 // @match        https://www.roversport.lol/adm/es/lottery.php
 // @match        https://www.roversport.net/adm/es/lottery.php
 // @match        https://www.lotterypost.com/results/qc/extra/past*
@@ -29,7 +29,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.8D2';
+    const SCRIPT_VERSION = '3.1.8D3';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -1586,6 +1586,7 @@
             ? event.detail
             : String(event.detail?.codigo || '');
 
+        // El CustomEvent se conserva para pruebas desde el mismo sandbox.
         window.addEventListener('vl-debug-force', event => {
             debugForzarAuto(codigoEvento(event)).catch(error =>
                 console.error('[VL DEBUG] Error forzando evaluación:', error)
@@ -1598,7 +1599,21 @@
             );
         });
 
-        console.warn('[VL DEBUG] 3.1.8D2 activo · eventos: vl-debug-force / vl-debug-recheck');
+        // Puente robusto para Firefox/Tampermonkey desde la consola de la página.
+        // Solo expone el RECHECK de lectura; nunca el flujo que puede procesar.
+        window.addEventListener('message', event => {
+            if (event.origin !== location.origin) return;
+            if (typeof event.data !== 'string') return;
+
+            const match = event.data.match(/^VL_DEBUG_RECHECK:([A-Z0-9-]+)$/);
+            if (!match) return;
+
+            debugRecheckAuto(match[1]).catch(error =>
+                console.error('[VL DEBUG] Error en recheck postMessage:', error)
+            );
+        });
+
+        console.warn('[VL DEBUG] 3.1.8D3 activo · RECHECK consola: window.postMessage(...)');
     }
 
     function autoResumen(reloj) {

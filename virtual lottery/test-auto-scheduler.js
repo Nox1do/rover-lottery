@@ -9,7 +9,8 @@ const source = fs.readFileSync('virtual-lottery v2 auto.user.js','utf8')
     )
     .replace(/\}\)\(\);\s*$/, `
 globalThis.__test = {
-    autoConfig, autoGuardarConfiguracion, autoReiniciarScheduler, autoDetenerScheduler
+    autoConfig, autoGuardarConfiguracion, autoReiniciarScheduler, autoDetenerScheduler,
+    setLeader(value) { autoTabEsLider = !!value; }
 };
 })();`);
 
@@ -44,6 +45,13 @@ vm.runInContext(source,context);
 const api=context.__test;
 const lotteries=Object.fromEntries(Object.keys(api.autoConfig).map(c=>[c,{enabled:c==='RPL-11AM'}]));
 
+api.setLeader(false);
+const followerTimers = timers.length;
+api.autoGuardarConfiguracion({enabled:true,intervalMs:60000,maxRetries:0,lotteries});
+api.autoReiniciarScheduler(false);
+assert.equal(timers.length,followerTimers);
+
+api.setLeader(true);
 for (const intervalMs of [60000, 180000, 300000, 600000]) {
     api.autoGuardarConfiguracion({enabled:true,intervalMs,maxRetries:0,lotteries});
     api.autoReiniciarScheduler(false);
@@ -54,4 +62,4 @@ assert.ok(cleared.length>=1);
 api.autoDetenerScheduler();
 assert.ok(cleared.length>=2);
 
-console.log('AUTO scheduler: 1/3/5/10 minute intervals and timer cleanup OK');
+console.log('AUTO scheduler: leader-only + 1/3/5/10 minute intervals and timer cleanup OK');

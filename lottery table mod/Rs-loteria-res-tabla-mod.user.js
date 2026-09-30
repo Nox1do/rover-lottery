@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Rs-loteria-res-tabla-mod
 // @namespace    https://roversport.net/
-// @version      1.6.20
-// @description  Estilos UI, 500 filas por defecto, resaltado, filtro Sin procesar y layout DataTables estable sin saltos del sidebar.
+// @version      1.6.21
+// @description  Estilos UI, 500 filas por defecto, resaltado, filtro Sin procesar y sincronización del sidebar en el primer frame.
 // @homepageURL  https://github.com/Nox1do/rover-lottery
 // @source       https://github.com/Nox1do/rover-lottery/blob/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
 // @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
@@ -163,6 +163,10 @@
   height: var(--rt-input-h) !important;
   box-sizing: border-box !important;
   color: var(--rt-input-fg) !important;
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -o-transition: none !important;
+  transition: none !important;
   font-weight: var(--rt-input-weight) !important;
   text-shadow: var(--rt-input-soft-shadow) !important;
   font-variant-numeric: tabular-nums !important;
@@ -405,12 +409,15 @@
 
   const LAYOUT_SETTLE_MS = 180;
   const LAYOUT_MAX_WAIT_MS = 900;
+  const SIDEBAR_SUPPRESS_MS = 260;
 
   let adjustRaf1 = 0;
   let adjustRaf2 = 0;
   let layoutSettleTimer = 0;
   let layoutMaxTimer = 0;
   let pendingLayoutReason = "layout";
+  let sidebarAdjustRaf = 0;
+  let sidebarSuppressUntil = 0;
 
   function cancelScheduledAdjust() {
     if (adjustRaf1) cancelAnimationFrame(adjustRaf1);
@@ -419,41 +426,75 @@
     adjustRaf2 = 0;
   }
 
-  function runDataTableColumnAdjust(reason = "layout") {
-    cancelScheduledAdjust();
-
-    // Un único ajuste, cuando el contenedor ya terminó de cambiar de tamaño.
-    // No escuchamos column-sizing.dt porque columns.adjust() puede volver a
-    // emitir ese evento y producir un feedback visual.
-    adjustRaf1 = requestAnimationFrame(() => {
-      adjustRaf1 = 0;
-      adjustRaf2 = requestAnimationFrame(() => {
-        adjustRaf2 = 0;
-        const dt = getDataTable();
-        if (!dt) return;
-
-        try {
-          dt.columns.adjust();
-          if (dt.responsive && typeof dt.responsive.recalc === "function") {
-            dt.responsive.recalc();
-          }
-        } catch (error) {
-          console.warn("[Rs tabla mod] columns.adjust falló:", reason, error);
-        }
-      });
-    });
-  }
-
-  function flushStableLayoutAdjust() {
+  function cancelStableLayoutTimers() {
     if (layoutSettleTimer) clearTimeout(layoutSettleTimer);
     if (layoutMaxTimer) clearTimeout(layoutMaxTimer);
     layoutSettleTimer = 0;
     layoutMaxTimer = 0;
+  }
+
+  function applyDataTableColumnAdjust(reason = "layout") {
+    const dt = getDataTable();
+    if (!dt) return false;
+
+    try {
+      dt.columns.adjust();
+      if (dt.responsive && typeof dt.responsive.recalc === "function") {
+        dt.responsive.recalc();
+      }
+      return true;
+    } catch (error) {
+      console.warn("[Rs tabla mod] columns.adjust falló:", reason, error);
+      return false;
+    }
+  }
+
+  function runDataTableColumnAdjust(reason = "layout") {
+    cancelScheduledAdjust();
+
+    // Para reconstrucciones AJAX normales esperamos dos frames. El sidebar
+    // usa una ruta distinta y sincroniza en el primer frame tras cambiar la clase.
+    adjustRaf1 = requestAnimationFrame(() => {
+      adjustRaf1 = 0;
+      adjustRaf2 = requestAnimationFrame(() => {
+        adjustRaf2 = 0;
+        applyDataTableColumnAdjust(reason);
+      });
+    });
+  }
+
+  function sidebarAdjustSuppressed() {
+    return typeof performance !== "undefined" &&
+      performance.now() < sidebarSuppressUntil;
+  }
+
+  function prepareSidebarToggleAdjust() {
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    sidebarSuppressUntil = now + SIDEBAR_SUPPRESS_MS;
+
+    cancelStableLayoutTimers();
+    cancelScheduledAdjust();
+
+    if (sidebarAdjustRaf) cancelAnimationFrame(sidebarAdjustRaf);
+
+    // Este listener corre en captura. custom.js cambia body.content-wrapper
+    // después, en bubble. El rAF se ejecuta con la clase ya cambiada y antes
+    // del siguiente paint: no existe una segunda corrección visible 180 ms después.
+    sidebarAdjustRaf = requestAnimationFrame(() => {
+      sidebarAdjustRaf = 0;
+      applyDataTableColumnAdjust("sidebar toggle · first frame");
+    });
+  }
+
+  function flushStableLayoutAdjust() {
+    cancelStableLayoutTimers();
+    if (sidebarAdjustSuppressed()) return;
     runDataTableColumnAdjust(pendingLayoutReason);
   }
 
   function scheduleStableLayoutAdjust(reason = "layout") {
     pendingLayoutReason = reason;
+    if (sidebarAdjustSuppressed()) return;
 
     if (layoutSettleTimer) clearTimeout(layoutSettleTimer);
     layoutSettleTimer = setTimeout(() => {
@@ -598,9 +639,9 @@
         if (lastWrapperWidth !== null && Math.abs(width - lastWrapperWidth) < 0.5) return;
         lastWrapperWidth = width;
 
-        // El sidebar de Rover anima el ancho del contenido. Durante esa
-        // transición no tocamos las columnas; reiniciamos este debounce y
-        // hacemos un único ajuste cuando el ancho deja de cambiar.
+        // ResizeObserver sigue cubriendo resize real de ventana y otros cambios.
+        // Durante el toggle conocido del sidebar queda suprimido: ese caso ya se
+        // sincroniza en el primer frame mediante prepareSidebarToggleAdjust().
         scheduleStableLayoutAdjust("ancho wrapper estable");
       });
       wrapperResizeObserver.observe(wrapper);
@@ -638,6 +679,14 @@
       shellObserver.observe(document.documentElement, { childList: true, subtree: true });
     }
 
+    // custom.js de Rover cambia body.content-wrapper desde .open-close.
+    // Capturamos antes de su handler para programar el ajuste exacto del primer frame.
+    document.addEventListener("click", (event) => {
+      const toggle = event.target?.closest?.(".open-close");
+      if (!toggle) return;
+      prepareSidebarToggleAdjust();
+    }, true);
+
     window.addEventListener("resize", () => {
       scheduleStableLayoutAdjust("window resize");
     }, { passive: true });
@@ -650,5 +699,5 @@
   start();
   document.addEventListener("DOMContentLoaded", () => bindTableLifecycle(), { once: true });
 
-  console.log("[Rs tabla mod] v1.6.20 activo · sidebar estable + ajuste único al terminar resize");
+  console.log("[Rs tabla mod] v1.6.21 activo · sidebar sincronizado en primer frame");
 })();

@@ -11,7 +11,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null, du
     let beforeLock = () => {};
     const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
         .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();\n', '')
-        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas, autoIdentidadRoverValida, debugForzarAuto, parseRapid, LOTERIAS };\n})();');
+        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas, autoIdentidadRoverValida, debugForzarAuto, debugRelojFecha, debugRecheckAuto, parseRapid, LOTERIAS };\n})();');
     const result = { primera:'00', segunda:'05', tercera:'99', pick3:'007', pick4:'0001' };
     const inputs = Object.fromEntries(Object.keys(result).map(c => [c, {
         value: rowValues ? rowValues[c] : result[c],
@@ -82,6 +82,11 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null, du
 
 async function main() {
 const core = load();
+const hist = core.debugRelojFecha('09/27/2026');
+assert.equal(hist.fechaUs, '09/27/2026');
+assert.equal(hist.fechaIso, '2026-09-27');
+assert.throws(() => core.debugRelojFecha('02/31/2026'), /Fecha inválida/);
+assert.throws(() => core.debugRelojFecha('09/29/2026'), /Fecha futura/);
 assert.equal(core.autoDebeSoloVerificar('PROCESSING'), true);
 assert.equal(core.autoDebeSoloVerificar('VERIFYING'), true);
 assert.equal(core.autoDebeSoloVerificar('PROCESS_UNCERTAIN'), true);

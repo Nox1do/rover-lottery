@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('virtual-lottery v2 auto.user.js','utf8');
 
-assert.match(source,/^\/\/ @version\s+3\.1\.6$/m);
+assert.match(source,/^\/\/ @version\s+3\.1\.7$/m);
 assert.match(source,/^\/\/ @run-at\s+document-idle$/m);
 assert.ok(source.includes("const ICON_GEAR ="));
 assert.ok(source.includes("row.className = 'rs-auto-date-row'"));
@@ -37,8 +37,9 @@ assert.ok(source.includes("function cerrarAcordeones(excepto = null)"));
 assert.ok(source.includes("selectAll.indeterminate"));
 assert.ok(source.includes("count.textContent ="));
 assert.ok(source.includes("const AUTO_INTERVALOS_MS = [60000, 300000, 600000];"));
-assert.ok(source.includes("background: #03a9f3 !important;"));
-assert.ok(source.includes("background: #0398db !important;"));
+assert.ok(source.includes("background: transparent !important;"));
+assert.ok(source.includes("color: #6b7280;"));
+assert.ok(source.includes("color: #4b5563;"));
 assert.ok(source.includes("pointer-events: none;"));
 assert.ok(source.includes("width: 21px;"));
 assert.ok(source.includes('viewBox="0 0 16 16"'));
@@ -53,7 +54,12 @@ assert.ok(source.includes("height: 30px;"));
 const gearCssStart=source.indexOf('.rs-auto-settings-btn {');
 const gearCssEnd=source.indexOf('.rs-auto-modal-open',gearCssStart);
 const gearCss=source.slice(gearCssStart,gearCssEnd);
-assert.ok(gearCss.includes('color: #fff;'));
+assert.ok(gearCss.includes('background: transparent !important;'));
+assert.ok(gearCss.includes('color: #6b7280;'));
+assert.ok(gearCss.includes('color: #4b5563;'));
+assert.equal(gearCss.includes('#03a9f3'),false);
+assert.equal(gearCss.includes('#0398db'),false);
+assert.equal(gearCss.includes('color: #fff;'),false);
 assert.equal(gearCss.includes('color: #15803d;'),false);
 
 assert.equal(source.includes('.rs-auto-mode'),false);
@@ -66,4 +72,4 @@ const control=source.slice(controlStart,controlEnd);
 assert.ok(control.indexOf("row.appendChild(fecha);") < control.indexOf("row.appendChild(btn);"));
 
 new Function(source);
-console.log('UI AUTO: Bootstrap gear-fill 21px en botón cuadrado Search-blue 30px OK');
+console.log('UI AUTO: Bootstrap gear-fill 21px gris, sin fondo ni borde, área 30px OK');

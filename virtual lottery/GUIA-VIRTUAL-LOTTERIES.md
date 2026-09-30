@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.6 — guía breve
+# Virtual Lotteries v3.1.7 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -113,3 +113,8 @@ El botón AUTO mantiene el azul Search, pero el círculo se reduce de 32 px a 30
 ## v3.1.6 — Bootstrap gear-fill
 
 El control de Configuración AUTO usa el SVG oficial **Bootstrap Icons `gear-fill`**, renderizado con `currentColor`. El botón mantiene el azul Search `#03A9F3`, el engrane blanco de 21 px y cambia de círculo a un botón cuadrado de 30 × 30 px con radio de 3 px.
+
+
+## v3.1.7 — engrane gris sin fondo
+
+El acceso a **Configuración AUTO** conserva el SVG Bootstrap Icons `gear-fill` de 21 px y el área de clic de 30 × 30 px, pero elimina el fondo azul. El botón queda sin fondo visible y sin borde; el engrane usa gris `#6B7280` y pasa a gris más oscuro `#4B5563` al hacer hover. El estado AUTO activo conserva el mismo aspecto gris y transparente.

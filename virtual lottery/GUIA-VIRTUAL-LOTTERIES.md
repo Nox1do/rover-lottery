@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.8D3 — guía breve
+# Virtual Lotteries v3.1.8D4 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -168,3 +168,21 @@ window.postMessage('VL_DEBUG_RECHECK:RPL-9PM', location.origin);
 ```
 
 Después deben aparecer mensajes `[VL DEBUG] RECHECK...` y una consulta fresca a `__inc/verResultados2.php`.
+
+
+## v3.1.8D4 — diagnóstico de fechas pasadas
+
+El recheck de solo lectura acepta una fecha explícita en formato `MM/DD/YYYY`. No permite fechas futuras ni fechas de calendario inválidas.
+
+Ejemplo para revisar Rapid 9 PM del 29 de septiembre de 2026:
+
+```js
+window.postMessage(
+    'VL_DEBUG_RECHECK:RPL-9PM:09/29/2026',
+    location.origin
+);
+```
+
+Para fechas pasadas de Rapid, el diagnóstico consulta `history` por fecha + hora exactas y no utiliza la señal `.draws.completed` del día actual. Esto evita que, después de medianoche, el sorteo pendiente del nuevo día bloquee incorrectamente el histórico del día anterior.
+
+El flujo continúa siendo estrictamente de lectura: consulta la fuente y `verResultados2.php`; no llama a `autoProcesar`, `autoPost` ni `procesarResultados.php`.

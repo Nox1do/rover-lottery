@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Rs-loteria-res-tabla-mod
 // @namespace    https://roversport.net/
-// @version      1.6.19
-// @description  Estilos UI, 500 filas por defecto, resaltado, filtro Sin procesar y layout DataTables estable.
+// @version      1.6.20
+// @description  Estilos UI, 500 filas por defecto, resaltado, filtro Sin procesar y layout DataTables estable sin saltos del sidebar.
 // @homepageURL  https://github.com/Nox1do/rover-lottery
 // @source       https://github.com/Nox1do/rover-lottery/blob/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
 // @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
@@ -403,25 +403,28 @@
     return true;
   }
 
+  const LAYOUT_SETTLE_MS = 180;
+  const LAYOUT_MAX_WAIT_MS = 900;
+
   let adjustRaf1 = 0;
   let adjustRaf2 = 0;
-  let adjustTimer = 0;
+  let layoutSettleTimer = 0;
+  let layoutMaxTimer = 0;
+  let pendingLayoutReason = "layout";
 
   function cancelScheduledAdjust() {
     if (adjustRaf1) cancelAnimationFrame(adjustRaf1);
     if (adjustRaf2) cancelAnimationFrame(adjustRaf2);
-    if (adjustTimer) clearTimeout(adjustTimer);
     adjustRaf1 = 0;
     adjustRaf2 = 0;
-    adjustTimer = 0;
   }
 
-  function adjustDataTableColumns(reason = "layout") {
+  function runDataTableColumnAdjust(reason = "layout") {
     cancelScheduledAdjust();
 
-    // Dos frames permiten que Rover/DataTables y otros userscripts terminen de
-    // insertar botones, badges o filas antes de medir columnas. Un ajuste corto
-    // adicional absorbe cargas tardías sin crear un loop de redraw.
+    // Un único ajuste, cuando el contenedor ya terminó de cambiar de tamaño.
+    // No escuchamos column-sizing.dt porque columns.adjust() puede volver a
+    // emitir ese evento y producir un feedback visual.
     adjustRaf1 = requestAnimationFrame(() => {
       adjustRaf1 = 0;
       adjustRaf2 = requestAnimationFrame(() => {
@@ -437,27 +440,50 @@
         } catch (error) {
           console.warn("[Rs tabla mod] columns.adjust falló:", reason, error);
         }
-
-        adjustTimer = setTimeout(() => {
-          adjustTimer = 0;
-          const lateDt = getDataTable();
-          if (!lateDt) return;
-          try {
-            lateDt.columns.adjust();
-            if (lateDt.responsive && typeof lateDt.responsive.recalc === "function") {
-              lateDt.responsive.recalc();
-            }
-          } catch (_) {}
-        }, 80);
       });
     });
+  }
+
+  function flushStableLayoutAdjust() {
+    if (layoutSettleTimer) clearTimeout(layoutSettleTimer);
+    if (layoutMaxTimer) clearTimeout(layoutMaxTimer);
+    layoutSettleTimer = 0;
+    layoutMaxTimer = 0;
+    runDataTableColumnAdjust(pendingLayoutReason);
+  }
+
+  function scheduleStableLayoutAdjust(reason = "layout") {
+    pendingLayoutReason = reason;
+
+    if (layoutSettleTimer) clearTimeout(layoutSettleTimer);
+    layoutSettleTimer = setTimeout(() => {
+      layoutSettleTimer = 0;
+      if (layoutMaxTimer) {
+        clearTimeout(layoutMaxTimer);
+        layoutMaxTimer = 0;
+      }
+      runDataTableColumnAdjust(pendingLayoutReason);
+    }, LAYOUT_SETTLE_MS);
+
+    // Protección: si un layout no deja de emitir resize por alguna animación
+    // larga, no posponer indefinidamente la sincronización.
+    if (!layoutMaxTimer) {
+      layoutMaxTimer = setTimeout(() => {
+        layoutMaxTimer = 0;
+        if (layoutSettleTimer) {
+          clearTimeout(layoutSettleTimer);
+          layoutSettleTimer = 0;
+        }
+        runDataTableColumnAdjust(pendingLayoutReason + " · max wait");
+      }, LAYOUT_MAX_WAIT_MS);
+    }
   }
 
   function redrawTable() {
     const dt = getDataTable();
     if (!dt) return;
     dt.draw(false);
-    adjustDataTableColumns("filtro Sin procesar");
+    scheduleStableLayoutAdjust("filtro Sin procesar");
   }
 
   function ensureUnprocessedFilter() {
@@ -495,6 +521,8 @@
   let observedWrapper = null;
   let observedTable = null;
   let tableObserver = null;
+  let wrapperResizeObserver = null;
+  let lastWrapperWidth = null;
 
   function bindDataTableEvents() {
     if (!observedTable) return false;
@@ -502,12 +530,11 @@
     if (!$?.fn?.dataTable) return false;
 
     // Namespace propio: nunca quitamos handlers de Rover u otros scripts.
+    // Importante: NO escuchar column-sizing.dt/responsive-resize.dt para llamar
+    // otra vez a columns.adjust(), porque eso crea feedback de dimensionado.
     $(observedTable)
       .off(".rtLotteryMod")
-      .on("draw.dt.rtLotteryMod", () => scheduleSync("draw.dt"))
-      .on("column-sizing.dt.rtLotteryMod responsive-resize.dt.rtLotteryMod", () => {
-        adjustDataTableColumns("evento DataTables");
-      });
+      .on("draw.dt.rtLotteryMod", () => scheduleSync("draw.dt"));
 
     return true;
   }
@@ -521,9 +548,9 @@
     highlightSelectedRows();
     ensureProcNoX();
 
-    // Si page.len() hizo draw, draw.dt volverá a sincronizar. El debounce de
-    // adjustDataTableColumns evita ajustes duplicados y no provoca otro draw.
-    adjustDataTableColumns(lengthChanged ? "page length 500" : reason);
+    // Si page.len() hizo draw, draw.dt volverá a sincronizar. Esperamos a que
+    // el ancho del contenedor quede estable antes de recalcular columnas.
+    scheduleStableLayoutAdjust(lengthChanged ? "page length 500" : reason);
   }
 
   function scheduleSync(reason = "mutation") {
@@ -545,6 +572,10 @@
     }
 
     tableObserver?.disconnect();
+    wrapperResizeObserver?.disconnect();
+    wrapperResizeObserver = null;
+    lastWrapperWidth = null;
+
     if (observedTable && window.jQuery) {
       try { window.jQuery(observedTable).off(".rtLotteryMod"); } catch (_) {}
     }
@@ -557,6 +588,23 @@
     // wrapper puede disparar sincronización de la tabla.
     tableObserver = new MutationObserver(() => scheduleSync("mutación tableResult"));
     tableObserver.observe(wrapper, { childList: true, subtree: true });
+
+    if (typeof ResizeObserver === "function") {
+      wrapperResizeObserver = new ResizeObserver((entries) => {
+        const entry = entries[entries.length - 1];
+        const width = Number(entry?.contentRect?.width || wrapper.getBoundingClientRect().width || 0);
+        if (!Number.isFinite(width) || width <= 0) return;
+
+        if (lastWrapperWidth !== null && Math.abs(width - lastWrapperWidth) < 0.5) return;
+        lastWrapperWidth = width;
+
+        // El sidebar de Rover anima el ancho del contenido. Durante esa
+        // transición no tocamos las columnas; reiniciamos este debounce y
+        // hacemos un único ajuste cuando el ancho deja de cambiar.
+        scheduleStableLayoutAdjust("ancho wrapper estable");
+      });
+      wrapperResizeObserver.observe(wrapper);
+    }
 
     scheduleSync("nueva tabla");
     return true;
@@ -590,14 +638,17 @@
       shellObserver.observe(document.documentElement, { childList: true, subtree: true });
     }
 
-    window.addEventListener("resize", () => adjustDataTableColumns("resize"), { passive: true });
+    window.addEventListener("resize", () => {
+      scheduleStableLayoutAdjust("window resize");
+    }, { passive: true });
+
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) adjustDataTableColumns("tab visible");
+      if (!document.hidden) scheduleStableLayoutAdjust("tab visible");
     });
   }
 
   start();
   document.addEventListener("DOMContentLoaded", () => bindTableLifecycle(), { once: true });
 
-  console.log("[Rs tabla mod] v1.6.19 activo · observer scoped + DataTables estable");
+  console.log("[Rs tabla mod] v1.6.20 activo · sidebar estable + ajuste único al terminar resize");
 })();

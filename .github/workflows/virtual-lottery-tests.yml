@@ -6,6 +6,7 @@ on:
       - main
       - feature/virtual-lottery-auto-settings
       - diagnostic-3.1.8D2
+      - diagnostic-3.1.8D3
     paths:
       - 'virtual lottery/**'
       - '.github/workflows/virtual-lottery-tests.yml'

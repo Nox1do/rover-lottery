@@ -7,7 +7,7 @@ const raw = 'https://raw.githubusercontent.com/Nox1do/rover-lottery/diagnostic-3
 assert.match(source, /^\/\/ @version\s+3\.1\.8D4$/m);
 assert.ok(source.includes("function debugForzarAuto(codigo)"));
 assert.ok(source.includes("window.addEventListener('vl-debug-force'"));
-assert.ok(source.includes("async function debugRecheckAuto(codigo)"));
+assert.ok(source.includes("async function debugRecheckAuto(codigo, fechaUs = '')"));
 assert.ok(source.includes("window.addEventListener('vl-debug-recheck'"));
 assert.ok(source.includes("window.addEventListener('message'"));
 assert.ok(source.includes("VL_DEBUG_RECHECK:([A-Z0-9-]+)(?::"));

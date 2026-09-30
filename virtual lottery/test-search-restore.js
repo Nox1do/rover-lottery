@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const file = process.argv[2] || 'virtual-lottery v2 auto.user.js';
 let source = fs.readFileSync(file, 'utf8')
   .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();', '')
-  .replace(/\}\)\(\);\s*$/, `globalThis.__test = { guardarResultadoVisible, restaurarResultadosVisibles };\n})();`);
+  .replace(/\}\)\(\);\s*$/, `globalThis.__test = { guardarResultadoVisible, restaurarResultadosVisibles, setLeader(value) { autoTabEsLider = !!value; } };\n})();`);
 
 const result = { primera:'45', segunda:'63', tercera:'91', pick3:'245', pick4:'6391' };
 const fields = Object.keys(result);
@@ -51,6 +51,7 @@ const context = {
 vm.createContext(context);
 vm.runInContext(source, context);
 const api = context.__test;
+api.setLeader(true);
 
 // Simula: el script encuentra y muestra el resultado.
 api.guardarResultadoVisible('09/27/2026', 'BRAZIL03PM', result, fields);
@@ -77,6 +78,7 @@ assert.deepEqual(Object.fromEntries(fields.map(f => [f, inputs[f].value])), resu
 // Un resultado cacheado por AUTO no puede repintarse si la lotería está deshabilitada.
 inputs = Object.fromEntries(fields.map(f => [f, makeInput(f, '')]));
 api.guardarResultadoVisible('09/27/2026', 'BRAZIL03PM', result, fields, 'auto');
+api.setLeader(false);
 assert.equal(api.restaurarResultadosVisibles(), 0);
 assert.deepEqual(Object.fromEntries(fields.map(f => [f, inputs[f].value])),
   {primera:'',segunda:'',tercera:'',pick3:'',pick4:''});

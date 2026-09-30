@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.10
+// @version      3.2.0
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -17,6 +17,9 @@
 // @grant        GM_deleteValue
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
+// @grant        GM_getTab
+// @grant        GM_saveTab
+// @grant        GM_getTabs
 // @grant        GM_xmlhttpRequest
 // @connect      www.nationjl.com
 // @connect      rapidlottery.app
@@ -29,7 +32,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.10';
+    const SCRIPT_VERSION = '3.2.0';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -881,6 +884,308 @@
     let autoDia = '';
     let autoSchedulerTimer = null;
 
+    // ============================================================
+    // COORDINACIÓN MULTI-TAB — un solo scheduler AUTO por navegador
+    // ============================================================
+    const AUTO_TAB_PROTOCOL = 1;
+    const AUTO_TAB_META_KEY = '__vlAutoLeaderV1';
+    const AUTO_TAB_SIGNAL_KEY = 'vl:auto:tabs:signal:v1';
+    const AUTO_TAB_LAST_TICK_KEY = 'vl:auto:tabs:last-tick:v1';
+    const AUTO_TAB_HEARTBEAT_MS = 4000;
+    const AUTO_TAB_STALE_MS = 15000;
+    const AUTO_TAB_SETTLE_MS = 350;
+
+    let autoTabStore = null;
+    let autoTabMeta = null;
+    let autoTabEsLider = false;
+    let autoTabLiderId = '';
+    let autoTabCoordTimer = null;
+    let autoTabCoordStarted = false;
+    let autoTabCoordInFlight = false;
+    let autoTabCoordPending = false;
+    let autoTabSignalListenerId = null;
+    let autoSettingsListenerId = null;
+
+    function autoCrearIdTab() {
+        const uuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        return `${Date.now().toString(36)}-${uuid}`;
+    }
+
+    function autoPrepararMetaTab(meta, now = Date.now()) {
+        const valida = !!meta &&
+            meta.protocol === AUTO_TAB_PROTOCOL &&
+            typeof meta.id === 'string' &&
+            meta.id.length > 0;
+        const heartbeatAnterior = valida ? Number(meta.heartbeatAt || 0) : 0;
+        const reingreso = !valida || heartbeatAnterior <= 0 ||
+            now - heartbeatAnterior > AUTO_TAB_STALE_MS;
+
+        return {
+            protocol: AUTO_TAB_PROTOCOL,
+            id: valida ? meta.id : autoCrearIdTab(),
+            startedAt: reingreso ? now : Number(meta.startedAt || now),
+            heartbeatAt: now,
+            active: true,
+            hostname: String(location.hostname || ''),
+            version: SCRIPT_VERSION
+        };
+    }
+
+    function autoElegirLiderTabs(tabs, now = Date.now()) {
+        const candidatos = Object.values(tabs || {})
+            .map(tab => tab?.[AUTO_TAB_META_KEY])
+            .filter(meta =>
+                meta &&
+                meta.protocol === AUTO_TAB_PROTOCOL &&
+                meta.active === true &&
+                typeof meta.id === 'string' &&
+                meta.id.length > 0 &&
+                Number(meta.heartbeatAt || 0) > 0 &&
+                now - Number(meta.heartbeatAt) <= AUTO_TAB_STALE_MS
+            )
+            .sort((a, b) =>
+                Number(a.startedAt || 0) - Number(b.startedAt || 0) ||
+                String(a.id).localeCompare(String(b.id))
+            );
+
+        return candidatos[0] || null;
+    }
+
+    function autoEsLiderTab() {
+        return autoTabEsLider;
+    }
+
+    function autoGetTabAsync() {
+        return new Promise((resolve, reject) => {
+            try {
+                GM_getTab(tab => resolve(tab && typeof tab === 'object' ? tab : {}));
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    function autoSaveTabAsync(tab) {
+        return new Promise((resolve, reject) => {
+            try {
+                GM_saveTab(tab, () => resolve());
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    function autoGetTabsAsync() {
+        return new Promise((resolve, reject) => {
+            try {
+                GM_getTabs(tabs => resolve(tabs && typeof tabs === 'object' ? tabs : {}));
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    function autoPublicarSignal(tipo) {
+        try {
+            GM_setValue(AUTO_TAB_SIGNAL_KEY, {
+                tipo,
+                at: Date.now(),
+                id: autoTabMeta?.id || '',
+                nonce: Math.random().toString(36).slice(2)
+            });
+        } catch (_) {}
+    }
+
+    function autoTieneRecuperacionPendiente(reloj = autoAhoraRD()) {
+        return Object.keys(autoConfig).some(codigo =>
+            autoDebeSoloVerificar(autoEstado(reloj, codigo).estado)
+        );
+    }
+
+    function autoEsperaCadencia(intervalMs, now = Date.now()) {
+        const ultimo = Number(GM_getValue(AUTO_TAB_LAST_TICK_KEY, 0));
+        const intervalo = Number(intervalMs || 0);
+        if (!ultimo || !intervalo || ultimo > now) return 0;
+        return Math.max(0, intervalo - (now - ultimo));
+    }
+
+    function autoMarcarTickLider() {
+        if (!autoEsLiderTab()) return false;
+        GM_setValue(AUTO_TAB_LAST_TICK_KEY, Date.now());
+        autoTick();
+        return true;
+    }
+
+    function autoProgramarCoordinador(delay = AUTO_TAB_HEARTBEAT_MS) {
+        if (!autoTabCoordStarted) return;
+        if (autoTabCoordTimer !== null) clearTimeout(autoTabCoordTimer);
+
+        autoTabCoordTimer = setTimeout(async () => {
+            autoTabCoordTimer = null;
+            await autoCoordinarTabs(false);
+            autoProgramarCoordinador();
+        }, delay);
+    }
+
+    async function autoCoordinarTabs(inicial = false) {
+        if (!autoTabCoordStarted) return;
+        if (autoTabCoordInFlight) {
+            autoTabCoordPending = true;
+            return;
+        }
+
+        autoTabCoordInFlight = true;
+        try {
+            const now = Date.now();
+            autoTabMeta = autoPrepararMetaTab(autoTabMeta, now);
+            autoTabStore = autoTabStore && typeof autoTabStore === 'object' ? autoTabStore : {};
+            autoTabStore[AUTO_TAB_META_KEY] = autoTabMeta;
+            await autoSaveTabAsync(autoTabStore);
+
+            const tabs = await autoGetTabsAsync();
+            const ganador = autoElegirLiderTabs(tabs, now) || autoTabMeta;
+            const eraLider = autoTabEsLider;
+            const liderAnterior = autoTabLiderId;
+
+            autoTabLiderId = ganador.id;
+            autoTabEsLider = ganador.id === autoTabMeta.id;
+
+            if (eraLider !== autoTabEsLider || liderAnterior !== autoTabLiderId) {
+                actualizarBotonAuto();
+
+                if (autoTabEsLider) {
+                    console.log(
+                        '[AUTO LOTERÍAS] TAB LÍDER',
+                        '· host:', location.hostname,
+                        '· id:', autoTabMeta.id.slice(-8)
+                    );
+                    autoResumen(autoAhoraRD());
+                    autoReiniciarScheduler(true, !autoTieneRecuperacionPendiente());
+                } else {
+                    autoDetenerScheduler();
+                    console.log(
+                        '[AUTO LOTERÍAS] TAB OBSERVADOR',
+                        '· líder:', String(autoTabLiderId).slice(-8)
+                    );
+                }
+            } else if (inicial) {
+                actualizarBotonAuto();
+            }
+        } catch (error) {
+            console.error('[AUTO LOTERÍAS] Error coordinando tabs:', error);
+        } finally {
+            autoTabCoordInFlight = false;
+            if (autoTabCoordPending && autoTabCoordStarted) {
+                autoTabCoordPending = false;
+                setTimeout(() => autoCoordinarTabs(false), 0);
+            }
+        }
+    }
+
+    function autoLiberarTab() {
+        if (!autoTabCoordStarted) return;
+
+        autoTabCoordStarted = false;
+        autoDetenerScheduler();
+        if (autoTabCoordTimer !== null) {
+            clearTimeout(autoTabCoordTimer);
+            autoTabCoordTimer = null;
+        }
+
+        if (autoTabMeta && autoTabStore) {
+            autoTabMeta = { ...autoTabMeta, active: false, heartbeatAt: 0 };
+            autoTabStore[AUTO_TAB_META_KEY] = autoTabMeta;
+            try { GM_saveTab(autoTabStore); } catch (_) {}
+        }
+
+        autoTabEsLider = false;
+        autoPublicarSignal('leave');
+        actualizarBotonAuto();
+    }
+
+    async function iniciarAutoCoordinadorTabs() {
+        if (autoTabCoordStarted) return;
+
+        if (
+            typeof GM_getTab !== 'function' ||
+            typeof GM_saveTab !== 'function' ||
+            typeof GM_getTabs !== 'function'
+        ) {
+            autoTabEsLider = true;
+            autoTabLiderId = 'fallback';
+            console.warn(
+                '[AUTO LOTERÍAS] APIs multi-tab no disponibles; este tab actúa como líder.'
+            );
+            autoReiniciarScheduler(true);
+            return;
+        }
+
+        autoTabCoordStarted = true;
+
+        try {
+            autoTabStore = await autoGetTabAsync();
+            autoTabMeta = autoPrepararMetaTab(autoTabStore[AUTO_TAB_META_KEY], Date.now());
+            autoTabStore[AUTO_TAB_META_KEY] = autoTabMeta;
+            await autoSaveTabAsync(autoTabStore);
+
+            if (typeof GM_addValueChangeListener === 'function') {
+                if (autoTabSignalListenerId === null) {
+                    autoTabSignalListenerId = GM_addValueChangeListener(
+                        AUTO_TAB_SIGNAL_KEY,
+                        (_key, _oldValue, _newValue, remote) => {
+                            if (remote && autoTabCoordStarted) {
+                                setTimeout(() => autoCoordinarTabs(false), 25);
+                            }
+                        }
+                    );
+                }
+
+                if (autoSettingsListenerId === null) {
+                    autoSettingsListenerId = GM_addValueChangeListener(
+                        AUTO_SETTINGS_KEY,
+                        (_key, _oldValue, _newValue, remote) => {
+                            if (!remote) return;
+                            actualizarBotonAuto();
+                            if (autoEsLiderTab()) autoReiniciarScheduler(true);
+                        }
+                    );
+                }
+            }
+
+            window.addEventListener('focus', () => {
+                if (autoTabCoordStarted) autoCoordinarTabs(false);
+            });
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && autoTabCoordStarted) autoCoordinarTabs(false);
+            });
+            window.addEventListener('pagehide', autoLiberarTab);
+            window.addEventListener('pageshow', () => {
+                if (!autoTabCoordStarted) {
+                    iniciarAutoCoordinadorTabs().catch(error =>
+                        console.error('[AUTO LOTERÍAS] Error reanudando coordinador:', error)
+                    );
+                } else {
+                    autoCoordinarTabs(false);
+                }
+            });
+
+            autoPublicarSignal('join');
+            autoProgramarCoordinador();
+            setTimeout(() => autoCoordinarTabs(true), AUTO_TAB_SETTLE_MS);
+        } catch (error) {
+            autoTabCoordStarted = false;
+            autoTabEsLider = true;
+            autoTabLiderId = 'fallback-error';
+            console.error(
+                '[AUTO LOTERÍAS] Coordinación multi-tab no disponible; fallback líder:',
+                error
+            );
+            autoReiniciarScheduler(true);
+        }
+    }
+
     function autoMinuto(hora) {
         const m = String(hora).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
         if (!m) return null;
@@ -1165,9 +1470,8 @@
         return tr ? { tr, valores: autoValores(tr) } : null;
     }
     function autoReflejar(reloj, codigo, resultado) {
-        // Una lotería desmarcada no debe tocar ni cachear la UI, incluso si
-        // un ciclo AUTO que empezó antes de guardar la configuración termina después.
-        if (!autoPuedeEmitir(codigo)) return false;
+        // Solo el tab líder puede reflejar AUTO; además la lotería debe seguir habilitada.
+        if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) return false;
         guardarResultadoVisible(reloj.fechaUs, codigo, resultado, AUTO_CAMPOS, 'auto');
         const visible = autoVisible(reloj, codigo);
         if (!visible || autoConflicto(visible.valores, resultado)) return false;
@@ -1229,6 +1533,7 @@
     }
 
     async function autoRevalidarConflicto(reloj, codigo, estado) {
+        if (!autoEsLiderTab()) return;
         if (Date.now() - Number(estado.lastConflictCheckAt || 0) < AUTO_CONFLICT_RECHECK_MS) return;
 
         let resultadoFuente;
@@ -1240,10 +1545,10 @@
             return;
         }
 
-        if (!autoPuedeEmitir(codigo)) return;
+        if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) return;
 
         const snap = await autoConsultar(reloj, codigo, null, true);
-        if (!autoPuedeEmitir(codigo)) return;
+        if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) return;
 
         const decision = autoResolverConflicto(estado.resultado, resultadoFuente, snap);
         autoGuardar(reloj, codigo, { ...decision, lastConflictCheckAt: Date.now() });
@@ -1252,12 +1557,14 @@
     async function autoProcesar(reloj, codigo, resultado) {
         // Si AUTO se desactiva mientras una consulta de fuente está en vuelo,
         // conservar el resultado listo pero no tocar Rover ni la fila visible.
-        if (!autoPuedeEmitir(codigo)) {
+        if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) {
             autoGuardar(reloj, codigo, {
                 estado: 'RESULT_READY',
                 resultado,
                 lastCheckAt: Date.now(),
-                motivo: 'AUTO desactivado antes del envío.'
+                motivo: !autoEsLiderTab()
+                    ? 'Liderazgo transferido antes del envío.'
+                    : 'AUTO desactivado antes del envío.'
             });
             return;
         }
@@ -1271,12 +1578,14 @@
 
         // La configuración puede cambiar mientras verResultados2.php está en vuelo.
         // Revalidar antes de cualquier autoReflejar o continuación del procesamiento.
-        if (!autoPuedeEmitir(codigo)) {
+        if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) {
             autoGuardar(reloj, codigo, {
                 estado: 'RESULT_READY',
                 resultado,
                 lastCheckAt: Date.now(),
-                motivo: 'AUTO desactivado durante la validación de Rover.'
+                motivo: !autoEsLiderTab()
+                    ? 'Liderazgo transferido durante la validación de Rover.'
+                    : 'AUTO desactivado durante la validación de Rover.'
             });
             return;
         }
@@ -1340,7 +1649,7 @@
                     resultado, motivo: 'Rover cambió antes del envío.' });
                 return;
             }
-            if (!autoPuedeEmitir(codigo)) return;
+            if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) return;
             if (autoAhoraRD().fechaIso !== reloj.fechaIso) return;
             // Persistir antes del POST: ante cierre/timeout, recuperar leyendo Rover.
             autoGuardar(reloj, codigo, { estado: 'PROCESSING', resultado, processSentAt: Date.now() });
@@ -1379,6 +1688,10 @@
 
             if (['DONE', 'DUPLICATE'].includes(estado.estado)) return;
 
+            // Un tab que dejó de ser líder abandona trabajo no crítico ya iniciado.
+            // Las verificaciones de un POST previo sí deben terminar por seguridad.
+            if (!autoEsLiderTab() && !autoDebeSoloVerificar(estado.estado)) return;
+
             // Si hubo un POST previo, terminar su verificación aunque el usuario
             // haya desactivado AUTO mientras estaba en curso.
             if (autoDebeSoloVerificar(estado.estado)) {
@@ -1416,7 +1729,21 @@
                     motivo: ''
                 });
 
+                if (!autoEsLiderTab()) return;
                 resultado = await autoFuente(codigo, reloj.fechaUs);
+
+                if (!autoEsLiderTab()) {
+                    if (autoResultadoValido(resultado)) {
+                        autoGuardar(reloj, codigo, {
+                            estado: 'RESULT_READY',
+                            resultado,
+                            searchAttempts,
+                            foundAt: Date.now(),
+                            motivo: 'Resultado encontrado; liderazgo transferido.'
+                        });
+                    }
+                    return;
+                }
 
                 if (!autoResultadoValido(resultado)) {
                     autoGuardar(reloj, codigo, {
@@ -1462,6 +1789,8 @@
     }
 
     function autoTick() {
+        if (!autoEsLiderTab()) return;
+
         // AUTO es un proceso de background: no depende de #fecha, de la tabla
         // visible ni de la vista AJAX que Rover tenga cargada en lottery.php.
         const reloj = autoAhoraRD();
@@ -1515,19 +1844,34 @@
 
     function autoProgramarSiguiente(delay = null) {
         autoDetenerScheduler();
+        if (!autoEsLiderTab()) return;
+
         const config = autoConfiguracion();
-        const espera = delay === null ? config.intervalMs : delay;
+        const espera = delay === null ? config.intervalMs : Math.max(0, Number(delay));
 
         autoSchedulerTimer = setTimeout(() => {
             autoSchedulerTimer = null;
-            autoTick();
+            if (!autoEsLiderTab()) return;
+            autoMarcarTickLider();
             autoProgramarSiguiente();
         }, espera);
     }
 
-    function autoReiniciarScheduler(inmediato = true) {
+    function autoReiniciarScheduler(inmediato = true, respetarCadencia = false) {
         autoDetenerScheduler();
-        if (inmediato) autoTick();
+        if (!autoEsLiderTab()) return;
+
+        if (inmediato) {
+            if (respetarCadencia) {
+                const espera = autoEsperaCadencia(autoConfiguracion().intervalMs);
+                if (espera > 0) {
+                    autoProgramarSiguiente(espera);
+                    return;
+                }
+            }
+            autoMarcarTickLider();
+        }
+
         autoProgramarSiguiente();
     }
 
@@ -1544,8 +1888,9 @@
             '· máximo:', config.maxRetries || 'sin límite'
         );
 
-        autoResumen(autoAhoraRD());
-        autoReiniciarScheduler(true);
+        iniciarAutoCoordinadorTabs().catch(error =>
+            console.error('[AUTO LOTERÍAS] Error iniciando coordinación multi-tab:', error)
+        );
     }
 
     function autoIntervaloTexto(ms) {
@@ -1566,9 +1911,15 @@
             .filter(codigo => config.lotteries[codigo]?.enabled === true).length;
 
         btn.classList.toggle('rs-active', config.enabled);
+        const rol = autoTabEsLider
+            ? 'tab líder'
+            : autoTabCoordStarted
+                ? 'tab observador'
+                : 'coordinando tabs';
+
         btn.title = config.enabled
-            ? `AUTO activo: ${activas} loterías · cada ${autoIntervaloTexto(config.intervalMs)}`
-            : 'Configuración AUTO · actualmente desactivado';
+            ? `AUTO activo: ${activas} loterías · cada ${autoIntervaloTexto(config.intervalMs)} · ${rol}`
+            : `Configuración AUTO · actualmente desactivado · ${rol}`;
         btn.setAttribute('aria-label', btn.title);
     }
 
@@ -2207,7 +2558,7 @@
         const reloj = autoAhoraRD();
         if (fecha === reloj.fechaUs) {
             for (const codigo of Object.keys(autoConfig)) {
-                if (!autoPuedeEmitir(codigo)) continue;
+                if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) continue;
                 const estado = autoEstado(reloj, codigo);
                 if (!['RESULT_READY', 'PROCESSING', 'VERIFYING', 'DONE', 'PROCESS_UNCERTAIN'].includes(estado.estado)) continue;
                 if (!autoResultadoValido(estado.resultado)) continue;
@@ -2219,7 +2570,8 @@
         for (const codigo of Object.keys(LOTERIAS)) {
             const guardado = resultadosVisibles.get(claveResultadoVisible(fecha, codigo));
             if (!guardado) continue;
-            if (guardado.origen === 'auto' && !autoPuedeEmitir(codigo)) continue;
+            if (guardado.origen === 'auto' &&
+                (!autoEsLiderTab() || !autoPuedeEmitir(codigo))) continue;
 
             const inputBase = buscarInputLoteria(codigo);
             const tr = inputBase?.closest('tr');

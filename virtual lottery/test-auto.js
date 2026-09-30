@@ -11,7 +11,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null, du
     let beforeLock = () => {};
     const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
         .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();\n', '')
-        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas, autoIdentidadRoverValida, debugForzarAuto, parseRapid, LOTERIAS };\n})();');
+        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas, autoIdentidadRoverValida, parseRapid, LOTERIAS };\n})();');
     const result = { primera:'00', segunda:'05', tercera:'99', pick3:'007', pick4:'0001' };
     const inputs = Object.fromEntries(Object.keys(result).map(c => [c, {
         value: rowValues ? rowValues[c] : result[c],
@@ -216,21 +216,6 @@ await ambiguo.autoEvaluar(reloj, 'BRAZIL12PM');
 assert.equal(ambiguo.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
 assert.equal(ambiguo.values.get('vl:auto:v3:2026-09-28:BRAZIL12PM').estado, 'ERROR');
 assert.match(ambiguo.values.get('vl:auto:v3:2026-09-28:BRAZIL12PM').motivo, /Identidad ambigua/);
-
-// Diagnóstico 3.1.8D: forzar RPL-9PM antes de su horario simulado debe
-// usar el mismo motor y mantener el código exacto hasta el POST.
-const diagnostico = load(false, 'RPL-9PM', {
-    primera:'', segunda:'', tercera:'', pick3:'', pick4:''
-});
-diagnostico.values.set('vl:auto:modo', 'RAPID');
-diagnostico.values.set('vl:auto:v3:2026-09-28:RPL-9PM', {
-    estado:'RESULT_READY', resultado
-});
-await diagnostico.debugForzarAuto('RPL-9PM');
-assert.equal(diagnostico.calls.filter(url => url.includes('procesarResultados.php')).length, 1);
-const diagnosticPost = diagnostico.requests.find(r => r.url.includes('procesarResultados.php'));
-assert.ok(diagnosticPost);
-assert.equal(new URLSearchParams(diagnosticPost.options.body).get('loteria'), 'RPL-9PM');
 
 console.log('Motor: configuración por lotería, background sin DOM e identidad Rover segura OK');
 }

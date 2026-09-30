@@ -19,7 +19,7 @@ const installEnd = source.indexOf('function autoResumen', installStart);
 const installBody = source.slice(installStart, installEnd);
 assert.ok(installBody.includes("debugRecheckAuto(match[1], match[2] || '')"));
 assert.equal(installBody.includes("debugForzarAuto(match[1])"), false);
-const recheckStart = source.indexOf('async function debugRecheckAuto(codigo)');
+const recheckStart = source.indexOf("async function debugRecheckAuto(codigo, fechaUs = '')");
 const recheckEnd = source.indexOf('function instalarDiagnosticoAuto()', recheckStart);
 const recheckBody = source.slice(recheckStart, recheckEnd);
 assert.ok(recheckBody.includes('autoCache.delete(fuente);'));

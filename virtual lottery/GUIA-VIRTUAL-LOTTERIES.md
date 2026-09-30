@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.8D — guía breve
+# Virtual Lotteries v3.1.8D2 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -140,3 +140,18 @@ window.dispatchEvent(new CustomEvent('vl-debug-force', { detail: 'RPL-9PM' }));
 ```
 
 La lotería debe estar habilitada en Configuración AUTO. La fuente, fecha RD, identidad única de Rover, conflictos, duplicados, Web Lock, preflight y verificación posterior siguen siendo obligatorios.
+
+
+## v3.1.8D2 — recheck de diagnóstico en vivo
+
+Añade un segundo evento de diagnóstico estrictamente de lectura. Este recheck ignora el estado local `DONE` únicamente para volver a consultar en red la fuente y un snapshot fresco de Rover; no llama a `autoProcesar`, `autoPost` ni `procesarResultados.php`.
+
+Para Rapid 9 PM:
+
+```js
+window.dispatchEvent(new CustomEvent('vl-debug-recheck', {
+    detail: 'RPL-9PM'
+}));
+```
+
+La consola imprime una tabla con resultado de fuente, identidad Rover, estado procesado, valores, coincidencia y duplicados. En Network debe aparecer una consulta fresca a `verResultados2.php`. La consulta Rapid se realiza mediante `GM_xmlhttpRequest`, por lo que puede aparecer en el registro de red asociado a la extensión/Tampermonkey y no necesariamente como un `fetch` normal de la página. El recheck garantiza cero POST de procesamiento.

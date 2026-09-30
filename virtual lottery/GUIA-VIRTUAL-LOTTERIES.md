@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.8 — guía breve
+# Virtual Lotteries v3.1.8D — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -127,3 +127,16 @@ El motor AUTO ya no depende de que `#fecha`, la tabla de resultados o los inputs
 La identidad del sorteo se valida exclusivamente con el código lógico configurado y la respuesta de `verResultados2.php`. Antes de cualquier POST, Rover debe devolver exactamente una fila cuyo atributo `loteria`, normalizado con `trim()`, coincida con el código esperado. El POST conserva el código raw devuelto por Rover. Si aparecen dos o más filas para el mismo código lógico, el estado pasa a error y no se llama a `procesarResultados.php`.
 
 La suite incluye una regresión que ejecuta `autoTick()` sin `#fecha`, sin tabla y sin inputs visibles, habilita únicamente `BRAZIL12PM` y exige que el único POST use exactamente ese código. También verifica que una identidad Rover duplicada produzca cero POST.
+
+
+## v3.1.8D — diagnóstico temporal
+
+Release temporal para probar el motor AUTO fuera de la vista de resultados. Agrega un listener de diagnóstico que solo fuerza el horario de evaluación del código solicitado; no llama directamente a `procesarResultados.php` ni desactiva ninguna barrera del motor.
+
+Desde la consola de `lottery.php` se puede forzar Rapid 9 PM con:
+
+```js
+window.dispatchEvent(new CustomEvent('vl-debug-force', { detail: 'RPL-9PM' }));
+```
+
+La lotería debe estar habilitada en Configuración AUTO. La fuente, fecha RD, identidad única de Rover, conflictos, duplicados, Web Lock, preflight y verificación posterior siguen siendo obligatorios.

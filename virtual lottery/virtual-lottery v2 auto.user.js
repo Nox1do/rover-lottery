@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.8
+// @version      3.1.8D
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -29,7 +29,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.8';
+    const SCRIPT_VERSION = '3.1.8D';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -1464,6 +1464,59 @@
         }
     }
 
+    // ============================================================
+    // DIAGNÓSTICO TEMPORAL 3.1.8D — fuerza solo el horario de evaluación.
+    // No salta configuración, fuente, identidad Rover ni barreras de POST.
+    // ============================================================
+    async function debugForzarAuto(codigo) {
+        const target = String(codigo || '').trim();
+        if (!autoConfig[target]) {
+            console.error('[VL DEBUG] Código desconocido:', target || '(vacío)');
+            return null;
+        }
+
+        const config = autoConfiguracion();
+        if (!config.enabled || config.lotteries[target]?.enabled !== true) {
+            console.warn('[VL DEBUG] AUTO no habilitado para', target,
+                '· actívalo en Configuración AUTO antes de forzar la prueba.');
+            return autoEstado(autoAhoraRD(), target);
+        }
+
+        const real = autoAhoraRD();
+        const relojForzado = {
+            ...real,
+            minutoDia: Math.max(real.minutoDia, Number(autoConfig[target].minuto) + 1)
+        };
+
+        console.warn('[VL DEBUG] Evaluación forzada', {
+            codigo: target,
+            fecha: relojForzado.fechaUs,
+            fuente: nombreFuente(autoConfig[target].fuente),
+            minutoReal: real.minutoDia,
+            minutoForzado: relojForzado.minutoDia,
+            estadoAntes: autoEstado(relojForzado, target).estado
+        });
+
+        await autoEvaluar(relojForzado, target);
+
+        const estado = autoEstado(relojForzado, target);
+        console.log('[VL DEBUG] Estado después de forzar', target, estado);
+        return estado;
+    }
+
+    function instalarDiagnosticoAuto() {
+        if (typeof window === 'undefined') return;
+        window.addEventListener('vl-debug-force', event => {
+            const codigo = typeof event.detail === 'string'
+                ? event.detail
+                : String(event.detail?.codigo || '');
+            debugForzarAuto(codigo).catch(error =>
+                console.error('[VL DEBUG] Error forzando evaluación:', error)
+            );
+        });
+        console.warn('[VL DEBUG] 3.1.8D activo · evento: vl-debug-force');
+    }
+
     function autoResumen(reloj) {
         const config = autoConfiguracion();
         const activos = Object.entries(autoConfig)
@@ -2502,6 +2555,7 @@
         iniciar();
     }
 
+    instalarDiagnosticoAuto();
     iniciarAutoLoterias();
     observarResultadosLoteria();
     iniciar();

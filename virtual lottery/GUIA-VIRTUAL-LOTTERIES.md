@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.8D2 — guía breve
+# Virtual Lotteries v3.1.8D3 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -155,3 +155,16 @@ window.dispatchEvent(new CustomEvent('vl-debug-recheck', {
 ```
 
 La consola imprime una tabla con resultado de fuente, identidad Rover, estado procesado, valores, coincidencia y duplicados. En Network debe aparecer una consulta fresca a `verResultados2.php`. La consulta Rapid se realiza mediante `GM_xmlhttpRequest`, por lo que puede aparecer en el registro de red asociado a la extensión/Tampermonkey y no necesariamente como un `fetch` normal de la página. El recheck garantiza cero POST de procesamiento.
+
+
+## v3.1.8D3 — puente de consola para Firefox/Tampermonkey
+
+El recheck de diagnóstico incorpora un puente mediante `window.postMessage` para atravesar el aislamiento entre la consola de la página y el sandbox de Tampermonkey en Firefox. El puente expone únicamente `debugRecheckAuto`, que es de solo lectura; no puede disparar `autoProcesar` ni `procesarResultados.php`.
+
+Comando recomendado:
+
+```js
+window.postMessage('VL_DEBUG_RECHECK:RPL-9PM', location.origin);
+```
+
+Después deben aparecer mensajes `[VL DEBUG] RECHECK...` y una consulta fresca a `__inc/verResultados2.php`.

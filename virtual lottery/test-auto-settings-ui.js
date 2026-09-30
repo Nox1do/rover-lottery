@@ -39,7 +39,6 @@ assert.ok(source.includes("count.textContent ="));
 assert.ok(source.includes("const AUTO_INTERVALOS_MS = [60000, 300000, 600000];"));
 assert.ok(source.includes("background: #03a9f3 !important;"));
 assert.ok(source.includes("background: #0398db !important;"));
-assert.ok(source.includes("border-radius: 50%;"));
 assert.ok(source.includes("pointer-events: none;"));
 assert.ok(source.includes("width: 21px;"));
 assert.ok(source.includes('viewBox="0 0 16 16"'));

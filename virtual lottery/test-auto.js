@@ -12,7 +12,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null, du
     let onFetch = () => {};
     const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
         .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();\n', '')
-        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas, autoIdentidadRoverValida, parseRapid, LOTERIAS };\n})();');
+        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas, autoIdentidadRoverValida, parseRapid, LOTERIAS, setLeader(v){autoTabEsLider=!!v} };\n})();');
     const result = { primera:'00', segunda:'05', tercera:'99', pick3:'007', pick4:'0001' };
     const inputs = Object.fromEntries(Object.keys(result).map(c => [c, {
         value: rowValues ? rowValues[c] : result[c],
@@ -73,6 +73,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null, du
     };
     vm.createContext(context);
     vm.runInContext(source, context);
+    context.__test.setLeader(true);
     return { ...context.__test, values, calls, requests, inputs, tables,
         showToday() {
             context.document.querySelector = selector => selector === '#fecha'
@@ -174,6 +175,25 @@ otro.values.set('vl:auto:v3:2026-09-28:BRAZIL12PM', {
 });
 await otro.autoEvaluar(reloj, 'BRAZIL12PM');
 assert.equal(otro.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
+
+// Un tab observador no ejecuta el scheduler ni toca Rover.
+const observador = load(false, 'BRAZIL12PM', {
+    primera:'', segunda:'', tercera:'', pick3:'', pick4:''
+});
+observador.values.set('vl:auto:settings:v1', {
+    enabled:true, intervalMs:60000, maxRetries:0,
+    lotteries:Object.fromEntries(Object.keys(observador.autoConfig).map(c => [
+        c, { enabled: c === 'BRAZIL12PM' }
+    ]))
+});
+observador.values.set('vl:auto:v3:2026-09-28:BRAZIL12PM', {
+    estado:'RESULT_READY', resultado
+});
+observador.setLeader(false);
+observador.autoTick();
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(observador.calls.length, 0);
+assert.equal(observador.inputs.primera.value, '');
 
 // AUTO debe seguir funcionando aunque la vista AJAX actual no tenga #fecha,
 // tabla de resultados ni inputs visibles. Solo BRAZIL12PM está habilitada.

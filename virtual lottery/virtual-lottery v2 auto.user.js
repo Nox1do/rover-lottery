@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.4
+// @version      3.1.5
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -29,7 +29,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.4';
+    const SCRIPT_VERSION = '3.1.5';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -133,9 +133,9 @@
             width: auto !important;
         }
         .rs-auto-settings-btn {
-            flex: 0 0 32px;
-            width: 32px;
-            height: 32px;
+            flex: 0 0 30px;
+            width: 30px;
+            height: 30px;
             padding: 0;
             border: 0 !important;
             border-radius: 50%;
@@ -164,8 +164,8 @@
             background: #0398db !important;
         }
         .rs-auto-settings-btn svg {
-            width: 19px;
-            height: 19px;
+            width: 21px;
+            height: 21px;
             display: block;
             pointer-events: none;
         }

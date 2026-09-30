@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.9 — guía breve
+# Virtual Lotteries v3.1.10 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -132,3 +132,10 @@ La suite incluye una regresión que ejecuta `autoTick()` sin `#fecha`, sin tabla
 ## v3.1.9 — intervalo de 3 minutos
 
 El selector **Buscar resultado cada** incorpora **3 minutos**. Los intervalos disponibles son ahora **1, 3, 5 y 10 minutos**. Las configuraciones existentes de 1, 5 o 10 minutos se conservan sin cambios, y las configuraciones antiguas no válidas continúan normalizándose a 1 minuto.
+
+
+## v3.1.10 — desactivación inmediata por lotería
+
+Al desmarcar una lotería y guardar la configuración, cualquier ciclo AUTO no crítico que hubiera empezado antes deja de poder pintar, resaltar o restaurar resultados en esa fila. El motor vuelve a comprobar la configuración después de las esperas de red y `autoReflejar` también exige que la lotería siga habilitada.
+
+El caché visual distingue ahora entre resultados manuales y resultados AUTO. Un resultado manual puede seguir restaurándose después de un Search, pero un resultado originado por AUTO no se restaura si esa lotería está desmarcada. Las verificaciones de seguridad de un POST que ya hubiera sido enviado continúan en background, pero con AUTO deshabilitado no repintan la UI.

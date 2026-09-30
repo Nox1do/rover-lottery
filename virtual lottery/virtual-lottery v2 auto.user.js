@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.9
+// @version      3.1.10
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -29,7 +29,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.9';
+    const SCRIPT_VERSION = '3.1.10';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -1165,7 +1165,10 @@
         return tr ? { tr, valores: autoValores(tr) } : null;
     }
     function autoReflejar(reloj, codigo, resultado) {
-        guardarResultadoVisible(reloj.fechaUs, codigo, resultado, AUTO_CAMPOS);
+        // Una lotería desmarcada no debe tocar ni cachear la UI, incluso si
+        // un ciclo AUTO que empezó antes de guardar la configuración termina después.
+        if (!autoPuedeEmitir(codigo)) return false;
+        guardarResultadoVisible(reloj.fechaUs, codigo, resultado, AUTO_CAMPOS, 'auto');
         const visible = autoVisible(reloj, codigo);
         if (!visible || autoConflicto(visible.valores, resultado)) return false;
         const inputs = AUTO_CAMPOS.map(c => visible.tr.querySelector(`input[name="${c}"]`));
@@ -1237,7 +1240,11 @@
             return;
         }
 
+        if (!autoPuedeEmitir(codigo)) return;
+
         const snap = await autoConsultar(reloj, codigo, null, true);
+        if (!autoPuedeEmitir(codigo)) return;
+
         const decision = autoResolverConflicto(estado.resultado, resultadoFuente, snap);
         autoGuardar(reloj, codigo, { ...decision, lastConflictCheckAt: Date.now() });
         if (decision.estado === 'DONE') autoReflejar(reloj, codigo, decision.resultado);
@@ -1261,6 +1268,19 @@
             return;
         }
         const snap = await autoConsultar(reloj, codigo, resultado);
+
+        // La configuración puede cambiar mientras verResultados2.php está en vuelo.
+        // Revalidar antes de cualquier autoReflejar o continuación del procesamiento.
+        if (!autoPuedeEmitir(codigo)) {
+            autoGuardar(reloj, codigo, {
+                estado: 'RESULT_READY',
+                resultado,
+                lastCheckAt: Date.now(),
+                motivo: 'AUTO desactivado durante la validación de Rover.'
+            });
+            return;
+        }
+
         if (snap.ambigua) {
             throw new Error(`Identidad ambigua en Rover: ${snap.coincidencias} filas para ${codigo}`);
         }
@@ -2165,13 +2185,14 @@
         return `${fecha}|${codigo}`;
     }
 
-    function guardarResultadoVisible(fecha, codigo, resultado, campos = null) {
+    function guardarResultadoVisible(fecha, codigo, resultado, campos = null, origen = 'manual') {
         if (!fecha || !codigo || !resultado) return;
         const lista = campos || (LOTERIAS[codigo]?.fuente === 'extra'
             ? ['primera', 'segunda', 'tercera']
             : ['primera', 'segunda', 'tercera', 'pick3', 'pick4']);
         if (!lista.every(campo => typeof resultado[campo] === 'string' && resultado[campo] !== '')) return;
         resultadosVisibles.set(claveResultadoVisible(fecha, codigo), {
+            origen,
             campos: [...lista],
             resultado: Object.fromEntries(lista.map(campo => [campo, resultado[campo]]))
         });
@@ -2186,10 +2207,11 @@
         const reloj = autoAhoraRD();
         if (fecha === reloj.fechaUs) {
             for (const codigo of Object.keys(autoConfig)) {
+                if (!autoPuedeEmitir(codigo)) continue;
                 const estado = autoEstado(reloj, codigo);
                 if (!['RESULT_READY', 'PROCESSING', 'VERIFYING', 'DONE', 'PROCESS_UNCERTAIN'].includes(estado.estado)) continue;
                 if (!autoResultadoValido(estado.resultado)) continue;
-                guardarResultadoVisible(fecha, codigo, estado.resultado, AUTO_CAMPOS);
+                guardarResultadoVisible(fecha, codigo, estado.resultado, AUTO_CAMPOS, 'auto');
             }
         }
 
@@ -2197,6 +2219,7 @@
         for (const codigo of Object.keys(LOTERIAS)) {
             const guardado = resultadosVisibles.get(claveResultadoVisible(fecha, codigo));
             if (!guardado) continue;
+            if (guardado.origen === 'auto' && !autoPuedeEmitir(codigo)) continue;
 
             const inputBase = buscarInputLoteria(codigo);
             const tr = inputBase?.closest('tr');

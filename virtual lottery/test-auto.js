@@ -9,6 +9,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null, du
     const tables = [];
     let processed = initialProcessed;
     let beforeLock = () => {};
+    let onFetch = () => {};
     const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
         .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();\n', '')
         .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas, autoIdentidadRoverValida, parseRapid, LOTERIAS };\n})();');
@@ -55,6 +56,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null, du
         Event: class { constructor(type) { this.type = type; } },
         DOMParser: class { parseFromString() { return parsed; } },
         fetch: async (url, options = {}) => { calls.push(url); requests.push({ url, options });
+            onFetch(url, options);
             if (url.includes('procesarResultados.php')) {
                 processed = true;
                 Object.keys(result).forEach(c => { inputs[c].value = result[c]; });
@@ -77,7 +79,8 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null, du
                 ? { value: '09/28/2026' } : null;
             context.document.querySelectorAll = parsed.querySelectorAll;
         },
-        setBeforeLock(fn) { beforeLock = fn; } };
+        setBeforeLock(fn) { beforeLock = fn; },
+        setOnFetch(fn) { onFetch = fn; } };
 }
 
 async function main() {
@@ -202,6 +205,47 @@ assert.ok(backgroundPost);
 const backgroundBody = new URLSearchParams(backgroundPost.options.body);
 assert.equal(backgroundBody.get('loteria'), 'BRAZIL12PM');
 assert.equal(backgroundBody.get('fecha'), '2026-09-28');
+
+// Si una lotería se desmarca mientras verResultados2.php está en vuelo,
+// el ciclo viejo no puede llenar/resaltar la fila ni procesar.
+const desmarcadaEnVuelo = load(false, 'QLT-MORNING', {
+    primera:'', segunda:'', tercera:'', pick3:'', pick4:''
+});
+desmarcadaEnVuelo.showToday();
+const queenLotteries = Object.fromEntries(
+    Object.keys(desmarcadaEnVuelo.autoConfig).map(c => [c, { enabled: c === 'QLT-MORNING' }])
+);
+desmarcadaEnVuelo.values.set('vl:auto:settings:v1', {
+    enabled:true, intervalMs:60000, maxRetries:0, lotteries:queenLotteries
+});
+desmarcadaEnVuelo.values.set('vl:auto:v3:2026-09-28:QLT-MORNING', {
+    estado:'RESULT_READY', resultado
+});
+let desactivoQueen = false;
+desmarcadaEnVuelo.setOnFetch(url => {
+    if (desactivoQueen || !url.includes('verResultados2.php')) return;
+    desactivoQueen = true;
+    const actual = desmarcadaEnVuelo.values.get('vl:auto:settings:v1');
+    desmarcadaEnVuelo.values.set('vl:auto:settings:v1', {
+        ...actual,
+        lotteries: {
+            ...actual.lotteries,
+            'QLT-MORNING': { enabled:false }
+        }
+    });
+});
+await desmarcadaEnVuelo.autoEvaluar(reloj, 'QLT-MORNING');
+assert.equal(desmarcadaEnVuelo.inputs.primera.value, '');
+assert.equal(desmarcadaEnVuelo.inputs.pick4.value, '');
+assert.equal(desmarcadaEnVuelo.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
+assert.equal(
+    desmarcadaEnVuelo.values.get('vl:auto:v3:2026-09-28:QLT-MORNING').estado,
+    'RESULT_READY'
+);
+assert.match(
+    desmarcadaEnVuelo.values.get('vl:auto:v3:2026-09-28:QLT-MORNING').motivo,
+    /AUTO desactivado/
+);
 
 // Si Rover devuelve más de una fila con el mismo código lógico, la identidad
 // es ambigua: no se procesa ninguna.

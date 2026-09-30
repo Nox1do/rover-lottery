@@ -68,4 +68,17 @@ assert.equal(inputs.primera.value, '99');
 assert.equal(inputs.segunda.value, '');
 assert.equal(inputs.pick3.value, '');
 
-console.log('PASS: Search restore preserves cached result and never overwrites conflicts');
+// Un resultado manual sigue restaurándose aunque AUTO esté apagado.
+inputs = Object.fromEntries(fields.map(f => [f, makeInput(f, '')]));
+api.guardarResultadoVisible('09/27/2026', 'BRAZIL03PM', result, fields, 'manual');
+assert.equal(api.restaurarResultadosVisibles(), 1);
+assert.deepEqual(Object.fromEntries(fields.map(f => [f, inputs[f].value])), result);
+
+// Un resultado cacheado por AUTO no puede repintarse si la lotería está deshabilitada.
+inputs = Object.fromEntries(fields.map(f => [f, makeInput(f, '')]));
+api.guardarResultadoVisible('09/27/2026', 'BRAZIL03PM', result, fields, 'auto');
+assert.equal(api.restaurarResultadosVisibles(), 0);
+assert.deepEqual(Object.fromEntries(fields.map(f => [f, inputs[f].value])),
+  {primera:'',segunda:'',tercera:'',pick3:'',pick4:''});
+
+console.log('PASS: Search restore preserves manual cache and blocks disabled AUTO cache');

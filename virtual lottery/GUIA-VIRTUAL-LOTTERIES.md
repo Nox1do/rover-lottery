@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.1.7 — guía breve
+# Virtual Lotteries v3.1.8 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -118,3 +118,12 @@ El control de Configuración AUTO usa el SVG oficial **Bootstrap Icons `gear-fil
 ## v3.1.7 — engrane gris sin fondo
 
 El acceso a **Configuración AUTO** conserva el SVG Bootstrap Icons `gear-fill` de 21 px y el área de clic de 30 × 30 px, pero elimina el fondo azul. El botón queda sin fondo visible y sin borde; el engrane usa gris `#6B7280` y pasa a gris más oscuro `#4B5563` al hacer hover. El estado AUTO activo conserva el mismo aspecto gris y transparente.
+
+
+## v3.1.8 — AUTO independiente de la vista AJAX
+
+El motor AUTO ya no depende de que `#fecha`, la tabla de resultados o los inputs de lotería estén presentes en el DOM. Mientras `lottery.php` permanezca abierta, el scheduler continúa trabajando aunque Rover muestre otra vista interna mediante AJAX. El modo manual sí conserva su dependencia de la tabla visible y de la fecha seleccionada.
+
+La identidad del sorteo se valida exclusivamente con el código lógico configurado y la respuesta de `verResultados2.php`. Antes de cualquier POST, Rover debe devolver exactamente una fila cuyo atributo `loteria`, normalizado con `trim()`, coincida con el código esperado. El POST conserva el código raw devuelto por Rover. Si aparecen dos o más filas para el mismo código lógico, el estado pasa a error y no se llama a `procesarResultados.php`.
+
+La suite incluye una regresión que ejecuta `autoTick()` sin `#fecha`, sin tabla y sin inputs visibles, habilita únicamente `BRAZIL12PM` y exige que el único POST use exactamente ese código. También verifica que una identidad Rover duplicada produzca cero POST.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.7
+// @version      3.1.8
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -29,7 +29,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.7';
+    const SCRIPT_VERSION = '3.1.8';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -1095,9 +1095,19 @@
         if (!response.ok) throw new Error(`Rover HTTP ${response.status} en ${path}`);
         return html;
     }
-    function autoFila(root, codigo) {
+    function autoFilas(root, codigo) {
         return [...root.querySelectorAll('input[name="primera"][loteria]')]
-            .find(el => el.getAttribute('loteria')?.trim() === codigo)?.closest('tr') || null;
+            .filter(el => String(el.getAttribute('loteria') || '').trim() === codigo)
+            .map(el => el.closest('tr'))
+            .filter(Boolean);
+    }
+    function autoFila(root, codigo) {
+        const filas = autoFilas(root, codigo);
+        return filas.length === 1 ? filas[0] : null;
+    }
+    function autoIdentidadRoverValida(codigo, snap) {
+        return !!snap?.encontrada && !snap?.ambigua &&
+            String(snap.codigoServidor || '').trim() === codigo;
     }
     function autoValores(tr) {
         return Object.fromEntries(AUTO_CAMPOS.map(c => [c,
@@ -1123,7 +1133,11 @@
             });
         }
         const doc = await cache.promise;
-        const tr = autoFila(doc, codigo);
+        const filas = autoFilas(doc, codigo);
+        if (filas.length > 1) {
+            return { encontrada: false, ambigua: true, coincidencias: filas.length };
+        }
+        const tr = filas[0] || null;
         if (!tr) {
             // verResultados2.php incorpora filas según avanza el horario.
             // Si el snapshot normal estaba cacheado antes de que apareciera este sorteo,
@@ -1134,10 +1148,11 @@
                 }
                 return autoConsultar(reloj, codigo, resultado, true);
             }
-            return { encontrada: false };
+            return { encontrada: false, ambigua: false };
         }
         return {
             encontrada: true,
+            ambigua: false,
             codigoServidor: tr.querySelector('input[name="primera"][loteria]').getAttribute('loteria'),
             procesada: !!tr.querySelector('.status-circle.status-ok'),
             valores: autoValores(tr),
@@ -1163,6 +1178,7 @@
         for (const ms of demoras) {
             if (ms) await autoEsperar(ms);
             const snap = await autoConsultar(reloj, codigo, null, true);
+            if (snap.ambigua) return { estado: 'PROCESS_UNCERTAIN' };
             if (!snap.encontrada) continue;
             if (snap.procesada && autoIguales(snap.valores, resultado)) return { estado: 'DONE' };
             if (snap.procesada || autoConflicto(snap.valores, resultado)) {
@@ -1245,7 +1261,13 @@
             return;
         }
         const snap = await autoConsultar(reloj, codigo, resultado);
+        if (snap.ambigua) {
+            throw new Error(`Identidad ambigua en Rover: ${snap.coincidencias} filas para ${codigo}`);
+        }
         if (!snap.encontrada) throw new Error('Fila no encontrada en Rover');
+        if (!autoIdentidadRoverValida(codigo, snap)) {
+            throw new Error(`Identidad Rover inválida para ${codigo}`);
+        }
         if (snap.procesada) {
             const estado = autoIguales(snap.valores, resultado) ? 'DONE' : 'CONFLICT';
             autoGuardar(reloj, codigo, { estado, resultado, motivo: 'Fila ya procesada.' });
@@ -1285,7 +1307,13 @@
             }
             // Otra pestaña pudo procesar mientras esperábamos el bloqueo.
             const previo = await autoConsultar(reloj, codigo, resultado, true);
+            if (previo.ambigua) {
+                throw new Error(`Identidad ambigua en Rover antes del envío: ${previo.coincidencias} filas para ${codigo}`);
+            }
             if (!previo.encontrada) throw new Error('Fila desapareció antes del envío');
+            if (!autoIdentidadRoverValida(codigo, previo)) {
+                throw new Error(`Identidad Rover inválida antes del envío para ${codigo}`);
+            }
             if (previo.procesada || autoConflicto(previo.valores, resultado) || previo.duplicados.length) {
                 autoGuardar(reloj, codigo, { estado: previo.procesada && autoIguales(previo.valores, resultado)
                     ? 'DONE' : previo.duplicados.length ? 'DUPLICATE' : 'CONFLICT',
@@ -1414,8 +1442,8 @@
     }
 
     function autoTick() {
-        if (!document.querySelector('#fecha')) return;
-
+        // AUTO es un proceso de background: no depende de #fecha, de la tabla
+        // visible ni de la vista AJAX que Rover tenga cargada en lottery.php.
         const reloj = autoAhoraRD();
         const config = autoConfiguracion();
 

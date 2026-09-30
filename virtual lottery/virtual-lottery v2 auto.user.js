@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.1.8D3
+// @version      3.1.8D4
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
-// @source       https://github.com/Nox1do/rover-lottery/blob/diagnostic-3.1.8D3/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
-// @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/diagnostic-3.1.8D3/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
-// @downloadURL  https://raw.githubusercontent.com/Nox1do/rover-lottery/diagnostic-3.1.8D3/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
+// @source       https://github.com/Nox1do/rover-lottery/blob/diagnostic-3.1.8D4/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
+// @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/diagnostic-3.1.8D4/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
+// @downloadURL  https://raw.githubusercontent.com/Nox1do/rover-lottery/diagnostic-3.1.8D4/virtual%20lottery/virtual-lottery%20v2%20auto.user.js
 // @match        https://www.roversport.lol/adm/es/lottery.php
 // @match        https://www.roversport.net/adm/es/lottery.php
 // @match        https://www.lotterypost.com/results/qc/extra/past*
@@ -29,7 +29,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.1.8D3';
+    const SCRIPT_VERSION = '3.1.8D4';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -1504,31 +1504,88 @@
         return estado;
     }
 
-    async function debugRecheckAuto(codigo) {
+    function debugRelojFecha(fechaUs = '') {
+        const actual = autoAhoraRD();
+        const texto = String(fechaUs || '').trim();
+        if (!texto) return actual;
+
+        const match = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (!match) {
+            throw new Error('Fecha inválida. Usa MM/DD/YYYY.');
+        }
+
+        const mes = Number(match[1]);
+        const dia = Number(match[2]);
+        const anio = Number(match[3]);
+        const probe = new Date(Date.UTC(anio, mes - 1, dia));
+        if (mes < 1 || mes > 12 || dia < 1 ||
+            probe.getUTCFullYear() !== anio ||
+            probe.getUTCMonth() !== mes - 1 ||
+            probe.getUTCDate() !== dia) {
+            throw new Error('Fecha inválida. Usa una fecha real en MM/DD/YYYY.');
+        }
+
+        const mm = String(mes).padStart(2, '0');
+        const dd = String(dia).padStart(2, '0');
+        const yyyy = String(anio).padStart(4, '0');
+        const fechaNormalizada = `${mm}/${dd}/${yyyy}`;
+        const fechaIso = `${yyyy}-${mm}-${dd}`;
+
+        if (fechaIso > actual.fechaIso) {
+            throw new Error(`Fecha futura no permitida: ${fechaNormalizada}`);
+        }
+
+        return {
+            fechaUs: fechaNormalizada,
+            fechaIso,
+            minutoDia: fechaIso === actual.fechaIso ? actual.minutoDia : 23 * 60 + 59
+        };
+    }
+
+    async function debugFuenteFecha(codigo, reloj) {
+        const config = autoConfig[codigo];
+        if (!config) return null;
+
+        // Para Rapid histórico NO usar .draws/completed de hoy: después de medianoche
+        // ese estado pertenece al nuevo día y bloquearía falsamente el sorteo anterior.
+        if (config.fuente === 'rapid' && reloj.fechaIso !== autoAhoraRD().fechaIso) {
+            const data = JSON.parse(await requestText(RAPID_URL));
+            return autoUnico(parseRapid(data), r =>
+                r.fecha === reloj.fechaUs &&
+                autoMinuto(r.hora) === autoMinuto(config.hora)
+            );
+        }
+
+        return autoFuente(codigo, reloj.fechaUs);
+    }
+
+    async function debugRecheckAuto(codigo, fechaUs = '') {
         const target = String(codigo || '').trim();
         if (!autoConfig[target]) {
             console.error('[VL DEBUG] Código desconocido:', target || '(vacío)');
             return null;
         }
 
-        const reloj = autoAhoraRD();
+        const reloj = debugRelojFecha(fechaUs);
         const fuente = autoConfig[target].fuente;
 
         // Forzar red real: no reutilizar snapshots de 10 s del motor.
         autoCache.delete(fuente);
         autoRoverCache.delete(reloj.fechaIso);
 
+        const estadoGuardado = GM_getValue(autoKey(reloj, target), null);
         console.warn('[VL DEBUG] RECHECK solo lectura', {
             codigo: target,
             fecha: reloj.fechaUs,
             fuente: nombreFuente(fuente),
-            estadoLocal: autoEstado(reloj, target).estado
+            historica: reloj.fechaIso !== autoAhoraRD().fechaIso,
+            estadoLocal: estadoGuardado?.estado || 'SIN_ESTADO'
         });
 
         let resultadoFuente = null;
         let errorFuente = '';
         try {
-            resultadoFuente = await autoFuente(target, reloj.fechaUs);
+            resultadoFuente = await debugFuenteFecha(target, reloj);
         } catch (error) {
             errorFuente = error.message;
         }
@@ -1550,6 +1607,7 @@
         const resumen = {
             Codigo: target,
             Fecha: reloj.fechaUs,
+            Historica: reloj.fechaIso !== autoAhoraRD().fechaIso,
             Fuente: nombreFuente(fuente),
             FuenteValida: fuenteValida,
             FuenteResultado: fuenteValida
@@ -1569,6 +1627,7 @@
         console.table([resumen]);
         console.log('[VL DEBUG] RECHECK terminado · SOLO LECTURA · 0 POST de procesamiento', {
             codigo: target,
+            fecha: reloj.fechaUs,
             resultadoFuente,
             rover: snap,
             errorFuente,
@@ -1586,7 +1645,6 @@
             ? event.detail
             : String(event.detail?.codigo || '');
 
-        // El CustomEvent se conserva para pruebas desde el mismo sandbox.
         window.addEventListener('vl-debug-force', event => {
             debugForzarAuto(codigoEvento(event)).catch(error =>
                 console.error('[VL DEBUG] Error forzando evaluación:', error)
@@ -1594,26 +1652,41 @@
         });
 
         window.addEventListener('vl-debug-recheck', event => {
-            debugRecheckAuto(codigoEvento(event)).catch(error =>
+            const detalle = event.detail;
+            const codigo = typeof detalle === 'string'
+                ? detalle
+                : String(detalle?.codigo || '');
+            const fecha = typeof detalle === 'object' && detalle
+                ? String(detalle.fecha || '')
+                : '';
+            debugRecheckAuto(codigo, fecha).catch(error =>
                 console.error('[VL DEBUG] Error en recheck:', error)
             );
         });
 
         // Puente robusto para Firefox/Tampermonkey desde la consola de la página.
-        // Solo expone el RECHECK de lectura; nunca el flujo que puede procesar.
+        // Formatos:
+        //   VL_DEBUG_RECHECK:RPL-9PM
+        //   VL_DEBUG_RECHECK:RPL-9PM:09/29/2026
+        // Solo expone RECHECK de lectura; nunca el flujo que puede procesar.
         window.addEventListener('message', event => {
             if (event.origin !== location.origin) return;
             if (typeof event.data !== 'string') return;
 
-            const match = event.data.match(/^VL_DEBUG_RECHECK:([A-Z0-9-]+)$/);
+            const match = event.data.match(
+                /^VL_DEBUG_RECHECK:([A-Z0-9-]+)(?::(\d{2}\/\d{2}\/\d{4}))?$/
+            );
             if (!match) return;
 
-            debugRecheckAuto(match[1]).catch(error =>
+            debugRecheckAuto(match[1], match[2] || '').catch(error =>
                 console.error('[VL DEBUG] Error en recheck postMessage:', error)
             );
         });
 
-        console.warn('[VL DEBUG] 3.1.8D3 activo · RECHECK consola: window.postMessage(...)');
+        console.warn(
+            '[VL DEBUG] 3.1.8D4 activo · admite fecha: ' +
+            "window.postMessage('VL_DEBUG_RECHECK:RPL-9PM:09/29/2026', location.origin)"
+        );
     }
 
     function autoResumen(reloj) {

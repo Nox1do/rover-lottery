@@ -1148,7 +1148,7 @@
                 }
                 return autoConsultar(reloj, codigo, resultado, true);
             }
-            return { encontrada: false, ambigua: false };
+            return { encontrada: false };
         }
         return {
             encontrada: true,

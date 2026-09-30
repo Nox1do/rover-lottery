@@ -7,7 +7,7 @@ const raw = 'https://raw.githubusercontent.com/Nox1do/rover-lottery/main/virtual
 assert.match(source, /^\/\/ @version\s+3\.2\.0$/m);
 assert.equal(source.includes('debugForzarAuto'), false);
 assert.equal(source.includes('vl-debug-force'), false);
-assert.ok(source.includes("if (!autoPuedeEmitir(codigo)) return false;"));
+assert.ok(source.includes("if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) return false;"));
 assert.ok(source.includes("origen === 'auto' && !autoPuedeEmitir(codigo)"));
 assert.ok(source.includes("AUTO desactivado durante la validación de Rover."));
 assert.match(source, /^\/\/ @grant\s+GM_getTab$/m);

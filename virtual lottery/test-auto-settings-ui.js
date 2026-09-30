@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('virtual-lottery v2 auto.user.js','utf8');
 
-assert.match(source,/^\/\/ @version\s+3\.1\.4$/m);
+assert.match(source,/^\/\/ @version\s+3\.1\.5$/m);
 assert.match(source,/^\/\/ @run-at\s+document-idle$/m);
 assert.ok(source.includes("const ICON_GEAR ="));
 assert.ok(source.includes("row.className = 'rs-auto-date-row'"));
@@ -41,7 +41,11 @@ assert.ok(source.includes("background: #03a9f3 !important;"));
 assert.ok(source.includes("background: #0398db !important;"));
 assert.ok(source.includes("border-radius: 50%;"));
 assert.ok(source.includes("pointer-events: none;"));
-assert.ok(source.includes("width: 19px;"));
+assert.ok(source.includes("width: 21px;"));
+assert.ok(source.includes("height: 21px;"));
+assert.ok(source.includes("flex: 0 0 30px;"));
+assert.ok(source.includes("width: 30px;"));
+assert.ok(source.includes("height: 30px;"));
 const gearCssStart=source.indexOf('.rs-auto-settings-btn {');
 const gearCssEnd=source.indexOf('.rs-auto-modal-open',gearCssStart);
 const gearCss=source.slice(gearCssStart,gearCssEnd);
@@ -58,4 +62,4 @@ const control=source.slice(controlStart,controlEnd);
 assert.ok(control.indexOf("row.appendChild(fecha);") < control.indexOf("row.appendChild(btn);"));
 
 new Function(source);
-console.log('UI AUTO: engrane azul Search + acordeones + intervalos 1/5/10 min OK');
+console.log('UI AUTO: engrane 21px en círculo 30px + acordeones + intervalos 1/5/10 min OK');

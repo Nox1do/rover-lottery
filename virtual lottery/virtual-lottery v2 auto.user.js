@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.2.2
+// @version      3.2.3
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -32,7 +32,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.2.2';
+    const SCRIPT_VERSION = '3.2.3';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -49,6 +49,7 @@
         return;
     }
     let revisionFecha = 0;
+    let vistaResultadosLoteriaActiva = false;
     const solicitudes = new WeakMap();
     // Conserva en esta sesión los resultados que el script ya mostró en Rover.
     // Rover reemplaza la tabla al pulsar Search; después de ese reemplazo los
@@ -2438,7 +2439,63 @@
         document.body?.classList.remove('rs-auto-modal-open');
     }
 
+    function extraerRutaLoadRover(onclick) {
+        const match = String(onclick || '').match(/\bload\(\s*['"]([^'"]+)['"]/i);
+        return match ? String(match[1] || '').trim() : '';
+    }
+
+    function esRutaVistaResultadosLoteria(ruta) {
+        return /(?:^|\/)__inc\/resultadosLoteria2\.php(?:[?#]|$)/i.test(
+            String(ruta || '').trim()
+        );
+    }
+
+    function esVistaResultadosLoteriaUI() {
+        if (vistaResultadosLoteriaActiva) return true;
+
+        // Fallback defensivo: si Rover cargó la vista por código y no mediante
+        // un clic de menú, la tabla real se reconoce por sus inputs de resultados.
+        return !!document.querySelector(
+            '#tableResult input[name="primera"][loteria]'
+        );
+    }
+
+    function quitarControlAuto() {
+        cerrarModalAuto();
+
+        const row = document.querySelector('.rs-auto-date-row');
+        if (!row) {
+            document.querySelector('.rs-auto-settings-btn')?.remove();
+            return;
+        }
+
+        const fecha = row.querySelector('#fecha');
+        const parent = row.parentElement;
+        if (fecha && parent) {
+            parent.insertBefore(fecha, row);
+        }
+        row.remove();
+    }
+
+    function registrarVistaAjaxRover(event) {
+        const trigger = event.target?.closest?.('[onclick*="load("]');
+        if (!trigger) return;
+
+        const ruta = extraerRutaLoadRover(trigger.getAttribute('onclick'));
+        if (!ruta) return;
+
+        vistaResultadosLoteriaActiva = esRutaVistaResultadosLoteria(ruta);
+
+        // Retirar inmediatamente la UI al salir de Ver Resultados. El motor AUTO
+        // continúa independiente en background.
+        if (!vistaResultadosLoteriaActiva) {
+            quitarControlAuto();
+        }
+    }
+
     function instalarControlAuto() {
+        if (!esVistaResultadosLoteriaUI()) return;
+
         const fecha = document.querySelector('#fecha');
         if (!fecha) return;
 
@@ -3007,6 +3064,7 @@
         fecha.dataset.rsSourcesListenerInstalled = '1';
 
         const resetear = () => {
+            if (!esVistaResultadosLoteriaUI()) return;
             revisionFecha++;
             for (const cancelar of [...cancelacionesExtra]) cancelar();
             document.querySelectorAll('.rs-source-fetch-btn').forEach(botonNormal);
@@ -3018,10 +3076,17 @@
     }
 
     function iniciar() {
-        // Los controles superiores pueden existir antes que las filas.
-        // Instalarlos primero hace el ciclo robusto a cualquier orden de carga.
+        // #fecha existe en muchas vistas AJAX de Rover. La UI de Virtual Lotteries
+        // solo pertenece a Ver Resultados (resultadosLoteria2.php).
+        if (!esVistaResultadosLoteriaUI()) {
+            quitarControlAuto();
+            return;
+        }
+
+        // En Ver Resultados, los controles pueden existir antes que las filas.
         instalarListenerFecha();
         instalarControlAuto();
+
         if (!esPaginaRoverValida()) return;
         instalarBotones();
         restaurarResultadosVisibles();
@@ -3091,6 +3156,10 @@
         observarResultadosLoteria();
         iniciar();
     }
+
+    // Rover navega sus vistas internas mediante load('__inc/...') sin cambiar
+    // lottery.php. Registrar la intención antes de que el AJAX reemplace el DOM.
+    document.addEventListener('click', registrarVistaAjaxRover, true);
 
     iniciarAutoLoterias();
     observarResultadosLoteria();

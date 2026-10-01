@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.2.3 — guía breve
+# Virtual Lotteries v3.2.4 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -189,3 +189,31 @@ El campo `#fecha` no identifica por sí solo la vista de loterías: Rover reutil
 El userscript observa la navegación interna `load('__inc/...')` y considera válida únicamente `__inc/resultadosLoteria2.php`. Al salir de **Ver Resultados**, el engrane se retira inmediatamente. Si Rover carga la vista de resultados por código y no mediante un clic del menú, existe un fallback por la estructura real de `#tableResult input[name="primera"][loteria]`.
 
 Esta limitación afecta únicamente a la UI manual: el motor AUTO y la coordinación multi-tab continúan funcionando en background mientras `lottery.php` permanezca abierta, incluso si el usuario está viendo Races u otra sección.
+
+
+## v3.2.4 — liderazgo autoritativo con Web Locks
+
+La elección por `focused > visible > hidden` ya no convierte por sí sola a un tab en líder. Esa lógica únicamente selecciona al **candidato**. El liderazgo real existe solo mientras el navegador concede el Web Lock exclusivo `vl-auto-leader-v4`.
+
+`autoTabEsLider` deja de asignarse desde el resultado de `GM_getTabs()`. El tab ganador solicita el lock con `{ mode: 'exclusive', ifAvailable: true }`; si el lock está ocupado, continúa como observador. El propietario publica un estado diagnóstico compartido con `ownerId`, `epoch`, `hostname`, `heartbeatAt` y versión. Cada comprobación sensible de liderazgo exige tanto poseer el Web Lock como conservar el mismo `ownerId + epoch`.
+
+El handoff es cooperativo. No se usa `steal: true`. Cuando otro tab pasa a tener mayor prioridad, el propietario actual detiene el scheduler, invalida su claim compartido y libera el lock. Solo después otro tab puede adquirirlo. El Web Lock `vl-auto-rover-post` se mantiene como segunda barrera de exclusión justo alrededor del procesamiento.
+
+### Host emisor único
+
+Para evitar un pseudo-lock entre orígenes distintos, el único host autorizado para liderazgo AUTO es:
+
+`www.roversport.net`
+
+`www.roversport.lol` continúa ejecutando el userscript para UI, estado y señales, pero permanece como **observador** y nunca adquiere `vl-auto-leader-v4` ni ejecuta el scheduler AUTO.
+
+Durante una actualización mixta, v3.2.4 exige que todos los tabs activos de Rover reporten `leaderProtocol: 4`. Si queda abierto un tab 3.2.3 o anterior, el nuevo coordinador pausa AUTO y muestra que es necesario actualizar/recargar los otros tabs. Esto evita introducir un líder v4 mientras todavía existe una instancia antigua que no entiende el Web Lock autoritativo.
+
+Si Web Locks o las APIs de tabs de Tampermonkey no están disponibles, AUTO queda pausado por seguridad; ya no existe fallback que convierta unilateralmente al tab en líder.
+
+El tooltip del engrane diferencia explícitamente:
+- `LÍDER CONFIRMADO`: posee `vl-auto-leader-v4` y muestra ID + epoch.
+- `OBSERVADOR`: no posee autoridad de liderazgo.
+- `AUTO pausado`: falta Web Locks, faltan APIs multi-tab o existe un tab antiguo pendiente de recarga.
+
+`RESULT_READY` sigue fuera de la cadencia de búsqueda: el líder confirmado procesa inmediatamente la cola prioritaria sin mover `vl:auto:tabs:last-tick:v1`.

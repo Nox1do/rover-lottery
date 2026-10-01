@@ -12,7 +12,7 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null, du
     let onFetch = () => {};
     const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
         .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();\n', '')
-        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas, autoIdentidadRoverValida, parseRapid, LOTERIAS, setLeader(v){autoTabEsLider=!!v} };\n})();');
+        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas, autoIdentidadRoverValida, autoProcesarTrabajoPrioritario, parseRapid, LOTERIAS, setLeader(v){autoTabEsLider=!!v} };\n})();');
     const result = { primera:'00', segunda:'05', tercera:'99', pick3:'007', pick4:'0001' };
     const inputs = Object.fromEntries(Object.keys(result).map(c => [c, {
         value: rowValues ? rowValues[c] : result[c],
@@ -302,6 +302,59 @@ assert.equal(handoffSignal.tipo, 'result-ready');
 assert.equal(handoffSignal.codigo, 'WIN-9-30AM');
 assert.equal(handoffSignal.fechaIso, '2026-09-28');
 assert.equal(handoffEnVuelo.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
+
+// RESULT_READY se procesa por la cola prioritaria sin mover el reloj compartido
+// del scheduler de búsquedas.
+const readyQueue = load(false, 'WIN-9-30AM', {
+    primera:'', segunda:'', tercera:'', pick3:'', pick4:''
+});
+const readyLotteries = Object.fromEntries(
+    Object.keys(readyQueue.autoConfig).map(c => [c, { enabled: c === 'WIN-9-30AM' }])
+);
+readyQueue.values.set('vl:auto:settings:v1', {
+    enabled:true, intervalMs:180000, maxRetries:0, lotteries:readyLotteries
+});
+readyQueue.values.set('vl:auto:v3:2026-09-28:WIN-9-30AM', {
+    estado:'RESULT_READY', resultado
+});
+const lastSearchTick = 123456789;
+readyQueue.values.set('vl:auto:tabs:last-tick:v1', lastSearchTick);
+assert.equal(readyQueue.autoProcesarTrabajoPrioritario(reloj), true);
+for (let i=0;i<20 &&
+    readyQueue.values.get('vl:auto:v3:2026-09-28:WIN-9-30AM')?.estado !== 'DONE';i++) {
+    await new Promise(resolve => setImmediate(resolve));
+}
+assert.equal(
+    readyQueue.values.get('vl:auto:v3:2026-09-28:WIN-9-30AM').estado,
+    'DONE'
+);
+assert.equal(readyQueue.values.get('vl:auto:tabs:last-tick:v1'), lastSearchTick);
+assert.equal(readyQueue.calls.filter(url => url.includes('procesarResultados.php')).length,1);
+
+// Si pierde liderazgo mientras espera el Web Lock, deja RESULT_READY, emite
+// handoff y hace cero POST. El nuevo líder podrá tomar la cola inmediatamente.
+const handoffLock = load(false, 'WIN-9-30AM', {
+    primera:'', segunda:'', tercera:'', pick3:'', pick4:''
+});
+handoffLock.values.set('vl:auto:settings:v1', {
+    enabled:true, intervalMs:180000, maxRetries:0, lotteries:readyLotteries
+});
+handoffLock.values.set('vl:auto:v3:2026-09-28:WIN-9-30AM', {
+    estado:'RESULT_READY', resultado
+});
+handoffLock.setBeforeLock(() => handoffLock.setLeader(false));
+await handoffLock.autoEvaluar(reloj, 'WIN-9-30AM');
+assert.equal(handoffLock.calls.filter(url => url.includes('procesarResultados.php')).length,0);
+assert.equal(
+    handoffLock.values.get('vl:auto:v3:2026-09-28:WIN-9-30AM').estado,
+    'RESULT_READY'
+);
+assert.match(
+    handoffLock.values.get('vl:auto:v3:2026-09-28:WIN-9-30AM').motivo,
+    /Web Lock/
+);
+assert.equal(handoffLock.values.get('vl:auto:tabs:signal:v1').tipo,'result-ready');
+assert.equal(handoffLock.values.get('vl:auto:tabs:signal:v1').codigo,'WIN-9-30AM');
 
 // Si Rover devuelve más de una fila con el mismo código lógico, la identidad
 // es ambigua: no se procesa ninguna.

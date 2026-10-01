@@ -1224,10 +1224,14 @@
             window.addEventListener('focus', () => {
                 if (autoTabCoordStarted) autoCoordinarTabs(false);
             });
-            document.addEventListener('visibilitychange', () => {
+            document.addEventListener('visibilitychange', async () => {
                 if (!autoTabCoordStarted) return;
+
+                // Guardar primero la nueva visibilidad y luego avisar a los demás.
+                // Así ningún observador decide usando metadata vieja del tab que
+                // acaba de pasar a background o foreground.
+                await autoCoordinarTabs(false);
                 autoPublicarSignal('visibility', { visible: autoTabVisibleAhora() });
-                autoCoordinarTabs(false);
             });
             window.addEventListener('pagehide', autoLiberarTab);
             window.addEventListener('pageshow', () => {

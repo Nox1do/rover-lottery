@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('virtual-lottery v2 auto.user.js','utf8');
 
-assert.match(source,/^\/\/ @version\s+3\.2\.4$/m);
+assert.match(source,/^\/\/ @version\s+3\.2\.5$/m);
 assert.match(source,/^\/\/ @run-at\s+document-idle$/m);
 assert.ok(source.includes("const ICON_GEAR ="));
 assert.ok(source.includes("row.className = 'rs-auto-date-row'"));
@@ -14,10 +14,17 @@ assert.ok(source.includes("backdrop.className = 'rs-auto-modal-backdrop'"));
 assert.ok(source.includes('Configuración AUTO'));
 assert.ok(source.includes('Buscar resultado cada'));
 assert.ok(source.includes('Máximo de búsquedas por sorteo'));
+assert.ok(source.includes('Host AUTO'));
+assert.ok(source.includes('class="rs-auto-emitter-host"'));
+assert.ok(source.includes('<option value="auto">Automático</option>'));
+assert.ok(source.includes('<option value="www.roversport.net">roversport.net</option>'));
+assert.ok(source.includes('<option value="www.roversport.lol">roversport.lol</option>'));
+assert.ok(source.includes("emitterHost: backdrop.querySelector('.rs-auto-emitter-host').value"));
+assert.ok(source.includes("backdrop.querySelector('.rs-auto-emitter-host').value = config.emitterHost"));
 assert.ok(source.includes('rs-auto-select-all'));
 assert.ok(source.includes('rs-auto-select-none'));
 assert.ok(source.includes('EXTRA continúa manual'));
-assert.ok(source.includes('autoReiniciarScheduler(true)'));
+assert.ok(source.includes('autoCoordinarTabs(false)'));
 assert.ok(source.includes("className = 'rs-auto-accordion-toggle'"));
 assert.ok(source.includes("className = 'rs-auto-accordion-panel'"));
 assert.ok(source.includes("const group = document.createElement('div');"));

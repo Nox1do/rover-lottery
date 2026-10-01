@@ -125,10 +125,10 @@ async function tick(){
   const b=makeContext();
 
   assert.equal(a.lockName,'vl-auto-leader-v5');
-  assert.equal(a.emitterHost(),'www.roversport.net');
 
   a.setup('TAB-A');
   b.setup('TAB-B');
+  assert.equal(a.emitterHost(),'www.roversport.net');
 
   assert.equal(a.acquire(),true);
   await tick();

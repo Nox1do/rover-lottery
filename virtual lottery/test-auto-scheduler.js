@@ -10,7 +10,32 @@ const source = fs.readFileSync('virtual-lottery v2 auto.user.js','utf8')
     .replace(/\}\)\(\);\s*$/, `
 globalThis.__test = {
     autoConfig, autoGuardarConfiguracion, autoReiniciarScheduler, autoDetenerScheduler,
-    setLeader(value) { autoTabEsLider = !!value; }
+    setLeader(value) {
+        autoTabMeta = autoTabMeta || {
+            protocol:AUTO_TAB_PROTOCOL, leaderProtocol:AUTO_LEADER_PROTOCOL,
+            id:'TEST-SCHED', hostname:AUTO_EMITTER_HOST, active:true,
+            visible:true, focused:true, lastFocusAt:Date.now(), heartbeatAt:Date.now()
+        };
+        if (value) {
+            autoLeaderLockHeld = true;
+            autoLeaderLockReleasing = false;
+            autoLeaderEpoch = 'test-scheduler-epoch';
+            autoTabEsLider = true;
+            GM_setValue(AUTO_LEADER_STATE_KEY, {
+                protocol:AUTO_LEADER_PROTOCOL,
+                ownerId:autoTabMeta.id,
+                epoch:autoLeaderEpoch,
+                hostname:AUTO_EMITTER_HOST,
+                heartbeatAt:Date.now()
+            });
+        } else {
+            autoTabEsLider = false;
+            autoLeaderLockHeld = false;
+            autoLeaderLockReleasing = false;
+            autoLeaderEpoch = '';
+            GM_deleteValue(AUTO_LEADER_STATE_KEY);
+        }
+    }
 };
 })();`);
 

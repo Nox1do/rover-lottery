@@ -29,6 +29,7 @@ globalThis.__leaderTest = {
   coordinate(){ return autoCoordinarTabs(false); },
   acquire:autoSolicitarLeaderLock,
   release:autoLiberarLeaderLock,
+  leave:autoLiberarTab,
   isLeader:autoEsLiderTab,
   rawLeader(){ return autoTabEsLider; },
   held(){ return autoLeaderLockHeld; },
@@ -176,8 +177,9 @@ async function tick(){
     assert.equal(locks.held.size,1);
   }
 
-  // Cerrar/liberar al líder sí habilita failover.
-  assert.equal(a.api.release('test-close'),true);
+  // Cerrar el tab líder sí habilita failover. pagehide además marca
+  // su metadata inactive, como ocurre en Rover al cerrar la pestaña.
+  a.api.leave();
   await tick();
   assert.equal(a.api.isLeader(),false);
   assert.equal(locks.held.has(a.api.lockName),false);

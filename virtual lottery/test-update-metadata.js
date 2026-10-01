@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8');
 const raw = 'https://raw.githubusercontent.com/Nox1do/rover-lottery/main/virtual%20lottery/virtual-lottery%20v2%20auto.user.js';
 
-assert.match(source, /^\/\/ @version\s+3\.2\.0$/m);
+assert.match(source, /^\/\/ @version\s+3\.2\.1$/m);
 assert.equal(source.includes('debugForzarAuto'), false);
 assert.equal(source.includes('vl-debug-force'), false);
 assert.ok(source.includes("if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) return false;"));
@@ -19,6 +19,13 @@ assert.ok(source.includes("function autoElegirLiderTabs(tabs, now = Date.now())"
 assert.ok(source.includes("function autoEsLiderTab()"));
 assert.ok(source.includes("navigator.locks.request('vl-auto-rover-post'"));
 assert.ok(source.includes("GM_addValueChangeListener("));
+assert.ok(source.includes("const AUTO_TAB_STALE_VISIBLE_MS = 15000;"));
+assert.ok(source.includes("const AUTO_TAB_STALE_HIDDEN_MS = 120000;"));
+assert.ok(source.includes("function autoSignalTrabajoActual(signal, reloj = autoAhoraRD())"));
+assert.ok(source.includes("function autoTieneResultadoListo(reloj = autoAhoraRD())"));
+assert.ok(source.includes("function autoTieneTrabajoPrioritario(reloj = autoAhoraRD())"));
+assert.ok(source.includes("autoPublicarResultadoListo(reloj, codigo, 'source-result-ready')"));
+assert.ok(source.includes("autoReiniciarScheduler(true, !autoTieneTrabajoPrioritario(reloj))"));
 assert.match(source, /^\/\/ @homepageURL\s+https:\/\/github\.com\/Nox1do\/rover-lottery$/m);
 assert.match(source, /^\/\/ @source\s+https:\/\/github\.com\/Nox1do\/rover-lottery\/blob\/main\/virtual%20lottery\/virtual-lottery%20v2%20auto\.user\.js$/m);
 assert.ok(source.includes('// @updateURL    ' + raw));

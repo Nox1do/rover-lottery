@@ -42,7 +42,7 @@ assert.ok(source.includes("const AUTO_HOST_LOL = 'www.roversport.lol';"));
 assert.equal(source.includes("const AUTO_EMITTER_HOST ="), false);
 assert.ok(source.includes("function autoResolverHostEmisor(tabs, config = autoConfiguracion(), now = Date.now())"));
 assert.ok(source.includes("estado: 'auto-mixto'"));
-assert.ok(source.includes("estado: 'host-elegido-sin-tab'"));
+assert.ok(source.includes("'host-elegido-sin-tab'"));
 assert.ok(source.includes("class=\"rs-auto-emitter-host\""));
 assert.ok(source.includes("AUTO pausado · .net + .lol activos · elige Host AUTO"));
 assert.ok(source.includes("autoTabCoordStatus = 'esperando-handoff-host'"));

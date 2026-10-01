@@ -267,6 +267,42 @@ assert.match(
     /AUTO desactivado/
 );
 
+// Si el tab pierde liderazgo mientras valida Rover, conserva RESULT_READY
+// y publica una señal inmediata para que el nuevo líder no espere otro intervalo.
+const handoffEnVuelo = load(false, 'WIN-9-30AM', {
+    primera:'', segunda:'', tercera:'', pick3:'', pick4:''
+});
+handoffEnVuelo.showToday();
+const pickLotteries = Object.fromEntries(
+    Object.keys(handoffEnVuelo.autoConfig).map(c => [c, { enabled: c === 'WIN-9-30AM' }])
+);
+handoffEnVuelo.values.set('vl:auto:settings:v1', {
+    enabled:true, intervalMs:180000, maxRetries:0, lotteries:pickLotteries
+});
+handoffEnVuelo.values.set('vl:auto:v3:2026-09-28:WIN-9-30AM', {
+    estado:'RESULT_READY', resultado
+});
+let transfirioLiderazgo = false;
+handoffEnVuelo.setOnFetch(url => {
+    if (transfirioLiderazgo || !url.includes('verResultados2.php')) return;
+    transfirioLiderazgo = true;
+    handoffEnVuelo.setLeader(false);
+});
+await handoffEnVuelo.autoEvaluar(reloj, 'WIN-9-30AM');
+assert.equal(
+    handoffEnVuelo.values.get('vl:auto:v3:2026-09-28:WIN-9-30AM').estado,
+    'RESULT_READY'
+);
+assert.match(
+    handoffEnVuelo.values.get('vl:auto:v3:2026-09-28:WIN-9-30AM').motivo,
+    /Liderazgo transferido/
+);
+const handoffSignal = handoffEnVuelo.values.get('vl:auto:tabs:signal:v1');
+assert.equal(handoffSignal.tipo, 'result-ready');
+assert.equal(handoffSignal.codigo, 'WIN-9-30AM');
+assert.equal(handoffSignal.fechaIso, '2026-09-28');
+assert.equal(handoffEnVuelo.calls.filter(url => url.includes('procesarResultados.php')).length, 0);
+
 // Si Rover devuelve más de una fila con el mismo código lógico, la identidad
 // es ambigua: no se procesa ninguna.
 const ambiguo = load(false, 'BRAZIL12PM', {

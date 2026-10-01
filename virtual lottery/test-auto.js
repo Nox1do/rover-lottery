@@ -12,7 +12,39 @@ function load(initialProcessed = true, code = 'BRAZIL12PM', rowValues = null, du
     let onFetch = () => {};
     const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
         .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();\n', '')
-        .replace(/\}\)\(\);\s*$/, 'globalThis.__test = { autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar, autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas, autoIdentidadRoverValida, autoProcesarTrabajoPrioritario, parseRapid, LOTERIAS, setLeader(v){autoTabEsLider=!!v} };\n})();');
+        .replace(/\}\)\(\);\s*$/, `globalThis.__test = {
+autoDebeSoloVerificar, autoConfig, autoResultadoValido, autoMinuto, autoUnico,
+autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir, autoEstado, autoGuardar,
+autoResumen, autoEvaluar, autoProcesar, autoTick, autoConsultar, autoFilas,
+autoIdentidadRoverValida, autoProcesarTrabajoPrioritario, parseRapid, LOTERIAS,
+setLeader(v){
+    autoTabMeta = autoTabMeta || {
+        protocol:AUTO_TAB_PROTOCOL, leaderProtocol:AUTO_LEADER_PROTOCOL,
+        id:'TEST-AUTO', hostname:AUTO_EMITTER_HOST, active:true,
+        visible:true, focused:true, lastFocusAt:Date.now(), heartbeatAt:Date.now()
+    };
+    if (v) {
+        autoLeaderLockHeld = true;
+        autoLeaderLockReleasing = false;
+        autoLeaderEpoch = 'test-auto-epoch';
+        autoTabEsLider = true;
+        GM_setValue(AUTO_LEADER_STATE_KEY, {
+            protocol:AUTO_LEADER_PROTOCOL,
+            ownerId:autoTabMeta.id,
+            epoch:autoLeaderEpoch,
+            hostname:AUTO_EMITTER_HOST,
+            heartbeatAt:Date.now()
+        });
+    } else {
+        autoTabEsLider = false;
+        autoLeaderLockHeld = false;
+        autoLeaderLockReleasing = false;
+        autoLeaderEpoch = '';
+        GM_deleteValue(AUTO_LEADER_STATE_KEY);
+    }
+}
+};
+})();`);
     const result = { primera:'00', segunda:'05', tercera:'99', pick3:'007', pick4:'0001' };
     const inputs = Object.fromEntries(Object.keys(result).map(c => [c, {
         value: rowValues ? rowValues[c] : result[c],

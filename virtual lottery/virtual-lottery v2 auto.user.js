@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.2.1
+// @version      3.2.2
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -32,7 +32,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.2.1';
+    const SCRIPT_VERSION = '3.2.2';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -921,6 +921,17 @@
         return document.hidden !== true;
     }
 
+    function autoTabFocusedAhora() {
+        if (!autoTabVisibleAhora()) return false;
+        try {
+            return typeof document.hasFocus === 'function'
+                ? document.hasFocus()
+                : false;
+        } catch (_) {
+            return false;
+        }
+    }
+
     function autoMetaStale(meta, now = Date.now()) {
         const heartbeat = Number(meta?.heartbeatAt || 0);
         if (!heartbeat) return true;
@@ -937,6 +948,13 @@
             meta.id.length > 0;
         const heartbeatAnterior = valida ? Number(meta.heartbeatAt || 0) : 0;
         const reingreso = !valida || heartbeatAnterior <= 0 || autoMetaStale(meta, now);
+        const visible = autoTabVisibleAhora();
+        const focused = autoTabFocusedAhora();
+        const estabaFocused = valida && meta.focused === true;
+        const lastFocusAtAnterior = valida ? Number(meta.lastFocusAt || 0) : 0;
+        const lastFocusAt = focused && (!estabaFocused || !lastFocusAtAnterior)
+            ? now
+            : lastFocusAtAnterior;
 
         return {
             protocol: AUTO_TAB_PROTOCOL,
@@ -944,10 +962,18 @@
             startedAt: reingreso ? now : Number(meta.startedAt || now),
             heartbeatAt: now,
             active: true,
-            visible: autoTabVisibleAhora(),
+            visible,
+            focused,
+            lastFocusAt,
             hostname: String(location.hostname || ''),
             version: SCRIPT_VERSION
         };
+    }
+
+    function autoPrioridadTab(meta) {
+        if (meta?.focused === true) return 2;
+        if (meta?.visible === true) return 1;
+        return 0;
     }
 
     function autoElegirLiderTabs(tabs, now = Date.now()) {
@@ -962,15 +988,40 @@
                 !autoMetaStale(meta, now)
             );
 
-        // Compatibilidad durante el update: si queda abierto un tab 3.2.0 sin
-        // metadata de visibilidad, todos mantienen la elección antigua por edad.
+        // Compatibilidad durante actualización:
+        // - 3.2.0 no reporta visible.
+        // - 3.2.1 reporta visible pero no focused/lastFocusAt.
+        // Mientras quede cualquier tab antiguo usamos exactamente la política 3.2.1
+        // para que todas las versiones lleguen al mismo ganador.
         const todosConVisibilidad = candidatos.length > 0 &&
             candidatos.every(meta => typeof meta.visible === 'boolean');
+        const todosConFoco = candidatos.length > 0 &&
+            candidatos.every(meta =>
+                typeof meta.focused === 'boolean' &&
+                Number.isFinite(Number(meta.lastFocusAt || 0))
+            );
+
+        if (!todosConFoco) {
+            candidatos.sort((a, b) => {
+                if (todosConVisibilidad && a.visible !== b.visible) {
+                    return a.visible ? -1 : 1;
+                }
+                return Number(a.startedAt || 0) - Number(b.startedAt || 0) ||
+                    String(a.id).localeCompare(String(b.id));
+            });
+            return candidatos[0] || null;
+        }
 
         candidatos.sort((a, b) => {
-            if (todosConVisibilidad && a.visible !== b.visible) {
-                return a.visible ? -1 : 1;
-            }
+            const prioridad = autoPrioridadTab(b) - autoPrioridadTab(a);
+            if (prioridad) return prioridad;
+
+            // Sticky determinístico: entre tabs con la misma prioridad permanece
+            // el que fue enfocado más recientemente. Si nunca hubo foco, gana el
+            // más antiguo. Esto evita flapping cuando DevTools roba el foco.
+            const ultimoFoco = Number(b.lastFocusAt || 0) - Number(a.lastFocusAt || 0);
+            if (ultimoFoco) return ultimoFoco;
+
             return Number(a.startedAt || 0) - Number(b.startedAt || 0) ||
                 String(a.id).localeCompare(String(b.id));
         });
@@ -1058,6 +1109,30 @@
         return autoTieneRecuperacionPendiente(reloj) || autoTieneResultadoListo(reloj);
     }
 
+    function autoProcesarTrabajoPrioritario(reloj = autoAhoraRD()) {
+        if (!autoEsLiderTab()) return false;
+
+        const config = autoConfiguracion();
+        let encontrado = false;
+
+        for (const codigo of Object.keys(autoConfig)) {
+            const estado = autoEstado(reloj, codigo);
+            const recuperar = autoDebeSoloVerificar(estado.estado);
+            const listo = config.enabled &&
+                config.lotteries[codigo]?.enabled === true &&
+                estado.estado === 'RESULT_READY' &&
+                autoResultadoValido(estado.resultado);
+
+            if (!recuperar && !listo) continue;
+            encontrado = true;
+
+            autoEvaluar(reloj, codigo)
+                .catch(error => console.error('[AUTO LOTERÍAS]', codigo, error));
+        }
+
+        return encontrado;
+    }
+
     function autoEsperaCadencia(intervalMs, now = Date.now()) {
         const ultimo = Number(GM_getValue(AUTO_TAB_LAST_TICK_KEY, 0));
         const intervalo = Number(intervalMs || 0);
@@ -1105,19 +1180,24 @@
 
             autoTabLiderId = ganador.id;
             autoTabEsLider = ganador.id === autoTabMeta.id;
+            actualizarBotonAuto();
 
             if (eraLider !== autoTabEsLider || liderAnterior !== autoTabLiderId) {
-                actualizarBotonAuto();
-
                 if (autoTabEsLider) {
                     console.log(
                         '[AUTO LOTERÍAS] TAB LÍDER',
                         '· host:', location.hostname,
-                        '· id:', autoTabMeta.id.slice(-8)
+                        '· id:', autoTabMeta.id.slice(-8),
+                        '· focused:', autoTabMeta.focused === true
                     );
                     const reloj = autoAhoraRD();
                     autoResumen(reloj);
-                    autoReiniciarScheduler(true, !autoTieneTrabajoPrioritario(reloj));
+
+                    // Procesar primero estados ya listos/ambiguos sin alterar la
+                    // cadencia de búsqueda. Luego reanudar el scheduler respetando
+                    // la marca compartida del último tick.
+                    autoProcesarTrabajoPrioritario(reloj);
+                    autoReiniciarScheduler(true, true);
                 } else {
                     autoDetenerScheduler();
                     console.log(
@@ -1125,8 +1205,6 @@
                         '· líder:', String(autoTabLiderId).slice(-8)
                     );
                 }
-            } else if (inicial) {
-                actualizarBotonAuto();
             }
         } catch (error) {
             console.error('[AUTO LOTERÍAS] Error coordinando tabs:', error);
@@ -1150,7 +1228,13 @@
         }
 
         if (autoTabMeta && autoTabStore) {
-            autoTabMeta = { ...autoTabMeta, active: false, heartbeatAt: 0, visible: false };
+            autoTabMeta = {
+                ...autoTabMeta,
+                active: false,
+                heartbeatAt: 0,
+                visible: false,
+                focused: false
+            };
             autoTabStore[AUTO_TAB_META_KEY] = autoTabMeta;
             try { GM_saveTab(autoTabStore); } catch (_) {}
         }
@@ -1197,12 +1281,11 @@
 
                                 // RESULT_READY no debe esperar la cadencia de búsqueda.
                                 // Tras resolver el liderazgo, el líder lo procesa ya.
-                                if (autoSignalTrabajoActual(newValue)) {
-                                    setTimeout(() => {
-                                        if (autoEsLiderTab()) {
-                                            autoReiniciarScheduler(true, false);
-                                        }
-                                    }, 60);
+                                if (autoSignalTrabajoActual(newValue) && autoEsLiderTab()) {
+                                    // Cola prioritaria: RESULT_READY se procesa sin
+                                    // tocar AUTO_TAB_LAST_TICK_KEY ni reiniciar el
+                                    // intervalo de búsqueda.
+                                    autoProcesarTrabajoPrioritario(autoAhoraRD());
                                 }
                             }, 25);
                         }
@@ -1221,17 +1304,42 @@
                 }
             }
 
-            window.addEventListener('focus', () => {
-                if (autoTabCoordStarted) autoCoordinarTabs(false);
-            });
-            document.addEventListener('visibilitychange', async () => {
+            async function autoActualizarPresencia(tipo) {
                 if (!autoTabCoordStarted) return;
 
-                // Guardar primero la nueva visibilidad y luego avisar a los demás.
-                // Así ningún observador decide usando metadata vieja del tab que
-                // acaba de pasar a background o foreground.
+                // Guardar metadata de presencia antes de avisar. Focus/blur son
+                // poco frecuentes y esta escritura evita que otro tab decida con
+                // un snapshot viejo del tab que acaba de ganar/perder interacción.
+                const now = Date.now();
+                autoTabMeta = autoPrepararMetaTab(autoTabMeta, now);
+                autoTabStore = autoTabStore && typeof autoTabStore === 'object'
+                    ? autoTabStore
+                    : {};
+                autoTabStore[AUTO_TAB_META_KEY] = autoTabMeta;
+                await autoSaveTabAsync(autoTabStore);
+
+                autoPublicarSignal(tipo, {
+                    visible: autoTabMeta.visible === true,
+                    focused: autoTabMeta.focused === true,
+                    lastFocusAt: Number(autoTabMeta.lastFocusAt || 0)
+                });
                 await autoCoordinarTabs(false);
-                autoPublicarSignal('visibility', { visible: autoTabVisibleAhora() });
+            }
+
+            window.addEventListener('focus', () => {
+                autoActualizarPresencia('focus').catch(error =>
+                    console.error('[AUTO LOTERÍAS] Error publicando focus:', error)
+                );
+            });
+            window.addEventListener('blur', () => {
+                autoActualizarPresencia('blur').catch(error =>
+                    console.error('[AUTO LOTERÍAS] Error publicando blur:', error)
+                );
+            });
+            document.addEventListener('visibilitychange', () => {
+                autoActualizarPresencia('visibility').catch(error =>
+                    console.error('[AUTO LOTERÍAS] Error publicando visibilidad:', error)
+                );
             });
             window.addEventListener('pagehide', autoLiberarTab);
             window.addEventListener('pageshow', () => {
@@ -1715,6 +1823,17 @@
                     motivo: 'La fuente cambió respecto al resultado guardado.' });
                 return;
             }
+            if (!autoEsLiderTab()) {
+                autoGuardar(reloj, codigo, {
+                    estado: 'RESULT_READY',
+                    resultado,
+                    lastCheckAt: Date.now(),
+                    motivo: 'Liderazgo transferido mientras esperaba el Web Lock.'
+                });
+                autoPublicarResultadoListo(reloj, codigo, 'handoff-inside-lock');
+                return;
+            }
+
             // Otra pestaña pudo procesar mientras esperábamos el bloqueo.
             const previo = await autoConsultar(reloj, codigo, resultado, true);
             if (previo.ambigua) {
@@ -1730,7 +1849,17 @@
                     resultado, motivo: 'Rover cambió antes del envío.' });
                 return;
             }
-            if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) return;
+            if (!autoEsLiderTab()) {
+                autoGuardar(reloj, codigo, {
+                    estado: 'RESULT_READY',
+                    resultado,
+                    lastCheckAt: Date.now(),
+                    motivo: 'Liderazgo transferido justo antes del POST.'
+                });
+                autoPublicarResultadoListo(reloj, codigo, 'handoff-before-post');
+                return;
+            }
+            if (!autoPuedeEmitir(codigo)) return;
             if (autoAhoraRD().fechaIso !== reloj.fechaIso) return;
             // Persistir antes del POST: ante cierre/timeout, recuperar leyendo Rover.
             autoGuardar(reloj, codigo, { estado: 'PROCESSING', resultado, processSentAt: Date.now() });
@@ -1994,10 +2123,13 @@
             .filter(codigo => config.lotteries[codigo]?.enabled === true).length;
 
         btn.classList.toggle('rs-active', config.enabled);
+        const focused = autoTabMeta?.focused === true;
         const rol = autoTabEsLider
-            ? 'tab líder'
+            ? focused
+                ? 'tab líder · enfocado'
+                : 'tab líder'
             : autoTabCoordStarted
-                ? 'tab observador'
+                ? `tab observador · líder ${String(autoTabLiderId || '?').slice(-8)}`
                 : 'coordinando tabs';
 
         btn.title = config.enabled

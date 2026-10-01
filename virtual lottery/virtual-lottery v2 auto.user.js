@@ -2495,7 +2495,8 @@
 
     function instalarDetectorVistaAjaxRover() {
         const root = document.documentElement;
-        if (!root || root.dataset?.rsVirtualLotteryViewDetector) return;
+        if (!root || typeof document.addEventListener !== 'function') return;
+        if (root.dataset?.rsVirtualLotteryViewDetector) return;
 
         if (root.dataset) {
             root.dataset.rsVirtualLotteryViewDetector = '1';

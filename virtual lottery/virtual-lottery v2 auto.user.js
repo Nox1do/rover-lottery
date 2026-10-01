@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.2.5
+// @version      3.2.6
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -32,7 +32,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.2.5';
+    const SCRIPT_VERSION = '3.2.6';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -889,12 +889,12 @@
     // COORDINACIÓN MULTI-TAB — un solo scheduler AUTO por navegador
     // ============================================================
     const AUTO_TAB_PROTOCOL = 1;
-    const AUTO_LEADER_PROTOCOL = 5;
+    const AUTO_LEADER_PROTOCOL = 6;
     const AUTO_TAB_META_KEY = '__vlAutoLeaderV1';
     const AUTO_TAB_SIGNAL_KEY = 'vl:auto:tabs:signal:v1';
     const AUTO_TAB_LAST_TICK_KEY = 'vl:auto:tabs:last-tick:v1';
-    const AUTO_LEADER_STATE_KEY = 'vl:auto:tabs:leader:v5';
-    const AUTO_LEADER_LOCK_NAME = 'vl-auto-leader-v5';
+    const AUTO_LEADER_STATE_KEY = 'vl:auto:tabs:leader:v6';
+    const AUTO_LEADER_LOCK_NAME = 'vl-auto-leader-v6';
     const AUTO_HOST_AUTO = 'auto';
     const AUTO_HOST_NET = 'www.roversport.net';
     const AUTO_HOST_LOL = 'www.roversport.lol';
@@ -1513,20 +1513,37 @@
                 return;
             }
 
-            const candidato = autoElegirLiderTabs(tabs, autoHostEmisorResuelto, now);
-
-            if (candidato?.id === autoTabMeta?.id) {
-                if (autoLeaderLockHeld && !autoLeaderLockReleasing) {
-                    autoTabCoordStatus = 'lider-confirmado';
-                } else if (!autoLeaderLockRequesting) {
-                    autoSolicitarLeaderLock();
-                }
+            // Liderazgo sticky: focus/visibility solo eligen candidato cuando
+            // NO existe un líder confirmado. Cambiar de tab no transfiere el lock.
+            if (autoLeaderLockHeld && !autoLeaderLockReleasing) {
+                autoTabCoordStatus = 'lider-confirmado';
+                autoPublicarEstadoLider(now);
             } else {
-                autoTabCoordStatus = 'observador';
-                if (autoLeaderLockHeld) {
-                    autoLiberarLeaderLock('candidato-prioritario-cambio');
-                } else {
+                const leaderMismoHost = autoEstadoLiderActual();
+
+                if (autoEstadoLiderValido(
+                    leaderMismoHost,
+                    now,
+                    autoHostEmisorResuelto
+                )) {
+                    autoTabCoordStatus = 'observador';
+                    autoTabLiderId = leaderMismoHost.ownerId;
                     autoDetenerScheduler();
+                } else {
+                    const candidato = autoElegirLiderTabs(
+                        tabs,
+                        autoHostEmisorResuelto,
+                        now
+                    );
+
+                    if (candidato?.id === autoTabMeta?.id) {
+                        if (!autoLeaderLockRequesting) {
+                            autoSolicitarLeaderLock();
+                        }
+                    } else {
+                        autoTabCoordStatus = 'observador';
+                        autoDetenerScheduler();
+                    }
                 }
             }
 
@@ -2494,7 +2511,7 @@
 
         let rol;
         if (autoEsLiderTab()) {
-            rol = `LÍDER CONFIRMADO · id ${String(autoTabMeta?.id || '').slice(-8)} · lock ${AUTO_LEADER_LOCK_NAME} · epoch ${epoch || '?'}`;
+            rol = `LÍDER CONFIRMADO · estable · id ${String(autoTabMeta?.id || '').slice(-8)} · lock ${AUTO_LEADER_LOCK_NAME} · epoch ${epoch || '?'}`;
             if (focused) rol += ' · enfocado';
         } else if (autoTabCoordStatus === 'auto-mixto') {
             rol = 'AUTO pausado · .net + .lol activos · elige Host AUTO';

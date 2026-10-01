@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.2.5 — guía breve
+# Virtual Lotteries v3.2.6 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -260,3 +260,33 @@ Cambiar explícitamente el Host AUTO no permite que el nuevo dominio empiece a e
 Esto evita el intervalo en el que un Web Lock de `.net` y otro Web Lock de `.lol` podrían existir simultáneamente como líderes lógicos.
 
 La selección de Host AUTO forma parte de `vl:auto:settings:v1` y se comparte entre las instancias del mismo userscript. Las configuraciones guardadas antes de 3.2.5 migran automáticamente a **Automático**.
+
+
+## v3.2.6 — líder Web Lock estable
+
+El foco deja de provocar handoff de liderazgo. La regla `focused > visible > hidden` se conserva únicamente para elegir el **candidato inicial** cuando no existe un líder confirmado en el Host AUTO seleccionado.
+
+Una vez que un tab obtiene el Web Lock exclusivo `vl-auto-leader-v6`, conserva el liderazgo aunque el usuario cambie de pestaña. El líder solo cede por causas estructurales: cierre/pagehide, cambio de Host AUTO, incompatibilidad de protocolo, pérdida del contexto o liberación explícita del lock.
+
+```text
+Tab A enfocado
+Tab B visible
+→ A obtiene vl-auto-leader-v6
+→ A = LÍDER CONFIRMADO
+
+cambiar foco a B
+→ A conserva vl-auto-leader-v6
+→ A sigue LÍDER CONFIRMADO
+→ B sigue OBSERVADOR
+
+cerrar A
+→ A libera el Web Lock
+→ B puede adquirirlo
+→ B pasa a LÍDER CONFIRMADO
+```
+
+El coordinador primero comprueba si ya existe un claim válido de líder para el host seleccionado. Mientras ese claim siga vigente, los observadores no vuelven a competir por foco. Si el claim desaparece o expira, se vuelve a ejecutar la elección inicial y solo el candidato ganador intenta adquirir el Web Lock con `ifAvailable`.
+
+El protocolo de liderazgo sube a **6** y usa `vl:auto:tabs:leader:v6`. Durante la actualización, cualquier tab 3.2.5 todavía activo mantiene al coordinador v3.2.6 pausado hasta que sea recargado o quede stale. Esto evita mezclar la política antigua de handoff por foco con la política sticky nueva.
+
+La cola `RESULT_READY` continúa siendo prioritaria. Si el líder está vivo y recibe la señal, procesa el resultado inmediatamente sin esperar el siguiente intervalo de búsqueda. No se usa `steal: true` para arrebatar un Web Lock a un tab que todavía lo posee.

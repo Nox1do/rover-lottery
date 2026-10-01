@@ -91,7 +91,7 @@ assert.equal(api.esVistaResultadosLoteriaUI(),false);
 tableMarker=true;
 assert.equal(api.esVistaResultadosLoteriaUI(),true);
 
-assert.match(source,/^\/\/ @version\s+3\.2\.5$/m);
+assert.match(source,/^\/\/ @version\s+3\.2\.6$/m);
 assert.ok(source.includes("document.addEventListener('click', registrarVistaAjaxRover, true)"));
 
 const start=source.indexOf('function iniciar()');

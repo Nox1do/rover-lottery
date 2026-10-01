@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.2.0 — guía breve
+# Virtual Lotteries v3.2.1 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -19,7 +19,7 @@ La automatización usa la fecha actual de República Dominicana. Cambiar la fech
 | Estado | Acción |
 |---|---|
 | `WAITING_RESULT` | La fuente aún no muestra cinco valores válidos. El script vuelve a consultar. |
-| `RESULT_READY` | Resultado listo; en observación espera que se active el emisor. |
+| `RESULT_READY` | Resultado válido ya encontrado. Es trabajo prioritario: el líder debe intentar procesarlo sin esperar el siguiente intervalo de búsqueda. |
 | `DONE` | Rover confirmó estado procesado y los cinco valores iguales. |
 | `CONFLICT` | Rover o los inputs visibles tienen otros valores. Revisar manualmente. |
 | `DUPLICATE` | Los tres números principales coinciden con otra fila. Revisar manualmente. |
@@ -152,3 +152,14 @@ El handoff conserva la hora compartida del último tick para que cambiar de líd
 La coordinación utiliza `GM_getTab`, `GM_saveTab`, `GM_getTabs` y señales por `GM_addValueChangeListener`. El Web Lock `vl-auto-rover-post` continúa como segunda barrera justo antes del POST. La coordinación es por navegador/perfil; PCs, navegadores o perfiles distintos no comparten este liderazgo.
 
 Después de actualizar desde una versión anterior a 3.2.0, conviene recargar una vez todas las pestañas `lottery.php` que ya estaban abiertas para que todas participen en la elección.
+
+
+## v3.2.1 — handoff inmediato de RESULT_READY
+
+`RESULT_READY` deja de depender de la siguiente cadencia de búsqueda. Cuando una fuente ya entregó los cinco valores válidos, el estado se guarda y se publica una señal `result-ready` compartida entre tabs. Si el tab que encontró el resultado deja de ser líder antes del POST, el nuevo líder procesa ese trabajo inmediatamente; el intervalo de **1/3/5/10 minutos** sigue aplicando a búsquedas de resultados todavía pendientes, no a resultados ya encontrados.
+
+La elección de líder ahora prefiere un tab visible frente a uno oculto cuando todas las instancias abiertas ya reportan metadata de visibilidad. Durante una actualización mixta con algún tab 3.2.0 todavía abierto, se conserva temporalmente la regla antigua por antigüedad para evitar criterios distintos y reducir el riesgo de dos líderes.
+
+El heartbeat también distingue foreground/background. Un tab visible se considera stale tras aproximadamente **15 segundos** sin heartbeat; un tab oculto dispone de una ventana de **120 segundos** para tolerar el throttling normal del navegador. Cerrar el líder sigue produciendo failover por desaparición del tab/señal de salida sin tener que esperar esos 120 segundos.
+
+Esta versión conserva el Web Lock `vl-auto-rover-post` y la segunda lectura fresca de Rover antes del POST. El objetivo del cambio es reducir latencia de handoff sin debilitar las barreras contra procesamiento duplicado.

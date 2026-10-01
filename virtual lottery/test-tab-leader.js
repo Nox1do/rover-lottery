@@ -12,6 +12,7 @@ globalThis.__test = {
     autoPrepararMetaTab, autoEsperaCadencia, autoMetaStale,
     autoSignalTrabajoActual, autoPrioridadTab, autoTodosTabsLockCompatibles,
     autoTabsActivos, autoHostsActivos, autoResolverHostEmisor, autoElegirLiderTabs,
+    autoDebeEsperarHandoffHost,
     AUTO_TAB_META_KEY, AUTO_TAB_PROTOCOL, AUTO_LEADER_PROTOCOL,
     AUTO_HOST_AUTO, AUTO_HOST_NET, AUTO_HOST_LOL,
     AUTO_TAB_STALE_VISIBLE_MS, AUTO_TAB_STALE_HIDDEN_MS, AUTO_TAB_LAST_TICK_KEY
@@ -113,6 +114,26 @@ assert.equal(
 assert.equal(
     api.autoResolverHostEmisor(onlyLol,{emitterHost:api.AUTO_HOST_NET},now).estado,
     'host-elegido-sin-tab'
+);
+
+const oldNetLeader={
+    protocol:api.AUTO_LEADER_PROTOCOL,
+    ownerId:'NET-LEADER',
+    epoch:'epoch-net',
+    hostname:api.AUTO_HOST_NET,
+    heartbeatAt:now
+};
+assert.equal(
+    api.autoDebeEsperarHandoffHost(oldNetLeader,api.AUTO_HOST_LOL,now),
+    true
+);
+assert.equal(
+    api.autoDebeEsperarHandoffHost(oldNetLeader,api.AUTO_HOST_NET,now),
+    false
+);
+assert.equal(
+    api.autoDebeEsperarHandoffHost({...oldNetLeader,heartbeatAt:now-16000},api.AUTO_HOST_LOL,now),
+    false
 );
 
 // El candidato se restringe al host ya resuelto.

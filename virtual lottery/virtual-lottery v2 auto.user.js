@@ -2493,6 +2493,16 @@
         }
     }
 
+    function instalarDetectorVistaAjaxRover() {
+        const root = document.documentElement;
+        if (!root || root.dataset?.rsVirtualLotteryViewDetector) return;
+
+        if (root.dataset) {
+            root.dataset.rsVirtualLotteryViewDetector = '1';
+        }
+        document.addEventListener('click', registrarVistaAjaxRover, true);
+    }
+
     function instalarControlAuto() {
         if (!esVistaResultadosLoteriaUI()) return;
 
@@ -3076,6 +3086,8 @@
     }
 
     function iniciar() {
+        instalarDetectorVistaAjaxRover();
+
         // #fecha existe en muchas vistas AJAX de Rover. La UI de Virtual Lotteries
         // solo pertenece a Ver Resultados (resultadosLoteria2.php).
         if (!esVistaResultadosLoteriaUI()) {
@@ -3156,10 +3168,6 @@
         observarResultadosLoteria();
         iniciar();
     }
-
-    // Rover navega sus vistas internas mediante load('__inc/...') sin cambiar
-    // lottery.php. Registrar la intención antes de que el AJAX reemplace el DOM.
-    document.addEventListener('click', registrarVistaAjaxRover, true);
 
     iniciarAutoLoterias();
     observarResultadosLoteria();

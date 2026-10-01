@@ -98,6 +98,7 @@ setLeader(v){
         navigator: { locks: { request: async (_key, fn) => { beforeLock(); return fn(); } } },
         GM_getValue: (key, fallback) => values.get(key) ?? fallback,
         GM_setValue: (key, value) => values.set(key, value),
+        GM_deleteValue: key => values.delete(key),
         setInterval() {}, setTimeout(fn) { fn(); return 1; }, clearTimeout() {},
         console: { log() {}, info() {}, warn() {}, error: console.error,
             table(rows) { tables.push(rows); } },

@@ -10,7 +10,9 @@ const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
     .replace(/\}\)\(\);\s*$/, `
 globalThis.__test = {
     autoConfig, autoConfiguracion, autoGuardarConfiguracion, autoPuedeEmitir,
-    autoIntentosAgotados, autoTextoIntento, AUTO_INTERVALOS_MS, AUTO_MAX_BUSQUEDAS, AUTO_GRUPOS
+    autoIntentosAgotados, autoTextoIntento, autoNormalizarHostAuto,
+    AUTO_INTERVALOS_MS, AUTO_MAX_BUSQUEDAS, AUTO_GRUPOS,
+    AUTO_HOST_AUTO, AUTO_HOST_NET, AUTO_HOST_LOL
 };
 })();`);
 
@@ -44,6 +46,7 @@ function load(mode = 'OBSERVAR') {
 const rapid = load('RAPID');
 const rapidConfig = rapid.autoConfiguracion();
 assert.equal(rapidConfig.enabled, true);
+assert.equal(rapidConfig.emitterHost, rapid.AUTO_HOST_AUTO);
 assert.equal(Object.values(rapidConfig.lotteries).filter(x=>x.enabled).length, 6);
 assert.equal(rapid.autoPuedeEmitir('RPL-11AM'), true);
 assert.equal(rapid.autoPuedeEmitir('BRAZIL12PM'), false);
@@ -60,14 +63,19 @@ const lotteries = Object.fromEntries(Object.keys(custom.autoConfig).map(codigo =
     codigo, {enabled: codigo === 'QLT-MIDDAY'}
 ]));
 const saved = custom.autoGuardarConfiguracion({
-    enabled:true, intervalMs:300000, maxRetries:3, lotteries
+    enabled:true, intervalMs:300000, maxRetries:3,
+    emitterHost:custom.AUTO_HOST_LOL, lotteries
 });
 assert.equal(saved.intervalMs,300000);
 assert.equal(saved.maxRetries,3);
+assert.equal(saved.emitterHost,custom.AUTO_HOST_LOL);
 const threeMinute = custom.autoGuardarConfiguracion({
-    enabled:true, intervalMs:180000, maxRetries:3, lotteries
+    enabled:true, intervalMs:180000, maxRetries:3,
+    emitterHost:custom.AUTO_HOST_NET, lotteries
 });
 assert.equal(threeMinute.intervalMs,180000);
+assert.equal(threeMinute.emitterHost,custom.AUTO_HOST_NET);
+assert.equal(custom.autoNormalizarHostAuto('invalid-host'),custom.AUTO_HOST_AUTO);
 assert.equal(custom.autoPuedeEmitir('QLT-MIDDAY'),true);
 assert.equal(custom.autoPuedeEmitir('RPL-11AM'),false);
 assert.equal(custom.autoIntentosAgotados({searchAttempts:2},saved),false);
@@ -101,8 +109,9 @@ legacyInterval.values.set('vl:auto:settings:v1',{
 });
 const migrated = legacyInterval.autoConfiguracion();
 assert.equal(migrated.intervalMs,60000);
+assert.equal(migrated.emitterHost,legacyInterval.AUTO_HOST_AUTO);
 assert.equal(migrated.lotteries['QLT-NIGHT'].enabled,true);
 assert.equal(migrated.lotteries['RPL-11AM'].enabled,false);
 
-console.log('Configuración AUTO: migración, acordeones, intervalos y límites OK');
+console.log('Configuración AUTO: migración, Host AUTO, acordeones, intervalos y límites OK');
 

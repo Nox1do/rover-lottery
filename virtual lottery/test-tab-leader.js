@@ -9,11 +9,13 @@ const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
     )
     .replace(/\}\)\(\);\s*$/, `
 globalThis.__test = {
-    autoPrepararMetaTab, autoElegirLiderTabs, autoEsperaCadencia, autoMetaStale,
+    autoPrepararMetaTab, autoEsperaCadencia, autoMetaStale,
     autoSignalTrabajoActual, autoPrioridadTab, autoTodosTabsLockCompatibles,
-    autoTabsActivos, AUTO_TAB_META_KEY, AUTO_TAB_PROTOCOL, AUTO_LEADER_PROTOCOL,
-    AUTO_EMITTER_HOST, AUTO_TAB_STALE_VISIBLE_MS, AUTO_TAB_STALE_HIDDEN_MS,
-    AUTO_TAB_LAST_TICK_KEY
+    autoTabsActivos, autoHostsActivos, autoResolverHostEmisor, autoElegirLiderTabs,
+    autoDebeEsperarHandoffHost,
+    AUTO_TAB_META_KEY, AUTO_TAB_PROTOCOL, AUTO_LEADER_PROTOCOL,
+    AUTO_HOST_AUTO, AUTO_HOST_NET, AUTO_HOST_LOL,
+    AUTO_TAB_STALE_VISIBLE_MS, AUTO_TAB_STALE_HIDDEN_MS, AUTO_TAB_LAST_TICK_KEY
 };
 })();`);
 
@@ -51,63 +53,123 @@ const meta=(id,startedAt,heartbeatAt,{
     focused=false,
     lastFocusAt=0,
     leaderProtocol=api.AUTO_LEADER_PROTOCOL,
-    version='3.2.4'
+    version='3.2.5'
 }={})=>({
     protocol:api.AUTO_TAB_PROTOCOL,leaderProtocol,id,startedAt,heartbeatAt,
     hostname,active,visible,focused,lastFocusAt,version
 });
 const wrap=m=>({[api.AUTO_TAB_META_KEY]:m});
 
-assert.equal(api.AUTO_EMITTER_HOST,'www.roversport.net');
-assert.equal(api.AUTO_LEADER_PROTOCOL,4);
+assert.equal(api.AUTO_LEADER_PROTOCOL,5);
+assert.equal(api.AUTO_HOST_AUTO,'auto');
+assert.equal(api.AUTO_HOST_NET,'www.roversport.net');
+assert.equal(api.AUTO_HOST_LOL,'www.roversport.lol');
 assert.equal(api.autoPrioridadTab(meta('F',1,99000,{focused:true})),2);
 assert.equal(api.autoPrioridadTab(meta('V',1,99000,{visible:true,focused:false})),1);
 assert.equal(api.autoPrioridadTab(meta('H',1,99000,{visible:false,focused:false})),0);
 
-// El candidato se elige solo entre tabs del host emisor.
-let winner=api.autoElegirLiderTabs({
-    lolFocused:wrap(meta('LOL',500,99000,{
-        hostname:'www.roversport.lol',focused:true,lastFocusAt:99999
+const onlyLol={
+    lolA:wrap(meta('LOL-A',1000,99000,{
+        hostname:api.AUTO_HOST_LOL,focused:true,lastFocusAt:99900
     })),
-    netVisible:wrap(meta('NET',1000,99000,{
-        hostname:'www.roversport.net',focused:false,lastFocusAt:70000
+    lolB:wrap(meta('LOL-B',2000,99000,{
+        hostname:api.AUTO_HOST_LOL,focused:false,lastFocusAt:80000
     }))
-},now);
-assert.equal(winner.id,'NET');
+};
+const onlyNet={
+    netA:wrap(meta('NET-A',1000,99000,{
+        hostname:api.AUTO_HOST_NET,focused:true,lastFocusAt:99900
+    })),
+    netB:wrap(meta('NET-B',2000,99000,{
+        hostname:api.AUTO_HOST_NET,focused:false,lastFocusAt:80000
+    }))
+};
+const mixed={
+    net:wrap(meta('NET',1000,99000,{
+        hostname:api.AUTO_HOST_NET,focused:false,lastFocusAt:80000
+    })),
+    lol:wrap(meta('LOL',2000,99000,{
+        hostname:api.AUTO_HOST_LOL,focused:true,lastFocusAt:99900
+    }))
+};
 
-// Dentro de .net se conserva focused > visible > hidden.
+assert.deepEqual(
+    JSON.parse(JSON.stringify(api.autoResolverHostEmisor(onlyLol,{emitterHost:'auto'},now))),
+    {host:api.AUTO_HOST_LOL,modo:'auto',hosts:[api.AUTO_HOST_LOL],estado:'auto-unico'}
+);
+assert.deepEqual(
+    JSON.parse(JSON.stringify(api.autoResolverHostEmisor(onlyNet,{emitterHost:'auto'},now))),
+    {host:api.AUTO_HOST_NET,modo:'auto',hosts:[api.AUTO_HOST_NET],estado:'auto-unico'}
+);
+assert.equal(api.autoResolverHostEmisor(mixed,{emitterHost:'auto'},now).host,'');
+assert.equal(api.autoResolverHostEmisor(mixed,{emitterHost:'auto'},now).estado,'auto-mixto');
+assert.equal(
+    api.autoResolverHostEmisor(mixed,{emitterHost:api.AUTO_HOST_NET},now).host,
+    api.AUTO_HOST_NET
+);
+assert.equal(
+    api.autoResolverHostEmisor(mixed,{emitterHost:api.AUTO_HOST_LOL},now).host,
+    api.AUTO_HOST_LOL
+);
+assert.equal(
+    api.autoResolverHostEmisor(onlyLol,{emitterHost:api.AUTO_HOST_NET},now).estado,
+    'host-elegido-sin-tab'
+);
+
+const oldNetLeader={
+    protocol:api.AUTO_LEADER_PROTOCOL,
+    ownerId:'NET-LEADER',
+    epoch:'epoch-net',
+    hostname:api.AUTO_HOST_NET,
+    heartbeatAt:now
+};
+assert.equal(
+    api.autoDebeEsperarHandoffHost(oldNetLeader,api.AUTO_HOST_LOL,now),
+    true
+);
+assert.equal(
+    api.autoDebeEsperarHandoffHost(oldNetLeader,api.AUTO_HOST_NET,now),
+    false
+);
+assert.equal(
+    api.autoDebeEsperarHandoffHost({...oldNetLeader,heartbeatAt:now-16000},api.AUTO_HOST_LOL,now),
+    false
+);
+
+// El candidato se restringe al host ya resuelto.
+let winner=api.autoElegirLiderTabs(mixed,api.AUTO_HOST_NET,now);
+assert.equal(winner.id,'NET');
+winner=api.autoElegirLiderTabs(mixed,api.AUTO_HOST_LOL,now);
+assert.equal(winner.id,'LOL');
+
+// Dentro de un mismo host se conserva focused > visible > hidden.
 winner=api.autoElegirLiderTabs({
-    old:wrap(meta('OLD',1000,99000,{focused:false,lastFocusAt:70000})),
-    focused:wrap(meta('FOCUSED',2000,99000,{focused:true,lastFocusAt:99500}))
-},now);
+    old:wrap(meta('OLD',1000,99000,{hostname:api.AUTO_HOST_LOL,focused:false,lastFocusAt:70000})),
+    focused:wrap(meta('FOCUSED',2000,99000,{hostname:api.AUTO_HOST_LOL,focused:true,lastFocusAt:99500}))
+},api.AUTO_HOST_LOL,now);
 assert.equal(winner.id,'FOCUSED');
 
 // Blur temporal: el último foco conserva prioridad sticky dentro del mismo nivel.
 winner=api.autoElegirLiderTabs({
     old:wrap(meta('OLD',1000,99000,{focused:false,lastFocusAt:70000})),
     sticky:wrap(meta('STICKY',2000,99000,{focused:false,lastFocusAt:99500}))
-},now);
+},api.AUTO_HOST_NET,now);
 assert.equal(winner.id,'STICKY');
 
-// Todos los tabs activos deben hablar protocolo de lock v4 antes de que 3.2.4
-// intente tomar autoridad. Un tab viejo .lol también bloquea la migración.
-assert.equal(api.autoTodosTabsLockCompatibles({
-    a:wrap(meta('A',1000,99000)),
-    b:wrap(meta('B',2000,99000,{hostname:'www.roversport.lol'}))
-},now),true);
-
+// Todos los tabs activos deben hablar protocolo de lock v5 antes de 3.2.5.
+assert.equal(api.autoTodosTabsLockCompatibles(mixed,now),true);
 assert.equal(api.autoTodosTabsLockCompatibles({
     modern:wrap(meta('NEW',1000,99000)),
     legacy:wrap(meta('OLD',2000,99000,{
-        hostname:'www.roversport.lol',leaderProtocol:0,version:'3.2.3'
+        hostname:api.AUTO_HOST_LOL,leaderProtocol:4,version:'3.2.4'
     }))
 },now),false);
 
-// Un tab antiguo stale ya no bloquea la transición.
+// Un tab 3.2.4 stale ya no bloquea la transición.
 assert.equal(api.autoTodosTabsLockCompatibles({
     modern:wrap(meta('NEW',1000,99000)),
     legacy:wrap(meta('OLD',2000,now-api.AUTO_TAB_STALE_VISIBLE_MS-1,{
-        leaderProtocol:0,version:'3.2.3'
+        leaderProtocol:4,version:'3.2.4'
     }))
 },now),true);
 
@@ -121,7 +183,7 @@ for (let i=0;i<100;i++) {
         b:wrap(meta('B',2000,99000,{
             focused:!focusA,lastFocusAt:!focusA?90000+i:89999+i
         }))
-    },now);
+    },api.AUTO_HOST_NET,now);
     assert.equal(winner.id,focusA?'A':'B');
 }
 
@@ -165,4 +227,4 @@ assert.equal(api.autoEsperaCadencia(180000,now),120000);
 values.set(api.AUTO_TAB_LAST_TICK_KEY,now-180000);
 assert.equal(api.autoEsperaCadencia(180000,now),0);
 
-console.log('Leader candidacy: emitter host only, protocol-v4 migration gate and focus priority OK');
+console.log('Leader candidacy: dynamic Host AUTO, protocol-v5 gate and focus priority OK');

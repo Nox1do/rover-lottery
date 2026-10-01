@@ -7,8 +7,9 @@ const source = raw
   .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();\n','')
   .replace(/\}\)\(\);\s*$/, `
 globalThis.__leaderTest = {
-  setup(id) {
+  setup(id, host = AUTO_HOST_NET) {
     autoTabCoordStarted = true;
+    autoHostEmisorResuelto = host;
     autoTabMeta = {
       protocol:AUTO_TAB_PROTOCOL,
       leaderProtocol:AUTO_LEADER_PROTOCOL,
@@ -19,7 +20,7 @@ globalThis.__leaderTest = {
       visible:true,
       focused:true,
       lastFocusAt:Date.now(),
-      hostname:AUTO_EMITTER_HOST,
+      hostname:host,
       version:SCRIPT_VERSION
     };
     autoTabStore = {[AUTO_TAB_META_KEY]:autoTabMeta};
@@ -34,7 +35,7 @@ globalThis.__leaderTest = {
   state:autoEstadoLiderActual,
   lockName:AUTO_LEADER_LOCK_NAME,
   stateKey:AUTO_LEADER_STATE_KEY,
-  emitterHost:AUTO_EMITTER_HOST
+  emitterHost(){ return autoHostEmisorResuelto; }
 };
 })();
 `);
@@ -123,11 +124,11 @@ async function tick(){
   const a=makeContext();
   const b=makeContext();
 
-  assert.equal(a.lockName,'vl-auto-leader-v4');
-  assert.equal(a.emitterHost,'www.roversport.net');
+  assert.equal(a.lockName,'vl-auto-leader-v5');
 
   a.setup('TAB-A');
   b.setup('TAB-B');
+  assert.equal(a.emitterHost(),'www.roversport.net');
 
   assert.equal(a.acquire(),true);
   await tick();

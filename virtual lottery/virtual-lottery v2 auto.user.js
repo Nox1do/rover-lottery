@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.2.4
+// @version      3.2.5
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -32,7 +32,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.2.4';
+    const SCRIPT_VERSION = '3.2.5';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -889,13 +889,16 @@
     // COORDINACIÓN MULTI-TAB — un solo scheduler AUTO por navegador
     // ============================================================
     const AUTO_TAB_PROTOCOL = 1;
-    const AUTO_LEADER_PROTOCOL = 4;
+    const AUTO_LEADER_PROTOCOL = 5;
     const AUTO_TAB_META_KEY = '__vlAutoLeaderV1';
     const AUTO_TAB_SIGNAL_KEY = 'vl:auto:tabs:signal:v1';
     const AUTO_TAB_LAST_TICK_KEY = 'vl:auto:tabs:last-tick:v1';
-    const AUTO_LEADER_STATE_KEY = 'vl:auto:tabs:leader:v4';
-    const AUTO_LEADER_LOCK_NAME = 'vl-auto-leader-v4';
-    const AUTO_EMITTER_HOST = 'www.roversport.net';
+    const AUTO_LEADER_STATE_KEY = 'vl:auto:tabs:leader:v5';
+    const AUTO_LEADER_LOCK_NAME = 'vl-auto-leader-v5';
+    const AUTO_HOST_AUTO = 'auto';
+    const AUTO_HOST_NET = 'www.roversport.net';
+    const AUTO_HOST_LOL = 'www.roversport.lol';
+    const AUTO_HOSTS_VALIDOS = [AUTO_HOST_NET, AUTO_HOST_LOL];
     const AUTO_TAB_HEARTBEAT_MS = 4000;
     const AUTO_TAB_STALE_VISIBLE_MS = 15000;
     const AUTO_TAB_STALE_HIDDEN_MS = 120000;
@@ -920,6 +923,8 @@
     let autoLeaderLockReleaseResolver = null;
     let autoLeaderEpoch = '';
     let autoTabCoordStatus = 'coordinando';
+    let autoHostEmisorResuelto = '';
+    let autoHostDecision = 'sin-resolver';
 
     function autoCrearIdTab() {
         const uuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -953,8 +958,48 @@
         }
     }
 
+    function autoNormalizarHostAuto(value) {
+        const host = String(value || '').trim();
+        return [AUTO_HOST_AUTO, ...AUTO_HOSTS_VALIDOS].includes(host)
+            ? host
+            : AUTO_HOST_AUTO;
+    }
+
+    function autoHostsActivos(tabs, now = Date.now()) {
+        return [...new Set(
+            autoTabsActivos(tabs, now)
+                .map(meta => String(meta.hostname || ''))
+                .filter(host => AUTO_HOSTS_VALIDOS.includes(host))
+        )].sort();
+    }
+
+    function autoResolverHostEmisor(tabs, config = autoConfiguracion(), now = Date.now()) {
+        const modo = autoNormalizarHostAuto(config?.emitterHost);
+        const hosts = autoHostsActivos(tabs, now);
+
+        if (modo !== AUTO_HOST_AUTO) {
+            return {
+                host: hosts.includes(modo) ? modo : '',
+                modo,
+                hosts,
+                estado: hosts.includes(modo) ? 'explicito' : 'host-elegido-sin-tab'
+            };
+        }
+
+        if (hosts.length === 1) {
+            return { host: hosts[0], modo, hosts, estado: 'auto-unico' };
+        }
+
+        if (hosts.length > 1) {
+            return { host: '', modo, hosts, estado: 'auto-mixto' };
+        }
+
+        return { host: '', modo, hosts, estado: 'sin-host-activo' };
+    }
+
     function autoEsHostEmisor() {
-        return String(location.hostname || '') === AUTO_EMITTER_HOST;
+        return !!autoHostEmisorResuelto &&
+            String(location.hostname || '') === autoHostEmisorResuelto;
     }
 
     function autoWebLocksDisponibles() {
@@ -1025,9 +1070,11 @@
             activos.every(meta => Number(meta.leaderProtocol || 0) === AUTO_LEADER_PROTOCOL);
     }
 
-    function autoElegirLiderTabs(tabs, now = Date.now()) {
+    function autoElegirLiderTabs(tabs, hostEmisor = autoHostEmisorResuelto, now = Date.now()) {
+        if (!AUTO_HOSTS_VALIDOS.includes(hostEmisor)) return null;
+
         const candidatos = autoTabsActivos(tabs, now)
-            .filter(meta => meta.hostname === AUTO_EMITTER_HOST);
+            .filter(meta => meta.hostname === hostEmisor);
 
         candidatos.sort((a, b) => {
             const prioridad = autoPrioridadTab(b) - autoPrioridadTab(a);
@@ -1051,10 +1098,15 @@
         }
     }
 
-    function autoEstadoLiderValido(state, now = Date.now()) {
+    function autoEstadoLiderValido(state, now = Date.now(), hostEsperado = undefined) {
+        const hostObjetivo = hostEsperado === undefined
+            ? autoHostEmisorResuelto
+            : hostEsperado;
+
         return !!state &&
             Number(state.protocol || 0) === AUTO_LEADER_PROTOCOL &&
-            state.hostname === AUTO_EMITTER_HOST &&
+            AUTO_HOSTS_VALIDOS.includes(state.hostname) &&
+            (!hostObjetivo || state.hostname === hostObjetivo) &&
             typeof state.ownerId === 'string' &&
             state.ownerId.length > 0 &&
             typeof state.epoch === 'string' &&
@@ -1080,13 +1132,28 @@
             state.protocol === AUTO_LEADER_PROTOCOL &&
             state.ownerId === autoTabMeta.id &&
             state.epoch === autoLeaderEpoch &&
-            state.hostname === AUTO_EMITTER_HOST;
+            state.hostname === autoHostEmisorResuelto &&
+            state.hostname === String(location.hostname || '');
     }
 
     function autoEsLiderTab() {
+        const hostConfigurado = autoNormalizarHostAuto(autoConfiguracion()?.emitterHost);
+        if (
+            hostConfigurado !== AUTO_HOST_AUTO &&
+            hostConfigurado !== autoHostEmisorResuelto
+        ) {
+            return false;
+        }
+
         return autoEsHostEmisor() &&
             autoTabEsLider === true &&
             autoClaimLiderPropioValido();
+    }
+
+    function autoDebeEsperarHandoffHost(state, hostDestino, now = Date.now()) {
+        return AUTO_HOSTS_VALIDOS.includes(hostDestino) &&
+            autoEstadoLiderValido(state, now, null) &&
+            state.hostname !== hostDestino;
     }
 
     function autoGetTabAsync() {
@@ -1136,12 +1203,22 @@
             return false;
         }
 
+        if (!autoEsHostEmisor()) return false;
+
+        const anterior = autoEstadoLiderActual();
+        const acquiredAt = anterior &&
+            anterior.protocol === AUTO_LEADER_PROTOCOL &&
+            anterior.ownerId === autoTabMeta.id &&
+            anterior.epoch === autoLeaderEpoch
+            ? Number(anterior.acquiredAt || now)
+            : now;
+
         const state = {
             protocol: AUTO_LEADER_PROTOCOL,
             ownerId: autoTabMeta.id,
             epoch: autoLeaderEpoch,
-            hostname: AUTO_EMITTER_HOST,
-            acquiredAt: Number(autoEstadoLiderActual()?.acquiredAt || now),
+            hostname: autoHostEmisorResuelto,
+            acquiredAt,
             heartbeatAt: now,
             focused: autoTabMeta.focused === true,
             visible: autoTabMeta.visible === true,
@@ -1367,13 +1444,57 @@
             await autoSaveTabAsync(autoTabStore);
 
             const tabs = await autoGetTabsAsync();
-            const candidato = autoElegirLiderTabs(tabs, now);
             const compatibles = autoTodosTabsLockCompatibles(tabs, now);
+            const decision = autoResolverHostEmisor(tabs, autoConfiguracion(), now);
+            const hostAnterior = autoHostEmisorResuelto;
 
-            if (autoLeaderLockHeld && !autoLeaderLockReleasing) {
+            autoHostEmisorResuelto = decision.host;
+            autoHostDecision = decision.estado;
+
+            // Si este tab poseía el lock del host anterior y la selección cambió,
+            // debe ceder antes de publicar otro heartbeat de líder.
+            if (
+                autoLeaderLockHeld &&
+                !autoLeaderLockReleasing &&
+                String(location.hostname || '') !== autoHostEmisorResuelto
+            ) {
+                autoLiberarLeaderLock('host-emisor-cambio');
+            }
+
+            if (autoLeaderLockHeld && !autoLeaderLockReleasing && autoEsHostEmisor()) {
                 autoPublicarEstadoLider(now);
             } else {
                 autoActualizarLiderDesdeEstado(now);
+            }
+
+            if (!compatibles) {
+                autoTabCoordStatus = 'esperando-actualizacion';
+                autoDetenerScheduler();
+                if (autoLeaderLockHeld) autoLiberarLeaderLock('tab-version-anterior');
+                actualizarBotonAuto();
+                return;
+            }
+
+            if (!autoHostEmisorResuelto) {
+                autoTabCoordStatus = decision.estado;
+                autoDetenerScheduler();
+                if (autoLeaderLockHeld) autoLiberarLeaderLock(decision.estado);
+                actualizarBotonAuto();
+                return;
+            }
+
+            // Handoff cross-origin: el nuevo host no adquiere su Web Lock hasta
+            // que el claim compartido del host anterior desaparezca o expire.
+            const leaderCualquierHost = autoEstadoLiderActual();
+            if (autoDebeEsperarHandoffHost(
+                leaderCualquierHost,
+                autoHostEmisorResuelto,
+                now
+            )) {
+                autoTabCoordStatus = 'esperando-handoff-host';
+                autoDetenerScheduler();
+                actualizarBotonAuto();
+                return;
             }
 
             if (!autoEsHostEmisor()) {
@@ -1392,13 +1513,7 @@
                 return;
             }
 
-            if (!compatibles) {
-                autoTabCoordStatus = 'esperando-actualizacion';
-                autoDetenerScheduler();
-                if (autoLeaderLockHeld) autoLiberarLeaderLock('tab-version-anterior');
-                actualizarBotonAuto();
-                return;
-            }
+            const candidato = autoElegirLiderTabs(tabs, autoHostEmisorResuelto, now);
 
             if (candidato?.id === autoTabMeta?.id) {
                 if (autoLeaderLockHeld && !autoLeaderLockReleasing) {
@@ -1413,6 +1528,13 @@
                 } else {
                     autoDetenerScheduler();
                 }
+            }
+
+            if (hostAnterior !== autoHostEmisorResuelto) {
+                autoPublicarSignal('emitter-host-resolved', {
+                    host: autoHostEmisorResuelto,
+                    estado: autoHostDecision
+                });
             }
 
             actualizarBotonAuto();
@@ -1523,9 +1645,9 @@
                     autoSettingsListenerId = GM_addValueChangeListener(
                         AUTO_SETTINGS_KEY,
                         (_key, _oldValue, _newValue, remote) => {
-                            if (!remote) return;
+                            if (!remote || !autoTabCoordStarted) return;
                             actualizarBotonAuto();
-                            if (autoEsLiderTab()) autoReiniciarScheduler(true);
+                            setTimeout(() => autoCoordinarTabs(false), 0);
                         }
                     );
                 }
@@ -1582,7 +1704,8 @@
 
             autoPublicarSignal('join', {
                 leaderProtocol: AUTO_LEADER_PROTOCOL,
-                hostname: String(location.hostname || '')
+                hostname: String(location.hostname || ''),
+                emitterHostMode: autoConfiguracion().emitterHost
             });
             autoProgramarCoordinador();
             setTimeout(() => autoCoordinarTabs(true), AUTO_TAB_SETTLE_MS);
@@ -1641,6 +1764,7 @@
             enabled: modo !== 'OBSERVAR',
             intervalMs: 60000,
             maxRetries: 0,
+            emitterHost: AUTO_HOST_AUTO,
             lotteries
         };
     }
@@ -1657,11 +1781,13 @@
             const value = raw.lotteries?.[codigo]?.enabled;
             return [codigo, { enabled: typeof value === 'boolean' ? value : base.lotteries[codigo].enabled }];
         }));
+        const emitterHost = autoNormalizarHostAuto(raw.emitterHost);
 
         return {
             enabled: typeof raw.enabled === 'boolean' ? raw.enabled : base.enabled,
             intervalMs,
             maxRetries,
+            emitterHost,
             lotteries
         };
     }
@@ -2357,19 +2483,27 @@
         btn.classList.toggle('rs-active', config.enabled);
         const focused = autoTabMeta?.focused === true;
         const leaderState = autoEstadoLiderActual();
-        const leaderId = autoEstadoLiderValido(leaderState)
+        const leaderId = autoEstadoLiderValido(leaderState, Date.now(), null)
             ? String(leaderState.ownerId || '').slice(-8)
             : '';
-        const epoch = autoEstadoLiderValido(leaderState)
+        const epoch = autoEstadoLiderValido(leaderState, Date.now(), null)
             ? String(leaderState.epoch || '').slice(-8)
             : '';
+        const hostMostrado = autoHostEmisorResuelto ||
+            (config.emitterHost !== AUTO_HOST_AUTO ? config.emitterHost : 'sin resolver');
 
         let rol;
         if (autoEsLiderTab()) {
             rol = `LÍDER CONFIRMADO · id ${String(autoTabMeta?.id || '').slice(-8)} · lock ${AUTO_LEADER_LOCK_NAME} · epoch ${epoch || '?'}`;
             if (focused) rol += ' · enfocado';
-        } else if (!autoEsHostEmisor()) {
-            rol = `OBSERVADOR · host emisor ${AUTO_EMITTER_HOST}`;
+        } else if (autoTabCoordStatus === 'auto-mixto') {
+            rol = 'AUTO pausado · .net + .lol activos · elige Host AUTO';
+        } else if (autoTabCoordStatus === 'host-elegido-sin-tab') {
+            rol = `AUTO pausado · host elegido sin tab activo: ${config.emitterHost}`;
+        } else if (autoTabCoordStatus === 'esperando-handoff-host') {
+            rol = `cambiando host AUTO a ${hostMostrado} · esperando handoff`;
+        } else if (!autoEsHostEmisor() && autoHostEmisorResuelto) {
+            rol = `OBSERVADOR · host emisor ${autoHostEmisorResuelto}`;
             if (leaderId) rol += ` · líder ${leaderId}`;
         } else if (autoTabCoordStatus === 'esperando-actualizacion') {
             rol = 'AUTO pausado · actualiza/recarga los otros tabs';
@@ -2422,10 +2556,18 @@
                             <label>Máximo de búsquedas por sorteo</label>
                             <select class="rs-auto-max-retries"></select>
                         </div>
+                        <div class="rs-auto-field">
+                            <label>Host AUTO</label>
+                            <select class="rs-auto-emitter-host">
+                                <option value="auto">Automático</option>
+                                <option value="www.roversport.net">roversport.net</option>
+                                <option value="www.roversport.lol">roversport.lol</option>
+                            </select>
+                        </div>
                     </div>
                     <p class="rs-auto-note">
-                        Esta configuración se guarda en esta PC/navegador. El AUTO emite únicamente desde
-                        www.roversport.net; www.roversport.lol queda como observador. EXTRA continúa manual.
+                        Automático usa el único dominio Rover activo. Si .net y .lol están abiertos al mismo
+                        tiempo, AUTO se pausa hasta elegir uno como Host AUTO. EXTRA continúa manual.
                     </p>
                     <div class="rs-auto-toolbar">
                         <span class="rs-auto-toolbar-title">Loterías automáticas</span>
@@ -2624,17 +2766,21 @@
                 enabled: backdrop.querySelector('.rs-auto-global-enabled').checked,
                 intervalMs: Number(backdrop.querySelector('.rs-auto-interval').value),
                 maxRetries: Number(backdrop.querySelector('.rs-auto-max-retries').value),
+                emitterHost: backdrop.querySelector('.rs-auto-emitter-host').value,
                 lotteries
             });
 
             cerrarModalAuto();
             actualizarBotonAuto();
-            autoReiniciarScheduler(true);
+            if (autoTabCoordStarted) {
+                autoCoordinarTabs(false);
+            }
 
             console.log('[AUTO LOTERÍAS] Configuración guardada:', {
                 enabled: guardada.enabled,
                 intervalMs: guardada.intervalMs,
                 maxRetries: guardada.maxRetries,
+                emitterHost: guardada.emitterHost,
                 habilitadas: Object.values(guardada.lotteries).filter(x => x.enabled).length
             });
         });
@@ -2656,6 +2802,7 @@
         backdrop.querySelector('.rs-auto-global-enabled').checked = config.enabled;
         backdrop.querySelector('.rs-auto-interval').value = String(config.intervalMs);
         backdrop.querySelector('.rs-auto-max-retries').value = String(config.maxRetries);
+        backdrop.querySelector('.rs-auto-emitter-host').value = config.emitterHost;
 
         for (const codigo of Object.keys(autoConfig)) {
             const input = backdrop.querySelector(`.rs-auto-lottery-check[data-codigo="${codigo}"]`);

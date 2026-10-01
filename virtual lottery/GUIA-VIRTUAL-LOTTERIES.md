@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.2.4 — guía breve
+# Virtual Lotteries v3.2.5 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -217,3 +217,46 @@ El tooltip del engrane diferencia explícitamente:
 - `AUTO pausado`: falta Web Locks, faltan APIs multi-tab o existe un tab antiguo pendiente de recarga.
 
 `RESULT_READY` sigue fuera de la cadencia de búsqueda: el líder confirmado procesa inmediatamente la cola prioritaria sin mover `vl:auto:tabs:last-tick:v1`.
+
+
+## v3.2.5 — Host AUTO dinámico
+
+El host emisor deja de estar fijado permanentemente a `www.roversport.net`. La Configuración AUTO incorpora **Host AUTO** con tres opciones:
+
+- **Automático**: si todos los tabs Rover activos pertenecen a un único dominio, ese dominio se convierte en host emisor.
+- **roversport.net**: solo los tabs `.net` pueden competir por el Web Lock de liderazgo.
+- **roversport.lol**: solo los tabs `.lol` pueden competir por el Web Lock de liderazgo.
+
+En modo **Automático**, si hay simultáneamente tabs activos de `.net` y `.lol`, AUTO se pausa y el engrane indica que hay que elegir un Host AUTO. Esto evita intentar coordinar dos Web Locks que pertenecen a orígenes distintos.
+
+Ejemplos:
+
+```text
+2 tabs .lol + Automático
+→ Host AUTO = .lol
+→ un solo tab .lol obtiene vl-auto-leader-v5
+→ el otro queda OBSERVADOR
+
+2 tabs .net + Automático
+→ Host AUTO = .net
+→ un solo tab .net obtiene vl-auto-leader-v5
+
+.net + .lol + Automático
+→ AUTO pausado
+→ seleccionar .net o .lol en Host AUTO
+
+.net + .lol + Host AUTO=.lol
+→ todos los .net quedan OBSERVADORES
+→ los .lol compiten por el Web Lock
+→ solo uno queda LÍDER CONFIRMADO
+```
+
+El protocolo de liderazgo sube a **5** y utiliza `vl-auto-leader-v5` junto con `vl:auto:tabs:leader:v5`. Un tab 3.2.4 o anterior se considera incompatible durante la migración; v3.2.5 pausa su coordinador hasta que los tabs viejos se recarguen o queden stale.
+
+### Handoff entre .net y .lol
+
+Cambiar explícitamente el Host AUTO no permite que el nuevo dominio empiece a emitir mientras siga vigente el claim compartido del dominio anterior. El nuevo host espera a que el líder anterior libere su lock y elimine su claim; si ese tab dejó de responder, el claim expira tras la ventana de seguridad.
+
+Esto evita el intervalo en el que un Web Lock de `.net` y otro Web Lock de `.lol` podrían existir simultáneamente como líderes lógicos.
+
+La selección de Host AUTO forma parte de `vl:auto:settings:v1` y se comparte entre las instancias del mismo userscript. Las configuraciones guardadas antes de 3.2.5 migran automáticamente a **Automático**.

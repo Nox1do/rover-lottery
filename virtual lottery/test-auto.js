@@ -20,10 +20,11 @@ autoIdentidadRoverValida, autoProcesarTrabajoPrioritario, parseRapid, LOTERIAS,
 setLeader(v){
     autoTabMeta = autoTabMeta || {
         protocol:AUTO_TAB_PROTOCOL, leaderProtocol:AUTO_LEADER_PROTOCOL,
-        id:'TEST-AUTO', hostname:AUTO_EMITTER_HOST, active:true,
+        id:'TEST-AUTO', hostname:AUTO_HOST_NET, active:true,
         visible:true, focused:true, lastFocusAt:Date.now(), heartbeatAt:Date.now()
     };
     if (v) {
+        autoHostEmisorResuelto = AUTO_HOST_NET;
         autoLeaderLockHeld = true;
         autoLeaderLockReleasing = false;
         autoLeaderEpoch = 'test-auto-epoch';
@@ -32,7 +33,7 @@ setLeader(v){
             protocol:AUTO_LEADER_PROTOCOL,
             ownerId:autoTabMeta.id,
             epoch:autoLeaderEpoch,
-            hostname:AUTO_EMITTER_HOST,
+            hostname:AUTO_HOST_NET,
             heartbeatAt:Date.now()
         });
     } else {

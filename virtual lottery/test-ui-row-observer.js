@@ -3,9 +3,9 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8');
 
-assert.match(source, /^\/\/ @version\s+3\.2\.3$/m);
+assert.match(source, /^\/\/ @version\s+3\.2\.4$/m);
 assert.match(source, /^\/\/ @run-at\s+document-idle$/m);
-assert.ok(source.includes("const SCRIPT_VERSION = '3.2.3';"));
+assert.ok(source.includes("const SCRIPT_VERSION = '3.2.4';"));
 
 assert.ok(source.includes('function nodoContieneFilaResultado(node)'));
 assert.ok(source.includes('function mutacionesContienenFilasResultado(mutations)'));

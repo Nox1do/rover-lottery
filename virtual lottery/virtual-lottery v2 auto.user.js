@@ -1137,9 +1137,23 @@
     }
 
     function autoEsLiderTab() {
+        const hostConfigurado = autoNormalizarHostAuto(autoConfiguracion()?.emitterHost);
+        if (
+            hostConfigurado !== AUTO_HOST_AUTO &&
+            hostConfigurado !== autoHostEmisorResuelto
+        ) {
+            return false;
+        }
+
         return autoEsHostEmisor() &&
             autoTabEsLider === true &&
             autoClaimLiderPropioValido();
+    }
+
+    function autoDebeEsperarHandoffHost(state, hostDestino, now = Date.now()) {
+        return AUTO_HOSTS_VALIDOS.includes(hostDestino) &&
+            autoEstadoLiderValido(state, now, null) &&
+            state.hostname !== hostDestino;
     }
 
     function autoGetTabAsync() {
@@ -1472,10 +1486,11 @@
             // Handoff cross-origin: el nuevo host no adquiere su Web Lock hasta
             // que el claim compartido del host anterior desaparezca o expire.
             const leaderCualquierHost = autoEstadoLiderActual();
-            if (
-                autoEstadoLiderValido(leaderCualquierHost, now, null) &&
-                leaderCualquierHost.hostname !== autoHostEmisorResuelto
-            ) {
+            if (autoDebeEsperarHandoffHost(
+                leaderCualquierHost,
+                autoHostEmisorResuelto,
+                now
+            )) {
                 autoTabCoordStatus = 'esperando-handoff-host';
                 autoDetenerScheduler();
                 actualizarBotonAuto();

@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.2.2 — guía breve
+# Virtual Lotteries v3.2.3 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -180,3 +180,12 @@ Los resultados ya encontrados se manejan con una cola prioritaria `autoProcesarT
 Si el tab pierde liderazgo mientras espera el Web Lock o justo antes del POST, vuelve a persistir `RESULT_READY`, publica una nueva señal de handoff y hace **0 POST**. El nuevo líder puede continuar inmediatamente. Las verificaciones `PROCESSING`, `VERIFYING` y `PROCESS_UNCERTAIN` siguen teniendo prioridad de seguridad.
 
 La regresión multi-tab prueba 100 cambios alternos de foco, sticky blur, compatibilidad con 3.2.1/3.2.0, cola RESULT_READY sin mover el reloj de búsqueda y pérdida de liderazgo dentro del Web Lock con cero POST.
+
+
+## v3.2.3 — engrane limitado a Ver Resultados
+
+El campo `#fecha` no identifica por sí solo la vista de loterías: Rover reutiliza ese ID en Races, reportes y otras vistas AJAX. La UI de Configuración AUTO ya no se inyecta simplemente por encontrar una fecha.
+
+El userscript observa la navegación interna `load('__inc/...')` y considera válida únicamente `__inc/resultadosLoteria2.php`. Al salir de **Ver Resultados**, el engrane se retira inmediatamente. Si Rover carga la vista de resultados por código y no mediante un clic del menú, existe un fallback por la estructura real de `#tableResult input[name="primera"][loteria]`.
+
+Esta limitación afecta únicamente a la UI manual: el motor AUTO y la coordinación multi-tab continúan funcionando en background mientras `lottery.php` permanezca abierta, incluso si el usuario está viendo Races u otra sección.

@@ -7,24 +7,26 @@ const source = raw
   .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();\n','')
   .replace(/\}\)\(\);\s*$/, `
 globalThis.__leaderTest = {
-  setup(id, host = AUTO_HOST_NET) {
+  setup(id, host) {
     autoTabCoordStarted = true;
     autoHostEmisorResuelto = host;
     autoTabMeta = {
       protocol:AUTO_TAB_PROTOCOL,
       leaderProtocol:AUTO_LEADER_PROTOCOL,
       id,
-      startedAt:1,
+      startedAt:Date.now(),
       heartbeatAt:Date.now(),
       active:true,
       visible:true,
-      focused:true,
-      lastFocusAt:Date.now(),
+      focused:autoTabFocusedAhora(),
+      lastFocusAt:autoTabFocusedAhora() ? Date.now() : 0,
       hostname:host,
       version:SCRIPT_VERSION
     };
     autoTabStore = {[AUTO_TAB_META_KEY]:autoTabMeta};
+    GM_saveTab(autoTabStore);
   },
+  coordinate(){ return autoCoordinarTabs(false); },
   acquire:autoSolicitarLeaderLock,
   release:autoLiberarLeaderLock,
   isLeader:autoEsLiderTab,
@@ -32,10 +34,13 @@ globalThis.__leaderTest = {
   held(){ return autoLeaderLockHeld; },
   requesting(){ return autoLeaderLockRequesting; },
   epoch(){ return autoLeaderEpoch; },
+  status(){ return autoTabCoordStatus; },
   state:autoEstadoLiderActual,
   lockName:AUTO_LEADER_LOCK_NAME,
   stateKey:AUTO_LEADER_STATE_KEY,
-  emitterHost(){ return autoHostEmisorResuelto; }
+  protocol:AUTO_LEADER_PROTOCOL,
+  emitterHost(){ return autoHostEmisorResuelto; },
+  tabId(){ return autoTabMeta?.id || ''; }
 };
 })();
 `);
@@ -78,13 +83,20 @@ class MockLockManager {
 
 const values = new Map();
 const locks = new MockLockManager();
+const tabStores = {};
+const focusState = {};
 
-function makeContext() {
+const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+
+function makeContext(tabKey, host='www.roversport.lol') {
+  focusState[tabKey] = false;
+
   const context = {
-    location:{hostname:'www.roversport.net'},
+    location:{hostname:host},
     document:{
       head:{appendChild(){}}, documentElement:{},
-      hidden:false, visibilityState:'visible', hasFocus(){return true},
+      hidden:false, visibilityState:'visible',
+      hasFocus(){ return focusState[tabKey] === true; },
       body:{appendChild(){},classList:{add(){},remove(){}}},
       createElement(){return{textContent:'',dataset:{},classList:{toggle(){},add(){},remove(){}},appendChild(){},addEventListener(){}}},
       querySelector(){return null},querySelectorAll(){return[]},addEventListener(){}
@@ -94,15 +106,15 @@ function makeContext() {
     Event:class{}, DOMParser:class{},
     fetch:async()=>({ok:true,status:200,text:async()=>''}),
     navigator:{locks},
-    GM_getValue:(k,f)=>values.has(k)?values.get(k):f,
-    GM_setValue:(k,v)=>values.set(k,v),
+    GM_getValue:(k,f)=>values.has(k)?clone(values.get(k)):f,
+    GM_setValue:(k,v)=>values.set(k,clone(v)),
     GM_deleteValue:k=>values.delete(k),
     GM_openInTab(){},
     GM_addValueChangeListener(){return 1},
     GM_removeValueChangeListener(){},
-    GM_getTab(cb){cb({})},
-    GM_saveTab(_tab,cb){cb?.()},
-    GM_getTabs(cb){cb({})},
+    GM_getTab(cb){cb(clone(tabStores[tabKey] || {}))},
+    GM_saveTab(tab,cb){tabStores[tabKey]=clone(tab);cb?.()},
+    GM_getTabs(cb){cb(clone(tabStores))},
     GM_xmlhttpRequest(){},
     setInterval(){},
     setTimeout(){return 1},
@@ -112,7 +124,11 @@ function makeContext() {
   };
   vm.createContext(context);
   vm.runInContext(source,context);
-  return context.__leaderTest;
+
+  return {
+    api:context.__leaderTest,
+    focus(value){ focusState[tabKey]=!!value; }
+  };
 }
 
 async function tick(){
@@ -121,53 +137,74 @@ async function tick(){
 }
 
 (async()=>{
-  const a=makeContext();
-  const b=makeContext();
+  const a=makeContext('A');
+  const b=makeContext('B');
 
-  assert.equal(a.lockName,'vl-auto-leader-v5');
+  assert.equal(a.api.lockName,'vl-auto-leader-v6');
+  assert.equal(a.api.protocol,6);
 
-  a.setup('TAB-A');
-  b.setup('TAB-B');
-  assert.equal(a.emitterHost(),'www.roversport.net');
+  a.focus(true);
+  b.focus(false);
+  a.api.setup('TAB-A','www.roversport.lol');
+  b.api.setup('TAB-B','www.roversport.lol');
 
-  assert.equal(a.acquire(),true);
+  // La primera elección sí usa focus: A adquiere el único Web Lock.
+  await a.api.coordinate();
   await tick();
-  assert.equal(a.isLeader(),true);
-  assert.equal(a.held(),true);
-  assert.equal(a.state().ownerId,'TAB-A');
-  assert.equal(typeof a.state().epoch,'string');
-  assert.ok(a.state().epoch.length>0);
+  assert.equal(a.api.isLeader(),true);
+  assert.equal(a.api.held(),true);
+  assert.equal(b.api.isLeader(),false);
+  assert.equal(a.api.state().ownerId,'TAB-A');
+  assert.equal(locks.held.has(a.api.lockName),true);
 
-  // Segundo tab puede solicitar, pero ifAvailable devuelve null:
-  // nunca puede convertirse en líder mientras A posee el lock.
-  assert.equal(b.acquire(),true);
+  // Regresión principal: cambiar foco NO transfiere el liderazgo.
+  // El lock de A permanece estable durante 40 alternancias.
+  for(let i=0;i<40;i++){
+    const focusB=i%2===0;
+    a.focus(!focusB);
+    b.focus(focusB);
+
+    await b.api.coordinate();
+    await a.api.coordinate();
+    await tick();
+
+    assert.equal(a.api.isLeader(),true,'A debe conservar liderazgo sticky');
+    assert.equal(a.api.held(),true,'A debe conservar el Web Lock');
+    assert.equal(b.api.isLeader(),false,'B debe seguir observador aunque tenga foco');
+    assert.equal(b.api.held(),false);
+    assert.equal(a.api.state().ownerId,'TAB-A');
+    assert.equal(locks.held.size,1);
+  }
+
+  // Cerrar/liberar al líder sí habilita failover.
+  assert.equal(a.api.release('test-close'),true);
   await tick();
-  assert.equal(b.isLeader(),false);
-  assert.equal(b.held(),false);
-  assert.equal(a.state().ownerId,'TAB-A');
+  assert.equal(a.api.isLeader(),false);
+  assert.equal(locks.held.has(a.api.lockName),false);
 
-  // Handoff cooperativo: A libera; solo después B puede adquirir.
-  assert.equal(a.release('test-handoff'),true);
-  await tick();
-  assert.equal(a.isLeader(),false);
-  assert.equal(locks.held.has(a.lockName),false);
-
-  assert.equal(b.acquire(),true);
-  await tick();
-  assert.equal(b.isLeader(),true);
-  assert.equal(b.held(),true);
-  assert.equal(b.state().ownerId,'TAB-B');
-  assert.notEqual(b.state().epoch,'');
-
-  // A no puede reaparecer como líder mientras B tiene el Web Lock.
-  assert.equal(a.acquire(),true);
-  await tick();
-  assert.equal(a.isLeader(),false);
-  assert.equal(b.isLeader(),true);
-  assert.equal(b.state().ownerId,'TAB-B');
-
-  b.release('test-end');
+  a.focus(false);
+  b.focus(true);
+  await b.api.coordinate();
   await tick();
 
-  console.log('Web Lock leader: exclusive authority, cooperative handoff and no split-brain OK');
+  assert.equal(b.api.isLeader(),true);
+  assert.equal(b.api.held(),true);
+  assert.equal(b.api.state().ownerId,'TAB-B');
+  assert.equal(locks.held.size,1);
+
+  // A no puede reaparecer mientras B conserve el lock.
+  a.focus(true);
+  b.focus(false);
+  await a.api.coordinate();
+  await b.api.coordinate();
+  await tick();
+
+  assert.equal(a.api.isLeader(),false);
+  assert.equal(b.api.isLeader(),true);
+  assert.equal(b.api.state().ownerId,'TAB-B');
+
+  b.api.release('test-end');
+  await tick();
+
+  console.log('Sticky Web Lock leader: 40 focus changes keep one leader; failover only after release OK');
 })().catch(error=>{console.error(error);process.exitCode=1;});

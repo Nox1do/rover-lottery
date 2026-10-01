@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.2.0
+// @version      3.2.1
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -32,7 +32,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.2.0';
+    const SCRIPT_VERSION = '3.2.1';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -892,7 +892,8 @@
     const AUTO_TAB_SIGNAL_KEY = 'vl:auto:tabs:signal:v1';
     const AUTO_TAB_LAST_TICK_KEY = 'vl:auto:tabs:last-tick:v1';
     const AUTO_TAB_HEARTBEAT_MS = 4000;
-    const AUTO_TAB_STALE_MS = 15000;
+    const AUTO_TAB_STALE_VISIBLE_MS = 15000;
+    const AUTO_TAB_STALE_HIDDEN_MS = 120000;
     const AUTO_TAB_SETTLE_MS = 350;
 
     let autoTabStore = null;
@@ -913,14 +914,29 @@
         return `${Date.now().toString(36)}-${uuid}`;
     }
 
+    function autoTabVisibleAhora() {
+        if (typeof document.visibilityState === 'string') {
+            return document.visibilityState === 'visible';
+        }
+        return document.hidden !== true;
+    }
+
+    function autoMetaStale(meta, now = Date.now()) {
+        const heartbeat = Number(meta?.heartbeatAt || 0);
+        if (!heartbeat) return true;
+        const limite = meta?.visible === true
+            ? AUTO_TAB_STALE_VISIBLE_MS
+            : AUTO_TAB_STALE_HIDDEN_MS;
+        return now - heartbeat > limite;
+    }
+
     function autoPrepararMetaTab(meta, now = Date.now()) {
         const valida = !!meta &&
             meta.protocol === AUTO_TAB_PROTOCOL &&
             typeof meta.id === 'string' &&
             meta.id.length > 0;
         const heartbeatAnterior = valida ? Number(meta.heartbeatAt || 0) : 0;
-        const reingreso = !valida || heartbeatAnterior <= 0 ||
-            now - heartbeatAnterior > AUTO_TAB_STALE_MS;
+        const reingreso = !valida || heartbeatAnterior <= 0 || autoMetaStale(meta, now);
 
         return {
             protocol: AUTO_TAB_PROTOCOL,
@@ -928,6 +944,7 @@
             startedAt: reingreso ? now : Number(meta.startedAt || now),
             heartbeatAt: now,
             active: true,
+            visible: autoTabVisibleAhora(),
             hostname: String(location.hostname || ''),
             version: SCRIPT_VERSION
         };
@@ -942,13 +959,21 @@
                 meta.active === true &&
                 typeof meta.id === 'string' &&
                 meta.id.length > 0 &&
-                Number(meta.heartbeatAt || 0) > 0 &&
-                now - Number(meta.heartbeatAt) <= AUTO_TAB_STALE_MS
-            )
-            .sort((a, b) =>
-                Number(a.startedAt || 0) - Number(b.startedAt || 0) ||
-                String(a.id).localeCompare(String(b.id))
+                !autoMetaStale(meta, now)
             );
+
+        // Compatibilidad durante el update: si queda abierto un tab 3.2.0 sin
+        // metadata de visibilidad, todos mantienen la elección antigua por edad.
+        const todosConVisibilidad = candidatos.length > 0 &&
+            candidatos.every(meta => typeof meta.visible === 'boolean');
+
+        candidatos.sort((a, b) => {
+            if (todosConVisibilidad && a.visible !== b.visible) {
+                return a.visible ? -1 : 1;
+            }
+            return Number(a.startedAt || 0) - Number(b.startedAt || 0) ||
+                String(a.id).localeCompare(String(b.id));
+        });
 
         return candidatos[0] || null;
     }
@@ -987,10 +1012,11 @@
         });
     }
 
-    function autoPublicarSignal(tipo) {
+    function autoPublicarSignal(tipo, detalle = {}) {
         try {
             GM_setValue(AUTO_TAB_SIGNAL_KEY, {
                 tipo,
+                ...detalle,
                 at: Date.now(),
                 id: autoTabMeta?.id || '',
                 nonce: Math.random().toString(36).slice(2)
@@ -998,10 +1024,38 @@
         } catch (_) {}
     }
 
+    function autoPublicarResultadoListo(reloj, codigo, motivo = 'RESULT_READY') {
+        autoPublicarSignal('result-ready', {
+            fechaIso: reloj.fechaIso,
+            codigo,
+            motivo
+        });
+    }
+
+    function autoSignalTrabajoActual(signal, reloj = autoAhoraRD()) {
+        return !!signal &&
+            signal.tipo === 'result-ready' &&
+            signal.fechaIso === reloj.fechaIso &&
+            !!autoConfig[signal.codigo];
+    }
+
     function autoTieneRecuperacionPendiente(reloj = autoAhoraRD()) {
         return Object.keys(autoConfig).some(codigo =>
             autoDebeSoloVerificar(autoEstado(reloj, codigo).estado)
         );
+    }
+
+    function autoTieneResultadoListo(reloj = autoAhoraRD()) {
+        const config = autoConfiguracion();
+        return Object.keys(autoConfig).some(codigo => {
+            if (!config.enabled || config.lotteries[codigo]?.enabled !== true) return false;
+            const estado = autoEstado(reloj, codigo);
+            return estado.estado === 'RESULT_READY' && autoResultadoValido(estado.resultado);
+        });
+    }
+
+    function autoTieneTrabajoPrioritario(reloj = autoAhoraRD()) {
+        return autoTieneRecuperacionPendiente(reloj) || autoTieneResultadoListo(reloj);
     }
 
     function autoEsperaCadencia(intervalMs, now = Date.now()) {
@@ -1061,8 +1115,9 @@
                         '· host:', location.hostname,
                         '· id:', autoTabMeta.id.slice(-8)
                     );
-                    autoResumen(autoAhoraRD());
-                    autoReiniciarScheduler(true, !autoTieneRecuperacionPendiente());
+                    const reloj = autoAhoraRD();
+                    autoResumen(reloj);
+                    autoReiniciarScheduler(true, !autoTieneTrabajoPrioritario(reloj));
                 } else {
                     autoDetenerScheduler();
                     console.log(
@@ -1095,7 +1150,7 @@
         }
 
         if (autoTabMeta && autoTabStore) {
-            autoTabMeta = { ...autoTabMeta, active: false, heartbeatAt: 0 };
+            autoTabMeta = { ...autoTabMeta, active: false, heartbeatAt: 0, visible: false };
             autoTabStore[AUTO_TAB_META_KEY] = autoTabMeta;
             try { GM_saveTab(autoTabStore); } catch (_) {}
         }
@@ -1134,10 +1189,22 @@
                 if (autoTabSignalListenerId === null) {
                     autoTabSignalListenerId = GM_addValueChangeListener(
                         AUTO_TAB_SIGNAL_KEY,
-                        (_key, _oldValue, _newValue, remote) => {
-                            if (remote && autoTabCoordStarted) {
-                                setTimeout(() => autoCoordinarTabs(false), 25);
-                            }
+                        (_key, _oldValue, newValue, remote) => {
+                            if (!remote || !autoTabCoordStarted) return;
+
+                            setTimeout(async () => {
+                                await autoCoordinarTabs(false);
+
+                                // RESULT_READY no debe esperar la cadencia de búsqueda.
+                                // Tras resolver el liderazgo, el líder lo procesa ya.
+                                if (autoSignalTrabajoActual(newValue)) {
+                                    setTimeout(() => {
+                                        if (autoEsLiderTab()) {
+                                            autoReiniciarScheduler(true, false);
+                                        }
+                                    }, 60);
+                                }
+                            }, 25);
                         }
                     );
                 }
@@ -1157,8 +1224,14 @@
             window.addEventListener('focus', () => {
                 if (autoTabCoordStarted) autoCoordinarTabs(false);
             });
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden && autoTabCoordStarted) autoCoordinarTabs(false);
+            document.addEventListener('visibilitychange', async () => {
+                if (!autoTabCoordStarted) return;
+
+                // Guardar primero la nueva visibilidad y luego avisar a los demás.
+                // Así ningún observador decide usando metadata vieja del tab que
+                // acaba de pasar a background o foreground.
+                await autoCoordinarTabs(false);
+                autoPublicarSignal('visibility', { visible: autoTabVisibleAhora() });
             });
             window.addEventListener('pagehide', autoLiberarTab);
             window.addEventListener('pageshow', () => {
@@ -1558,14 +1631,18 @@
         // Si AUTO se desactiva mientras una consulta de fuente está en vuelo,
         // conservar el resultado listo pero no tocar Rover ni la fila visible.
         if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) {
+            const liderazgoPerdido = !autoEsLiderTab();
             autoGuardar(reloj, codigo, {
                 estado: 'RESULT_READY',
                 resultado,
                 lastCheckAt: Date.now(),
-                motivo: !autoEsLiderTab()
+                motivo: liderazgoPerdido
                     ? 'Liderazgo transferido antes del envío.'
                     : 'AUTO desactivado antes del envío.'
             });
+            if (liderazgoPerdido) {
+                autoPublicarResultadoListo(reloj, codigo, 'handoff-before-send');
+            }
             return;
         }
 
@@ -1579,14 +1656,18 @@
         // La configuración puede cambiar mientras verResultados2.php está en vuelo.
         // Revalidar antes de cualquier autoReflejar o continuación del procesamiento.
         if (!autoEsLiderTab() || !autoPuedeEmitir(codigo)) {
+            const liderazgoPerdido = !autoEsLiderTab();
             autoGuardar(reloj, codigo, {
                 estado: 'RESULT_READY',
                 resultado,
                 lastCheckAt: Date.now(),
-                motivo: !autoEsLiderTab()
+                motivo: liderazgoPerdido
                     ? 'Liderazgo transferido durante la validación de Rover.'
                     : 'AUTO desactivado durante la validación de Rover.'
             });
+            if (liderazgoPerdido) {
+                autoPublicarResultadoListo(reloj, codigo, 'handoff-during-rover-check');
+            }
             return;
         }
 
@@ -1741,6 +1822,7 @@
                             foundAt: Date.now(),
                             motivo: 'Resultado encontrado; liderazgo transferido.'
                         });
+                        autoPublicarResultadoListo(reloj, codigo, 'source-result-after-handoff');
                     }
                     return;
                 }
@@ -1764,6 +1846,7 @@
                     foundAt: Date.now(),
                     motivo: 'Resultado encontrado; validando Rover.'
                 });
+                autoPublicarResultadoListo(reloj, codigo, 'source-result-ready');
             }
 
             await autoProcesar(reloj, codigo, resultado);

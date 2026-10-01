@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.2.1 — guía breve
+# Virtual Lotteries v3.2.2 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -163,3 +163,20 @@ La elección de líder ahora prefiere un tab visible frente a uno oculto cuando 
 El heartbeat también distingue foreground/background. Un tab visible se considera stale tras aproximadamente **15 segundos** sin heartbeat; un tab oculto dispone de una ventana de **120 segundos** para tolerar el throttling normal del navegador. Cerrar el líder sigue produciendo failover por desaparición del tab/señal de salida sin tener que esperar esos 120 segundos.
 
 Esta versión conserva el Web Lock `vl-auto-rover-post` y la segunda lectura fresca de Rover antes del POST. El objetivo del cambio es reducir latencia de handoff sin debilitar las barreras contra procesamiento duplicado.
+
+
+## v3.2.2 — líder sticky por foco real
+
+La elección multi-tab distingue tres prioridades: **enfocado > visible > oculto**. El foco se obtiene con `document.hasFocus()` y se publica junto con `visible` y `lastFocusAt`. Cuando dos tabs tienen la misma prioridad, el último tab realmente enfocado conserva el liderazgo; si ninguno tuvo foco, se usa antigüedad + ID. Esto evita que un `blur` temporal provocado por DevTools cambie el líder sin que otro tab haya recibido foco real.
+
+Durante una actualización mixta con 3.2.0/3.2.1 todavía abiertos, la versión 3.2.2 detecta que falta metadata de foco y conserva exactamente la política compatible de 3.2.1. La prioridad por foco solo se activa cuando todos los candidatos reportan `focused` y `lastFocusAt`.
+
+Los eventos `focus`, `blur` y `visibilitychange` guardan primero la metadata del tab y luego publican la señal a las demás instancias. El tooltip del engrane muestra `tab líder · enfocado` cuando corresponde; un observador muestra además el sufijo del ID del líder.
+
+### RESULT_READY separado del scheduler
+
+Los resultados ya encontrados se manejan con una cola prioritaria `autoProcesarTrabajoPrioritario()`. Una señal `result-ready` hace que el líder procese esa cola sin llamar a `autoReiniciarScheduler`, por lo que no modifica `vl:auto:tabs:last-tick:v1` ni reinicia el intervalo de búsqueda de 1/3/5/10 minutos.
+
+Si el tab pierde liderazgo mientras espera el Web Lock o justo antes del POST, vuelve a persistir `RESULT_READY`, publica una nueva señal de handoff y hace **0 POST**. El nuevo líder puede continuar inmediatamente. Las verificaciones `PROCESSING`, `VERIFYING` y `PROCESS_UNCERTAIN` siguen teniendo prioridad de seguridad.
+
+La regresión multi-tab prueba 100 cambios alternos de foco, sticky blur, compatibilidad con 3.2.1/3.2.0, cola RESULT_READY sin mover el reloj de búsqueda y pérdida de liderazgo dentro del Web Lock con cero POST.

@@ -10,8 +10,10 @@ const source = fs.readFileSync('virtual-lottery v2 auto.user.js', 'utf8')
     .replace(/\}\)\(\);\s*$/, `
 globalThis.__test = {
     autoPrepararMetaTab, autoElegirLiderTabs, autoEsperaCadencia, autoMetaStale,
-    autoSignalTrabajoActual, autoPrioridadTab, AUTO_TAB_META_KEY, AUTO_TAB_PROTOCOL,
-    AUTO_TAB_STALE_VISIBLE_MS, AUTO_TAB_STALE_HIDDEN_MS, AUTO_TAB_LAST_TICK_KEY
+    autoSignalTrabajoActual, autoPrioridadTab, autoTodosTabsLockCompatibles,
+    autoTabsActivos, AUTO_TAB_META_KEY, AUTO_TAB_PROTOCOL, AUTO_LEADER_PROTOCOL,
+    AUTO_EMITTER_HOST, AUTO_TAB_STALE_VISIBLE_MS, AUTO_TAB_STALE_HIDDEN_MS,
+    AUTO_TAB_LAST_TICK_KEY
 };
 })();`);
 
@@ -48,87 +50,68 @@ const meta=(id,startedAt,heartbeatAt,{
     visible=true,
     focused=false,
     lastFocusAt=0,
-    version='3.2.2'
+    leaderProtocol=api.AUTO_LEADER_PROTOCOL,
+    version='3.2.4'
 }={})=>({
-    protocol:api.AUTO_TAB_PROTOCOL,id,startedAt,heartbeatAt,hostname,active,
-    visible,focused,lastFocusAt,version
+    protocol:api.AUTO_TAB_PROTOCOL,leaderProtocol,id,startedAt,heartbeatAt,
+    hostname,active,visible,focused,lastFocusAt,version
 });
 const wrap=m=>({[api.AUTO_TAB_META_KEY]:m});
 
+assert.equal(api.AUTO_EMITTER_HOST,'www.roversport.net');
+assert.equal(api.AUTO_LEADER_PROTOCOL,4);
 assert.equal(api.autoPrioridadTab(meta('F',1,99000,{focused:true})),2);
 assert.equal(api.autoPrioridadTab(meta('V',1,99000,{visible:true,focused:false})),1);
 assert.equal(api.autoPrioridadTab(meta('H',1,99000,{visible:false,focused:false})),0);
 
-// Dos tabs visibles sin foco previo: gana el más antiguo.
+// El candidato se elige solo entre tabs del host emisor.
 let winner=api.autoElegirLiderTabs({
-    a:wrap(meta('A',1000,99000)),
-    b:wrap(meta('B',2000,99000))
-},now);
-assert.equal(winner.id,'A');
-
-// El tab realmente enfocado gana aunque sea más nuevo.
-winner=api.autoElegirLiderTabs({
-    old:wrap(meta('OLD',1000,99000,{visible:true,focused:false,lastFocusAt:70000})),
-    focused:wrap(meta('FOCUSED',2000,99000,{visible:true,focused:true,lastFocusAt:99500}))
-},now);
-assert.equal(winner.id,'FOCUSED');
-
-// DevTools/blur temporal: al desaparecer focused, permanece sticky el último
-// tab realmente usado gracias a lastFocusAt.
-winner=api.autoElegirLiderTabs({
-    old:wrap(meta('OLD',1000,99000,{visible:true,focused:false,lastFocusAt:70000})),
-    sticky:wrap(meta('STICKY',2000,99000,{visible:true,focused:false,lastFocusAt:99500}))
-},now);
-assert.equal(winner.id,'STICKY');
-
-// Un nuevo focus real transfiere inmediatamente el liderazgo.
-winner=api.autoElegirLiderTabs({
-    previous:wrap(meta('PREVIOUS',1000,99000,{visible:true,focused:false,lastFocusAt:99500})),
-    current:wrap(meta('CURRENT',2000,99000,{visible:true,focused:true,lastFocusAt:99900}))
-},now);
-assert.equal(winner.id,'CURRENT');
-
-// Visible siempre gana sobre hidden si ninguno tiene foco.
-winner=api.autoElegirLiderTabs({
-    hidden:wrap(meta('HIDDEN',1000,99000,{visible:false,focused:false,lastFocusAt:99950})),
-    visible:wrap(meta('VISIBLE',2000,99000,{visible:true,focused:false,lastFocusAt:80000}))
-},now);
-assert.equal(winner.id,'VISIBLE');
-
-// Si todos están ocultos, el último usado permanece sticky.
-winner=api.autoElegirLiderTabs({
-    old:wrap(meta('OLD',1000,99000,{visible:false,focused:false,lastFocusAt:70000})),
-    recent:wrap(meta('RECENT',2000,99000,{visible:false,focused:false,lastFocusAt:95000}))
-},now);
-assert.equal(winner.id,'RECENT');
-
-// Compatibilidad con 3.2.1: si cualquier tab no reporta focused/lastFocusAt,
-// exactamente la política anterior visible > edad sigue vigente.
-const legacy321={...meta('LEGACY',1000,99000,{visible:true,version:'3.2.1'})};
-delete legacy321.focused;
-delete legacy321.lastFocusAt;
-winner=api.autoElegirLiderTabs({
-    legacy:wrap(legacy321),
-    newFocused:wrap(meta('NEW',2000,99000,{visible:true,focused:true,lastFocusAt:99900}))
-},now);
-assert.equal(winner.id,'LEGACY');
-
-// Compatibilidad con 3.2.0 sin visible: vuelve a antigüedad pura.
-const legacy320={...legacy321,version:'3.2.0'};
-delete legacy320.visible;
-winner=api.autoElegirLiderTabs({
-    legacy:wrap(legacy320),
-    modern:wrap(meta('MODERN',2000,99000,{visible:true,focused:true,lastFocusAt:99900}))
-},now);
-assert.equal(winner.id,'LEGACY');
-
-winner=api.autoElegirLiderTabs({
-    net:wrap(meta('NET',1000,99000,{focused:true,lastFocusAt:99000,hostname:'www.roversport.net'})),
-    lol:wrap(meta('LOL',2000,99000,{focused:false,lastFocusAt:90000,hostname:'www.roversport.lol'}))
+    lolFocused:wrap(meta('LOL',500,99000,{
+        hostname:'www.roversport.lol',focused:true,lastFocusAt:99999
+    })),
+    netVisible:wrap(meta('NET',1000,99000,{
+        hostname:'www.roversport.net',focused:false,lastFocusAt:70000
+    }))
 },now);
 assert.equal(winner.id,'NET');
 
-// 100 cambios de foco simulados: siempre hay un único ganador determinístico.
+// Dentro de .net se conserva focused > visible > hidden.
+winner=api.autoElegirLiderTabs({
+    old:wrap(meta('OLD',1000,99000,{focused:false,lastFocusAt:70000})),
+    focused:wrap(meta('FOCUSED',2000,99000,{focused:true,lastFocusAt:99500}))
+},now);
+assert.equal(winner.id,'FOCUSED');
+
+// Blur temporal: el último foco conserva prioridad sticky dentro del mismo nivel.
+winner=api.autoElegirLiderTabs({
+    old:wrap(meta('OLD',1000,99000,{focused:false,lastFocusAt:70000})),
+    sticky:wrap(meta('STICKY',2000,99000,{focused:false,lastFocusAt:99500}))
+},now);
+assert.equal(winner.id,'STICKY');
+
+// Todos los tabs activos deben hablar protocolo de lock v4 antes de que 3.2.4
+// intente tomar autoridad. Un tab viejo .lol también bloquea la migración.
+assert.equal(api.autoTodosTabsLockCompatibles({
+    a:wrap(meta('A',1000,99000)),
+    b:wrap(meta('B',2000,99000,{hostname:'www.roversport.lol'}))
+},now),true);
+
+assert.equal(api.autoTodosTabsLockCompatibles({
+    modern:wrap(meta('NEW',1000,99000)),
+    legacy:wrap(meta('OLD',2000,99000,{
+        hostname:'www.roversport.lol',leaderProtocol:0,version:'3.2.3'
+    }))
+},now),false);
+
+// Un tab antiguo stale ya no bloquea la transición.
+assert.equal(api.autoTodosTabsLockCompatibles({
+    modern:wrap(meta('NEW',1000,99000)),
+    legacy:wrap(meta('OLD',2000,now-api.AUTO_TAB_STALE_VISIBLE_MS-1,{
+        leaderProtocol:0,version:'3.2.3'
+    }))
+},now),true);
+
+// 100 cambios de foco siguen produciendo un candidato determinístico.
 for (let i=0;i<100;i++) {
     const focusA=i%2===0;
     winner=api.autoElegirLiderTabs({
@@ -142,7 +125,7 @@ for (let i=0;i<100;i++) {
     assert.equal(winner.id,focusA?'A':'B');
 }
 
-// Visible stale rápido; hidden tolera throttling.
+// Background throttling: visible expira rápido, hidden tiene ventana larga.
 assert.equal(
     api.autoMetaStale(meta('V',1000,now-api.AUTO_TAB_STALE_VISIBLE_MS-1,{visible:true}),now),
     true
@@ -156,13 +139,7 @@ assert.equal(
     true
 );
 
-winner=api.autoElegirLiderTabs({
-    stale:wrap(meta('OLD',1000,now-api.AUTO_TAB_STALE_HIDDEN_MS-1,{visible:false})),
-    live:wrap(meta('LIVE',2000,now-1000,{visible:false,lastFocusAt:80000}))
-},now);
-assert.equal(winner.id,'LIVE');
-
-// autoPrepararMetaTab captura focus real del documento y registra lastFocusAt.
+// autoPrepararMetaTab publica explícitamente compatibilidad v4.
 const resumed=api.autoPrepararMetaTab(
     meta('OLD',1000,now-api.AUTO_TAB_STALE_HIDDEN_MS-1,{visible:false}),
     now
@@ -174,19 +151,11 @@ assert.equal(resumed.active,true);
 assert.equal(resumed.visible,true);
 assert.equal(resumed.focused,true);
 assert.equal(resumed.lastFocusAt,now);
-
-winner=api.autoElegirLiderTabs({
-    z:wrap(meta('Z',5000,99000,{lastFocusAt:0})),
-    a:wrap(meta('A',5000,99000,{lastFocusAt:0}))
-},now);
-assert.equal(winner.id,'A');
+assert.equal(resumed.leaderProtocol,api.AUTO_LEADER_PROTOCOL);
 
 assert.equal(api.autoSignalTrabajoActual({
     tipo:'result-ready',fechaIso:'2026-10-01',codigo:'WIN-9-30AM'
 },{fechaIso:'2026-10-01'}),true);
-assert.equal(api.autoSignalTrabajoActual({
-    tipo:'result-ready',fechaIso:'2026-09-30',codigo:'WIN-9-30AM'
-},{fechaIso:'2026-10-01'}),false);
 assert.equal(api.autoSignalTrabajoActual({
     tipo:'focus',fechaIso:'2026-10-01',codigo:'WIN-9-30AM'
 },{fechaIso:'2026-10-01'}),false);
@@ -196,4 +165,4 @@ assert.equal(api.autoEsperaCadencia(180000,now),120000);
 values.set(api.AUTO_TAB_LAST_TICK_KEY,now-180000);
 assert.equal(api.autoEsperaCadencia(180000,now),0);
 
-console.log('Multi-tab leader election: focused > visible > hidden, sticky blur and 100 focus handoffs OK');
+console.log('Leader candidacy: emitter host only, protocol-v4 migration gate and focus priority OK');

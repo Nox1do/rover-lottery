@@ -53,14 +53,14 @@ const meta=(id,startedAt,heartbeatAt,{
     focused=false,
     lastFocusAt=0,
     leaderProtocol=api.AUTO_LEADER_PROTOCOL,
-    version='3.2.5'
+    version='3.2.6'
 }={})=>({
     protocol:api.AUTO_TAB_PROTOCOL,leaderProtocol,id,startedAt,heartbeatAt,
     hostname,active,visible,focused,lastFocusAt,version
 });
 const wrap=m=>({[api.AUTO_TAB_META_KEY]:m});
 
-assert.equal(api.AUTO_LEADER_PROTOCOL,5);
+assert.equal(api.AUTO_LEADER_PROTOCOL,6);
 assert.equal(api.AUTO_HOST_AUTO,'auto');
 assert.equal(api.AUTO_HOST_NET,'www.roversport.net');
 assert.equal(api.AUTO_HOST_LOL,'www.roversport.lol');
@@ -156,20 +156,20 @@ winner=api.autoElegirLiderTabs({
 },api.AUTO_HOST_NET,now);
 assert.equal(winner.id,'STICKY');
 
-// Todos los tabs activos deben hablar protocolo de lock v5 antes de 3.2.5.
+// Todos los tabs activos deben hablar protocolo de lock v6 antes de 3.2.6.
 assert.equal(api.autoTodosTabsLockCompatibles(mixed,now),true);
 assert.equal(api.autoTodosTabsLockCompatibles({
     modern:wrap(meta('NEW',1000,99000)),
     legacy:wrap(meta('OLD',2000,99000,{
-        hostname:api.AUTO_HOST_LOL,leaderProtocol:4,version:'3.2.4'
+        hostname:api.AUTO_HOST_LOL,leaderProtocol:5,version:'3.2.5'
     }))
 },now),false);
 
-// Un tab 3.2.4 stale ya no bloquea la transición.
+// Un tab 3.2.5 stale ya no bloquea la transición.
 assert.equal(api.autoTodosTabsLockCompatibles({
     modern:wrap(meta('NEW',1000,99000)),
     legacy:wrap(meta('OLD',2000,now-api.AUTO_TAB_STALE_VISIBLE_MS-1,{
-        leaderProtocol:4,version:'3.2.4'
+        leaderProtocol:5,version:'3.2.5'
     }))
 },now),true);
 
@@ -201,7 +201,7 @@ assert.equal(
     true
 );
 
-// autoPrepararMetaTab publica explícitamente compatibilidad v4.
+// autoPrepararMetaTab publica explícitamente compatibilidad v6.
 const resumed=api.autoPrepararMetaTab(
     meta('OLD',1000,now-api.AUTO_TAB_STALE_HIDDEN_MS-1,{visible:false}),
     now
@@ -227,4 +227,4 @@ assert.equal(api.autoEsperaCadencia(180000,now),120000);
 values.set(api.AUTO_TAB_LAST_TICK_KEY,now-180000);
 assert.equal(api.autoEsperaCadencia(180000,now),0);
 
-console.log('Leader candidacy: dynamic Host AUTO, protocol-v5 gate and focus priority OK');
+console.log('Leader candidacy: dynamic Host AUTO, protocol-v6 gate and initial focus priority OK');

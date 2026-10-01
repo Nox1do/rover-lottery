@@ -5,7 +5,33 @@ const vm = require('node:vm');
 const file = process.argv[2] || 'virtual-lottery v2 auto.user.js';
 let source = fs.readFileSync(file, 'utf8')
   .replace('    iniciarAutoLoterias();\n    observarResultadosLoteria();\n    iniciar();', '')
-  .replace(/\}\)\(\);\s*$/, `globalThis.__test = { guardarResultadoVisible, restaurarResultadosVisibles, setLeader(value) { autoTabEsLider = !!value; } };\n})();`);
+  .replace(/\}\)\(\);\s*$/, `globalThis.__test = {
+  guardarResultadoVisible, restaurarResultadosVisibles,
+  setLeader(value) {
+    autoTabMeta = autoTabMeta || {
+      protocol:AUTO_TAB_PROTOCOL, leaderProtocol:AUTO_LEADER_PROTOCOL,
+      id:'TEST-RESTORE', hostname:AUTO_EMITTER_HOST, active:true,
+      visible:true, focused:true, lastFocusAt:Date.now(), heartbeatAt:Date.now()
+    };
+    if (value) {
+      autoLeaderLockHeld = true;
+      autoLeaderLockReleasing = false;
+      autoLeaderEpoch = 'test-restore-epoch';
+      autoTabEsLider = true;
+      GM_setValue(AUTO_LEADER_STATE_KEY, {
+        protocol:AUTO_LEADER_PROTOCOL, ownerId:autoTabMeta.id,
+        epoch:autoLeaderEpoch, hostname:AUTO_EMITTER_HOST,
+        heartbeatAt:Date.now()
+      });
+    } else {
+      autoTabEsLider = false;
+      autoLeaderLockHeld = false;
+      autoLeaderLockReleasing = false;
+      autoLeaderEpoch = '';
+      GM_deleteValue(AUTO_LEADER_STATE_KEY);
+    }
+  }
+};\n})();`);
 
 const result = { primera:'45', segunda:'63', tercera:'91', pick3:'245', pick4:'6391' };
 const fields = Object.keys(result);

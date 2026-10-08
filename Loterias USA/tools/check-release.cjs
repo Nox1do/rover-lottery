@@ -10,7 +10,7 @@ const header = script.slice(0, script.indexOf(end) + end.length) + '\n';
 const get = key => header.match(new RegExp(`^// @${key}\\s+(.+)$`, 'm'))?.[1];
 assert.equal(meta, header, 'La cabecera de actualización debe coincidir con el script');
 assert.match(get('version'), /^\d+\.\d+\.\d+$/);
-assert.equal(get('name'), 'Rovs Loterías USA V0.6.0', 'Conservar la identidad instalada');
+assert.equal(get('name'), 'Rovs Loterías USA', 'El nombre debe ser estable y no incluir una versión');
 assert.equal(get('namespace'), 'http://tampermonkey.net/');
 const base = 'https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA/';
 assert.equal(get('updateURL'), base + 'Rovs-Loterias-USA.meta.js');

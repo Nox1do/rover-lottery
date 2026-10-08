@@ -1,7 +1,7 @@
 # Publicación de Rovs Loterías USA
 
 - El archivo activo es `Rovs-Loterias-USA.user.js`; mantener esta ruta y sus URLs de actualización.
-- Mantener `@name` y `@namespace` para preservar la identidad en Tampermonkey.
+- Mantener `@name` como `Rovs Loterías USA`, sin número de versión, y conservar `@namespace`. La versión se indica únicamente en `@version`.
 - Cada publicación debe incrementar `@version` mediante `tools/release.py`. Generar juntos el script estable, `.meta.js` y la copia de `versions/`.
 - No sobrescribir archivos históricos ni modificar otros userscripts del repositorio.
 - Actualizar README e historial de cambios, verificar el funcionamiento afectado y ejecutar `node "Loterias USA/tools/check-release.cjs"` antes de publicar.

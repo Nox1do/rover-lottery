@@ -2,7 +2,7 @@
 
 [Instalar o actualizar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA/Rovs-Loterias-USA.user.js)
 
-Versión actual: **0.6.3**. Incluye Indiana Midday y Evening por API móvil, además de Florida, Louisiana, Ohio y Tennessee.
+Versión actual: **0.6.4**. Incluye Georgia Midday, Evening y Night por API móvil, además de Florida, Louisiana, Ohio, Tennessee e Indiana.
 
 ## Instalación y actualización
 
@@ -15,7 +15,7 @@ Desde 0.6.3 el nombre estable es `Rovs Loterías USA`, sin versión. El número 
 ## Publicar una nueva versión
 
 1. Modifica el script y verifica los cambios.
-2. Desde el repositorio, ejecuta `python "Loterias USA/tools/release.py" "Loterias USA/Rovs-Loterias-USA.user.js" 0.6.4`, sustituyendo el número por la siguiente versión.
+2. Desde el repositorio, ejecuta `python "Loterias USA/tools/release.py" "Loterias USA/Rovs-Loterias-USA.user.js" 0.6.5`, sustituyendo el número por la siguiente versión.
 3. Actualiza este README y el historial de cambios.
 4. Ejecuta `node "Loterias USA/tools/check-release.cjs"`.
 5. Haz commit de los archivos generados y publica en `main`. Tampermonkey detectará el incremento de versión.
@@ -24,6 +24,13 @@ El generador exige una versión superior a la publicada, conserva la identidad d
 
 ## Historial
 
+- **0.6.4 (2026-10-08):** Georgia Midday, Evening y Night pasan a la API móvil oficial de Cash 3 y Cash 4. Selección por nombre de sorteo y fecha de Georgia, ceros iniciales y consulta de historial paginado. Añade 24 pruebas reproducibles de Georgia con respuestas públicas de la API.
 - **0.6.3 (2026-10-08):** Nombre estable sin versión en `@name` y en el mensaje de inicio; corrige la etiqueta antigua V0.6.0. Conserva el funcionamiento y las URLs de actualización.
 - **0.6.2 (2026-10-08):** URLs fijas de actualización desde GitHub; funcionamiento idéntico a 0.6.1.
 - **0.6.1 (2026-10-08):** Indiana Midday y Evening pasan a la API móvil oficial para Daily 3 y Daily 4. Conserva ceros iniciales, fecha del este y separación del Superball. Verificada con 103 pruebas locales.
+
+## Pruebas de Georgia
+
+Desde `Loterias USA`, ejecuta `npm install` y después `npm test` con Node.js 18 o superior. Las pruebas ejecutan el userscript en un DOM de prueba con respuestas controladas; no dependen de que se publique un sorteo durante la ejecución. También verifican los metadatos y la copia de la versión actual.
+
+Las respuestas de `tests/fixtures/` se capturaron del servicio oficial el 2026-10-08. Se conservan los campos usados para identificar juego, fecha, sorteo, estado, cifras y paginación. Las pruebas cubren los tres sorteos, historial, fecha del este, ceros iniciales, resultados pendientes o parciales, errores de conexión y protección de las demás filas. La clave incluida en el userscript es la clave pública del cliente móvil, no una cuenta personal.

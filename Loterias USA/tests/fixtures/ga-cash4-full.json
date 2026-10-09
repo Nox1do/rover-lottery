@@ -1,0 +1,1995 @@
+{
+  "nextPageUrl": "/api/v2/draw-games/draws/page?game-names=CASH 4&previous-draws=180&size=100&start-item=101",
+  "nextItems": 81,
+  "previousItems": 0,
+  "draws": [
+    {
+      "gameName": "CASH 4",
+      "id": "23891",
+      "name": "NIGHT",
+      "status": "OPEN",
+      "closeTime": 1791513905000,
+      "drawTime": 1791513905000
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23890",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1791499805000,
+      "drawTime": 1791499805000,
+      "results": [
+        {
+          "primary": [
+            "0",
+            "4",
+            "4",
+            "2"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23889",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1791476405000,
+      "drawTime": 1791476405000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "7",
+            "0",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23888",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1791427505000,
+      "drawTime": 1791427505000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "0",
+            "2",
+            "9"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23887",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1791413405000,
+      "drawTime": 1791413405000,
+      "results": [
+        {
+          "primary": [
+            "9",
+            "3",
+            "7",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23886",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1791390005000,
+      "drawTime": 1791390005000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "2",
+            "5",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23885",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1791341105000,
+      "drawTime": 1791341105000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "4",
+            "1",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23884",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1791327005000,
+      "drawTime": 1791327005000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "3",
+            "4",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23883",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1791303605000,
+      "drawTime": 1791303605000,
+      "results": [
+        {
+          "primary": [
+            "5",
+            "3",
+            "6",
+            "0"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23882",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1791254705000,
+      "drawTime": 1791254705000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "8",
+            "7",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23881",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1791240605000,
+      "drawTime": 1791240605000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "5",
+            "8",
+            "9"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23880",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1791217205000,
+      "drawTime": 1791217205000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "4",
+            "4",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23879",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1791168305000,
+      "drawTime": 1791168305000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "8",
+            "3",
+            "8"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23878",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1791154205000,
+      "drawTime": 1791154205000,
+      "results": [
+        {
+          "primary": [
+            "9",
+            "5",
+            "8",
+            "7"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23877",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1791130805000,
+      "drawTime": 1791130805000,
+      "results": [
+        {
+          "primary": [
+            "8",
+            "9",
+            "0",
+            "5"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23876",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1791081905000,
+      "drawTime": 1791081905000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "5",
+            "7",
+            "9"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23875",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1791067805000,
+      "drawTime": 1791067805000,
+      "results": [
+        {
+          "primary": [
+            "0",
+            "3",
+            "6",
+            "7"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23874",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1791044405000,
+      "drawTime": 1791044405000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "3",
+            "7",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23873",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790995505000,
+      "drawTime": 1790995505000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "5",
+            "0",
+            "8"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23872",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790981405000,
+      "drawTime": 1790981405000,
+      "results": [
+        {
+          "primary": [
+            "5",
+            "9",
+            "8",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23871",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790958005000,
+      "drawTime": 1790958005000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "4",
+            "3",
+            "0"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23870",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790909105000,
+      "drawTime": 1790909105000,
+      "results": [
+        {
+          "primary": [
+            "7",
+            "7",
+            "7",
+            "5"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23869",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790895005000,
+      "drawTime": 1790895005000,
+      "results": [
+        {
+          "primary": [
+            "0",
+            "1",
+            "8",
+            "2"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23868",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790871605000,
+      "drawTime": 1790871605000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "0",
+            "6",
+            "9"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23867",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790822705000,
+      "drawTime": 1790822705000,
+      "results": [
+        {
+          "primary": [
+            "8",
+            "4",
+            "5",
+            "5"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23866",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790808605000,
+      "drawTime": 1790808605000,
+      "results": [
+        {
+          "primary": [
+            "3",
+            "7",
+            "3",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23865",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790785205000,
+      "drawTime": 1790785205000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "0",
+            "2",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23864",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790736305000,
+      "drawTime": 1790736305000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "9",
+            "0",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23863",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790722205000,
+      "drawTime": 1790722205000,
+      "results": [
+        {
+          "primary": [
+            "7",
+            "8",
+            "9",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23862",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790698805000,
+      "drawTime": 1790698805000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "3",
+            "7",
+            "5"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23861",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790649905000,
+      "drawTime": 1790649905000,
+      "results": [
+        {
+          "primary": [
+            "3",
+            "7",
+            "7",
+            "0"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23860",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790635805000,
+      "drawTime": 1790635805000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "7",
+            "0",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23859",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790612405000,
+      "drawTime": 1790612405000,
+      "results": [
+        {
+          "primary": [
+            "7",
+            "3",
+            "2",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23858",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790563505000,
+      "drawTime": 1790563505000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "5",
+            "4",
+            "7"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23857",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790549405000,
+      "drawTime": 1790549405000,
+      "results": [
+        {
+          "primary": [
+            "9",
+            "8",
+            "4",
+            "7"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23856",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790526005000,
+      "drawTime": 1790526005000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "8",
+            "2",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23855",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790477105000,
+      "drawTime": 1790477105000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "2",
+            "5",
+            "7"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23854",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790463005000,
+      "drawTime": 1790463005000,
+      "results": [
+        {
+          "primary": [
+            "3",
+            "6",
+            "6",
+            "5"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23853",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790439605000,
+      "drawTime": 1790439605000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "8",
+            "2",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23852",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790390705000,
+      "drawTime": 1790390705000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "3",
+            "6",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23851",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790376605000,
+      "drawTime": 1790376605000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "1",
+            "7",
+            "8"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23850",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790353205000,
+      "drawTime": 1790353205000,
+      "results": [
+        {
+          "primary": [
+            "0",
+            "4",
+            "5",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23849",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790304305000,
+      "drawTime": 1790304305000,
+      "results": [
+        {
+          "primary": [
+            "9",
+            "8",
+            "1",
+            "2"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23848",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790290205000,
+      "drawTime": 1790290205000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "6",
+            "6",
+            "8"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23847",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790266805000,
+      "drawTime": 1790266805000,
+      "results": [
+        {
+          "primary": [
+            "9",
+            "6",
+            "6",
+            "8"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23846",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790217905000,
+      "drawTime": 1790217905000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "1",
+            "6",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23845",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790203805000,
+      "drawTime": 1790203805000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "4",
+            "9",
+            "7"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23844",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790180405000,
+      "drawTime": 1790180405000,
+      "results": [
+        {
+          "primary": [
+            "7",
+            "5",
+            "7",
+            "2"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23843",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790131505000,
+      "drawTime": 1790131505000,
+      "results": [
+        {
+          "primary": [
+            "3",
+            "5",
+            "1",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23842",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790117405000,
+      "drawTime": 1790117405000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "5",
+            "5",
+            "7"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23841",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790094005000,
+      "drawTime": 1790094005000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "1",
+            "3",
+            "8"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23840",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1790045105000,
+      "drawTime": 1790045105000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "6",
+            "9",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23839",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1790031005000,
+      "drawTime": 1790031005000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "8",
+            "3",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23838",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1790007605000,
+      "drawTime": 1790007605000,
+      "results": [
+        {
+          "primary": [
+            "9",
+            "9",
+            "6",
+            "2"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23837",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789958705000,
+      "drawTime": 1789958705000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "2",
+            "3",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23836",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789944605000,
+      "drawTime": 1789944605000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "2",
+            "4",
+            "2"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23835",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789921205000,
+      "drawTime": 1789921205000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "9",
+            "3",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23834",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789872305000,
+      "drawTime": 1789872305000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "3",
+            "6",
+            "2"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23833",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789858205000,
+      "drawTime": 1789858205000,
+      "results": [
+        {
+          "primary": [
+            "3",
+            "8",
+            "0",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23832",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789834805000,
+      "drawTime": 1789834805000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "4",
+            "4",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23831",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789785905000,
+      "drawTime": 1789785905000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "9",
+            "3",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23830",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789771805000,
+      "drawTime": 1789771805000,
+      "results": [
+        {
+          "primary": [
+            "0",
+            "4",
+            "0",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23829",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789748405000,
+      "drawTime": 1789748405000,
+      "results": [
+        {
+          "primary": [
+            "7",
+            "9",
+            "3",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23828",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789699505000,
+      "drawTime": 1789699505000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "1",
+            "9",
+            "7"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23827",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789685405000,
+      "drawTime": 1789685405000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "8",
+            "2",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23826",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789662005000,
+      "drawTime": 1789662005000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "7",
+            "9",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23825",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789613105000,
+      "drawTime": 1789613105000,
+      "results": [
+        {
+          "primary": [
+            "7",
+            "7",
+            "8",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23824",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789599005000,
+      "drawTime": 1789599005000,
+      "results": [
+        {
+          "primary": [
+            "9",
+            "7",
+            "0",
+            "0"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23823",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789575605000,
+      "drawTime": 1789575605000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "7",
+            "1",
+            "7"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23822",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789526705000,
+      "drawTime": 1789526705000,
+      "results": [
+        {
+          "primary": [
+            "0",
+            "9",
+            "6",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23821",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789512605000,
+      "drawTime": 1789512605000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "8",
+            "7",
+            "7"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23820",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789489205000,
+      "drawTime": 1789489205000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "7",
+            "1",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23819",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789440305000,
+      "drawTime": 1789440305000,
+      "results": [
+        {
+          "primary": [
+            "8",
+            "3",
+            "1",
+            "0"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23818",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789426205000,
+      "drawTime": 1789426205000,
+      "results": [
+        {
+          "primary": [
+            "0",
+            "9",
+            "5",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23817",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789402805000,
+      "drawTime": 1789402805000,
+      "results": [
+        {
+          "primary": [
+            "7",
+            "6",
+            "7",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23816",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789353905000,
+      "drawTime": 1789353905000,
+      "results": [
+        {
+          "primary": [
+            "0",
+            "5",
+            "6",
+            "0"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23815",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789339805000,
+      "drawTime": 1789339805000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "5",
+            "5",
+            "2"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23814",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789316405000,
+      "drawTime": 1789316405000,
+      "results": [
+        {
+          "primary": [
+            "3",
+            "5",
+            "7",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23813",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789267505000,
+      "drawTime": 1789267505000,
+      "results": [
+        {
+          "primary": [
+            "9",
+            "8",
+            "4",
+            "8"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23812",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789253405000,
+      "drawTime": 1789253405000,
+      "results": [
+        {
+          "primary": [
+            "0",
+            "4",
+            "4",
+            "9"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23811",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789230005000,
+      "drawTime": 1789230005000,
+      "results": [
+        {
+          "primary": [
+            "3",
+            "0",
+            "8",
+            "2"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23810",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789181105000,
+      "drawTime": 1789181105000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "0",
+            "0",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23809",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789167005000,
+      "drawTime": 1789167005000,
+      "results": [
+        {
+          "primary": [
+            "7",
+            "5",
+            "5",
+            "0"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23808",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789143605000,
+      "drawTime": 1789143605000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "4",
+            "5",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23807",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789094705000,
+      "drawTime": 1789094705000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "6",
+            "5",
+            "8"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23806",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1789080605000,
+      "drawTime": 1789080605000,
+      "results": [
+        {
+          "primary": [
+            "8",
+            "1",
+            "8",
+            "4"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23805",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1789057205000,
+      "drawTime": 1789057205000,
+      "results": [
+        {
+          "primary": [
+            "5",
+            "0",
+            "7",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23804",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1789008305000,
+      "drawTime": 1789008305000,
+      "results": [
+        {
+          "primary": [
+            "2",
+            "5",
+            "5",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23803",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1788994205000,
+      "drawTime": 1788994205000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "0",
+            "8",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23802",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1788970805000,
+      "drawTime": 1788970805000,
+      "results": [
+        {
+          "primary": [
+            "7",
+            "3",
+            "8",
+            "5"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23801",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1788921905000,
+      "drawTime": 1788921905000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "8",
+            "6",
+            "5"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23800",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1788907805000,
+      "drawTime": 1788907805000,
+      "results": [
+        {
+          "primary": [
+            "3",
+            "4",
+            "1",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23799",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1788884405000,
+      "drawTime": 1788884405000,
+      "results": [
+        {
+          "primary": [
+            "7",
+            "6",
+            "6",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23798",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1788835505000,
+      "drawTime": 1788835505000,
+      "results": [
+        {
+          "primary": [
+            "5",
+            "2",
+            "9",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23797",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1788821405000,
+      "drawTime": 1788821405000,
+      "results": [
+        {
+          "primary": [
+            "9",
+            "0",
+            "6",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23796",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1788798005000,
+      "drawTime": 1788798005000,
+      "results": [
+        {
+          "primary": [
+            "8",
+            "3",
+            "4",
+            "0"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23795",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1788749105000,
+      "drawTime": 1788749105000,
+      "results": [
+        {
+          "primary": [
+            "6",
+            "8",
+            "4",
+            "6"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23794",
+      "name": "EVENING",
+      "status": "PAYABLE",
+      "closeTime": 1788735005000,
+      "drawTime": 1788735005000,
+      "results": [
+        {
+          "primary": [
+            "4",
+            "7",
+            "9",
+            "0"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23793",
+      "name": "MIDDAY",
+      "status": "PAYABLE",
+      "closeTime": 1788711605000,
+      "drawTime": 1788711605000,
+      "results": [
+        {
+          "primary": [
+            "1",
+            "0",
+            "6",
+            "1"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    },
+    {
+      "gameName": "CASH 4",
+      "id": "23792",
+      "name": "NIGHT",
+      "status": "PAYABLE",
+      "closeTime": 1788662705000,
+      "drawTime": 1788662705000,
+      "results": [
+        {
+          "primary": [
+            "0",
+            "1",
+            "9",
+            "3"
+          ],
+          "drawType": "Regular",
+          "prizeTierId": "0"
+        }
+      ]
+    }
+  ]
+}

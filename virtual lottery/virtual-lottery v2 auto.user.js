@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Virtual Lotteries v2 Auto
 // @namespace    noeg
-// @version      3.2.6
+// @version      3.2.7
 // @description  Virtual Lotteries v3: AUTO configurable por lotería, cinco fuentes, EXTRA manual y verificación segura en Rover.
 // @author       noeg
 // @homepageURL  https://github.com/Nox1do/rover-lottery
@@ -32,7 +32,7 @@
 (() => {
     'use strict';
 
-    const SCRIPT_VERSION = '3.2.6';
+    const SCRIPT_VERSION = '3.2.7';
     console.log(`[Virtual Lotteries] v${SCRIPT_VERSION} cargado · configuración AUTO por lotería`);
 
     const NATIONJL_URL = 'https://www.nationjl.com/main/live';
@@ -3005,6 +3005,28 @@
             .join('');
     }
 
+    // Queen cambió los nombres de su tabla de "QL MORNING" a "QLT-MORNING",
+    // y usa "QLT-AFTN" para Afternoon. Mantener ambos formatos para que el
+    // mapeo de la fuente coincida con los cinco códigos existentes de Rover.
+    const QUEEN_KEYS_CANONICAS = Object.freeze({
+        'QL MORNING': 'QL MORNING',
+        'QL MIDDAY': 'QL MIDDAY',
+        'QL AFTERNOON': 'QL AFTERNOON',
+        'QL EVENING': 'QL EVENING',
+        'QL NIGHT': 'QL NIGHT',
+        'QLT-MORNING': 'QL MORNING',
+        'QLT-MIDDAY': 'QL MIDDAY',
+        'QLT-AFTN': 'QL AFTERNOON',
+        'QLT-AFTERNOON': 'QL AFTERNOON',
+        'QLT-EVENING': 'QL EVENING',
+        'QLT-NIGHT': 'QL NIGHT'
+    });
+
+    function queenNormalizarSorteo(texto) {
+        const key = String(texto || '').replace(/\s+/g, ' ').trim().toUpperCase();
+        return QUEEN_KEYS_CANONICAS[key] || '';
+    }
+
     function parseQueen(html) {
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const resultados = [];
@@ -3020,8 +3042,8 @@
                 const td = [...tr.querySelectorAll('td')];
                 if (td.length < 6) continue;
 
-                const queenKey = td[0].textContent.replace(/\s+/g, ' ').trim().toUpperCase();
-                if (!/^QL (MORNING|MIDDAY|AFTERNOON|EVENING|NIGHT)$/.test(queenKey)) continue;
+                const queenKey = queenNormalizarSorteo(td[0].textContent);
+                if (!queenKey) continue;
 
                 const resultado = {
                     fecha,

@@ -1,4 +1,4 @@
-# Virtual Lotteries v3.2.6 — guía breve
+# Virtual Lotteries v3.2.7 — guía breve
 
 El userscript reconoce 25 sorteos de NationJL, Rapid, PremierLotto, QPlay Brazil y The Queen Lottery. Québec EXTRA conserva su botón manual y su pestaña de Lottery Post.
 
@@ -290,3 +290,27 @@ El coordinador primero comprueba si ya existe un claim válido de líder para el
 El protocolo de liderazgo sube a **6** y usa `vl:auto:tabs:leader:v6`. Durante la actualización, cualquier tab 3.2.5 todavía activo mantiene al coordinador v3.2.6 pausado hasta que sea recargado o quede stale. Esto evita mezclar la política antigua de handoff por foco con la política sticky nueva.
 
 La cola `RESULT_READY` continúa siendo prioritaria. Si el líder está vivo y recibe la señal, procesa el resultado inmediatamente sin esperar el siguiente intervalo de búsqueda. No se usa `steal: true` para arrebatar un Web Lock a un tab que todavía lo posee.
+
+
+## v3.2.7 — The Queen Lottery (cambio de identificadores)
+
+La página oficial utiliza actualmente `QLT-MORNING`, `QLT-MIDDAY`,
+`QLT-AFTN`, `QLT-EVENING` y `QLT-NIGHT` en su tabla de resultados.
+El parser de 3.2.6 reconocía exclusivamente los nombres anteriores
+`QL MORNING`, `QL MIDDAY`, `QL AFTERNOON`, `QL EVENING` y `QL NIGHT`.
+
+3.2.7 incorpora equivalencias explícitas para ambos formatos (incluido
+`QLT-AFTN` → `QL AFTERNOON`). Mantiene los cinco códigos Rover
+`QLT-*`, la validación exacta de fecha, premios de dos dígitos,
+Pick 3 y Pick 4, y el rechazo de filas incompletas o desconocidas.
+
+El cambio afecta tanto a la búsqueda manual como a AUTO porque utilizan
+el mismo `parseQueen()`. No modifica Web Locks, scheduler, procesamiento
+Rover ni la política de POST incierto. El problema independiente de los
+timeouts de `verResultados2.php` se mantiene pendiente de un cambio
+separado con pruebas específicas.
+
+**Importante:** si la fuente muestra resultados del día anterior y todavía
+no publica sorteos de la fecha actual de República Dominicana, el motor
+seguirá devolviendo «resultado no disponible» para los sorteos de hoy,
+sin reutilizar resultados antiguos.

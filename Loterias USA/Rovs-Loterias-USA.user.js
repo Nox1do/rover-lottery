@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterías USA
 // @namespace    http://tampermonkey.net/
-// @version      0.6.4
+// @version      0.6.5
 // @description  Proveedores móviles y LotteryUSA separados, con controlador y transporte comunes
 // @author       noeg
 // @match        https://www.roversport.net/adm/es/lottery.php*
@@ -18,6 +18,7 @@
 // @connect      tna.p1.awc.lotteryservices.net
 // @connect      ins.p1.awc.lotteryservices.net
 // @connect      gas-v2.p1.awc.lotteryservices.net
+// @connect      mapp.illinoislottery.com
 // @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA/Rovs-Loterias-USA.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA/Rovs-Loterias-USA.user.js
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/Loterias%20USA
@@ -122,9 +123,7 @@
           categoria: "DIA" },
 
         { id: "il-am", nombreMenu: "🇺🇸 Illinois Midday", nombreFila: "ILLINOIS MIDDAY",
-          fuente: "LOTTERYUSA",
-          url3: "https://www.lotteryusa.com/illinois/midday-3/",
-          url4: "https://www.lotteryusa.com/illinois/midday-4/",
+          fuente: "ILLINOIS_APP", sorteo: "MIDDAY",
           categoria: "DIA" },
 
         { id: "mo-am", nombreMenu: "🇺🇸 Missouri Midday", nombreFila: "MISSOURI MIDDAY",
@@ -377,9 +376,7 @@
           categoria: "NOCHE" },
 
         { id: "il-pm", nombreMenu: "🇺🇸 Illinois Evening", nombreFila: "ILLINOIS EVENING",
-          fuente: "LOTTERYUSA",
-          url3: "https://www.lotteryusa.com/illinois/daily-3/",
-          url4: "https://www.lotteryusa.com/illinois/daily-4/",
+          fuente: "ILLINOIS_APP", sorteo: "EVENING",
           categoria: "NOCHE" },
 
         { id: "ct-pm", nombreMenu: "🇺🇸 Connecticut Night", nombreFila: "CONNECT PM",
@@ -653,10 +650,14 @@
         GEORGIA_API: createMobileProvider({
             name: 'Georgia', games: ['CASH 3', 'CASH 4'], labels: ['Cash 3', 'Cash 4'],
             fetchGame: fetchGeorgiaGame, parseGame: parseGeorgiaGame
+        }),
+        ILLINOIS_APP: createMobileProvider({
+            name: 'Illinois', games: ['pick3', 'pick4'], source: '📱 App oficial Illinois Lottery',
+            fetchGame: fetchIllinoisGame, parseGame: parseIllinoisGame
         })
     });
 
-    function createMobileProvider({ name, games, fetchGame, parseGame, labels = ['Pick 3', 'Pick 4'] }) {
+    function createMobileProvider({ name, games, fetchGame, parseGame, labels = ['Pick 3', 'Pick 4'], source = `📱 API móvil ${name} Lottery` }) {
         return {
             name, labels,
             async consultar(config, dateObj) {
@@ -666,7 +667,7 @@
                 return {
                     p3: parseGame(data3, dateObj, config.sorteo, 3),
                     p4: parseGame(data4, dateObj, config.sorteo, 4),
-                    source: `📱 API móvil ${name} Lottery`,
+                    source,
                     requiredGames: ['p3', 'p4']
                 };
             }
@@ -1451,6 +1452,52 @@
         }).formatToParts(date);
         const get = type => parts.find(part => part.type === type)?.value || '';
         return `${get('year')}-${get('month')}-${get('day')}`;
+    }
+
+
+    // === ILLINOIS: FUENTE OFICIAL DE LA APP ===
+    // El APK oficial carga mapp.illinoislottery.com. Sus resultados se entregan
+    // como HTML, no como JSON; nunca insertar ese documento en la página de Rover.
+    async function fetchIllinoisGame(gameCode, dateObj) {
+        const dateKey = localDateKey(dateObj);
+        const url = new URL(`/dbg/results/${gameCode}`, 'https://mapp.illinoislottery.com');
+        url.searchParams.set('dateFrom', dateKey);
+        url.searchParams.set('dateTo', dateKey);
+        url.searchParams.set('_', String(Date.now()));
+        const response = await requestWithGM({
+            url: url.href, anonymous: true, headers: { 'Accept': 'text/html' }
+        });
+        const doc = new DOMParser().parseFromString(response.responseText, 'text/html');
+        let config;
+        try { config = JSON.parse(doc.querySelector('#client-data')?.textContent || '').__exc_server_config__; }
+        catch (_) { throw new Error('Respuesta de Illinois inválida'); }
+        if (doc.body.id !== `dbg-results-${gameCode}` || config?.gameCode !== gameCode ||
+            config.dateFrom !== dateKey || config.dateTo !== dateKey) {
+            throw new Error('Respuesta de Illinois inválida');
+        }
+        return doc;
+    }
+
+    function parseIllinoisGame(doc, dateObj, drawName, digits) {
+        if (!['MIDDAY', 'EVENING'].includes(drawName) || ![3, 4].includes(digits)) return null;
+        const gameCode = `pick${digits}`;
+        const dateText = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const text = (row, selector) => row.querySelector(selector)?.textContent.trim().replace(/\s+/g, ' ');
+        const rows = [...doc.querySelectorAll(`.dbg-results__list--${gameCode} > [data-test-id^="draw-result-"]`)];
+        const results = rows.filter(row =>
+            text(row, '[data-test-id^="draw-result-info-date-"]') === dateText &&
+            text(row, '[data-test-id^="draw-result-schedule-type-text-"]')?.toUpperCase() === drawName
+        ).map(row => {
+            const href = row.querySelector('a[data-test-id="draw-result-cell"]')?.getAttribute('href') || '';
+            const link = /^\/dbg\/results\/(pick[34])\/draw\/\d+$/.exec(href);
+            if (link?.[1] !== gameCode) return null;
+            // Fireball figura en ball-secondary y no pertenece al Pick 3/Pick 4.
+            const balls = [...row.querySelectorAll('[data-test-id^="ball-primary-"]')].map(ball => ball.textContent.trim());
+            return balls.length === digits && balls.every(ball => /^\d$/.test(ball)) ? balls.join('') : null;
+        });
+        // Si una respuesta contiene datos contradictorios, no elegir una fila al azar.
+        const unique = new Set(results);
+        return unique.size === 1 ? [...unique][0] : null;
     }
 
 

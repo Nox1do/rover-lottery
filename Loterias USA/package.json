@@ -2,7 +2,7 @@
   "name": "rovs-loterias-usa-checks",
   "private": true,
   "scripts": {
-    "test": "node tests/georgia.cjs Rovs-Loterias-USA.user.js && node tools/check-release.cjs"
+    "test": "node tests/georgia.cjs Rovs-Loterias-USA.user.js && node tests/illinois.cjs Rovs-Loterias-USA.user.js && node tools/check-release.cjs"
   },
   "devDependencies": {
     "jsdom": "26.1.0"

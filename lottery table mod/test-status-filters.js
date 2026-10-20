@@ -1,9 +1,15 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const source = fs.readFileSync('Rs-loteria-res-tabla-mod.user.js','utf8');
-assert.match(source, /^\/\/ @version\s+1\.6\.22$/m);
+assert.match(source, /^\/\/ @version\s+1\.6\.23$/m);
 assert.ok(source.includes('rt-processed-pending-filter-label'));
 assert.ok(source.includes('ensureRowFilters()'));
+const pendingFilterBlock = source.slice(
+  source.indexOf('if (!document.getElementById(PROCESSED_PENDING_FILTER_ID))'),
+  source.indexOf('    return inserted;', source.indexOf('if (!document.getElementById(PROCESSED_PENDING_FILTER_ID))'))
+);
+assert.ok(pendingFilterBlock.includes('filterArea.prepend(label);'), 'Procesados pendientes precede a Sin procesar');
+assert.ok(!pendingFilterBlock.includes('previousLabel.after(label)'), 'Orden anterior eliminado');
 assert.equal((source.match(/searchFilters\.push/g) || []).length, 1);
 new Function(source);
 const code = source.slice(source.indexOf('  function rowIsUnprocessed('),source.indexOf('  const LAYOUT_SETTLE_MS ='));

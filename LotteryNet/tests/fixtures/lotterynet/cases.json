@@ -1,0 +1,172 @@
+[
+  {
+    "state": "FL",
+    "game": "p3",
+    "url": "https://www.lottery.net/florida/pick-3/numbers",
+    "date": "2026-10-19",
+    "fixture": "florida-pick-3.html",
+    "draws": [
+      {
+        "turn": "MIDDAY",
+        "value": "818"
+      },
+      {
+        "turn": "EVENING",
+        "value": "069"
+      }
+    ]
+  },
+  {
+    "state": "FL",
+    "game": "p4",
+    "url": "https://www.lottery.net/florida/pick-4/numbers",
+    "date": "2026-10-19",
+    "fixture": "florida-pick-4.html",
+    "draws": [
+      {
+        "turn": "MIDDAY",
+        "value": "2468"
+      },
+      {
+        "turn": "EVENING",
+        "value": "1455"
+      }
+    ]
+  },
+  {
+    "state": "LA",
+    "game": "p3",
+    "url": "https://www.lottery.net/louisiana/pick-3/numbers",
+    "date": "2026-10-19",
+    "fixture": "louisiana-pick-3.html",
+    "draws": [
+      {
+        "turn": "EVENING",
+        "value": "499"
+      }
+    ]
+  },
+  {
+    "state": "LA",
+    "game": "p4",
+    "url": "https://www.lottery.net/louisiana/pick-4/numbers",
+    "date": "2026-10-19",
+    "fixture": "louisiana-pick-4.html",
+    "draws": [
+      {
+        "turn": "EVENING",
+        "value": "1837"
+      }
+    ]
+  },
+  {
+    "state": "OH",
+    "game": "p3",
+    "url": "https://www.lottery.net/ohio/pick-3/numbers",
+    "date": "2026-10-19",
+    "fixture": "ohio-pick-3.html",
+    "draws": [
+      {
+        "turn": "MIDDAY",
+        "value": "524"
+      },
+      {
+        "turn": "EVENING",
+        "value": "778"
+      }
+    ]
+  },
+  {
+    "state": "OH",
+    "game": "p4",
+    "url": "https://www.lottery.net/ohio/pick-4/numbers",
+    "date": "2026-10-19",
+    "fixture": "ohio-pick-4.html",
+    "draws": [
+      {
+        "turn": "MIDDAY",
+        "value": "1224"
+      },
+      {
+        "turn": "EVENING",
+        "value": "9704"
+      }
+    ]
+  },
+  {
+    "state": "TN",
+    "game": "p3",
+    "url": "https://www.lottery.net/tennessee/cash-3/numbers",
+    "date": "2026-10-19",
+    "fixture": "tennessee-cash-3.html",
+    "draws": [
+      {
+        "turn": "MORNING",
+        "value": "986"
+      },
+      {
+        "turn": "MIDDAY",
+        "value": "026"
+      },
+      {
+        "turn": "EVENING",
+        "value": "656"
+      }
+    ]
+  },
+  {
+    "state": "TN",
+    "game": "p4",
+    "url": "https://www.lottery.net/tennessee/cash-4/numbers",
+    "date": "2026-10-19",
+    "fixture": "tennessee-cash-4.html",
+    "draws": [
+      {
+        "turn": "MORNING",
+        "value": "8103"
+      },
+      {
+        "turn": "MIDDAY",
+        "value": "8918"
+      },
+      {
+        "turn": "EVENING",
+        "value": "8241"
+      }
+    ]
+  },
+  {
+    "state": "IN",
+    "game": "p3",
+    "url": "https://www.lottery.net/indiana/daily-3/numbers",
+    "date": "2026-10-19",
+    "fixture": "indiana-daily-3.html",
+    "draws": [
+      {
+        "turn": "MIDDAY",
+        "value": "407"
+      },
+      {
+        "turn": "EVENING",
+        "value": "038"
+      }
+    ]
+  },
+  {
+    "state": "IN",
+    "game": "p4",
+    "url": "https://www.lottery.net/indiana/daily-4/numbers",
+    "date": "2026-10-19",
+    "fixture": "indiana-daily-4.html",
+    "draws": [
+      {
+        "turn": "MIDDAY",
+        "value": "8714"
+      },
+      {
+        "turn": "EVENING",
+        "value": "4658"
+      }
+    ]
+  }
+]

@@ -237,7 +237,9 @@ Nuevo archivo **`tests/browser/rover-safety-audit.user.js`** (`v0.1.0`), indepen
 
 - [x] Revisar en el código fuente conocido la presencia de procesamiento explícito y diferencias entre scripts.
 - [x] Preparar detector pasivo sin lectura de valores y regresión de conviviencia con manejadores hostiles simulados.
-- [ ] Revisar `print()` del detector pasivo en Rover autenticado y comprobar que los manejadores locales no procesen tras actividades de LotteryNet.
+- [x] Ejecutar `print()` en Rover autenticado: 10/10 filas, 50/50 atributos, **cero manejadores inline y propiedades**.
+- [ ] Observar eventos durante actividad normal con `observe()` y `stop()`, distinguiendo contador inactivo de medición real.
+- [ ] Verificar, en un entorno seguro, que el llenado de LotteryNet no provoca procesamiento indirecto.
 - [x] Probar convivencia **simulada** cuando LotteryUSA se utiliza manualmente (Chromium y Firefox): bloqueo de sobrescrituras por LotteryNet, casos parciales y restauración.
 - [ ] Probar la misma convivencia con los userscripts realmente instalados en un entorno real aislado, sin permitir procesamiento.
 - [ ] Auditar DevTools Network con **Preserve log**, incluyendo `__inc/procesarResultados.php`, método, hora e iniciador, sin compartir cabeceras, cookies ni cuerpos de petición.
@@ -293,8 +295,41 @@ Se verifican asimismo: cero POST/PUT/PATCH/DELETE provocados por LotteryNet en e
 
 - [x] Convivencia manual con LotteryUSA simulada en Chromium y Firefox, incluidos conflictos, parciales y secuencias de ejecución.
 - [x] Comportamiento ante escritura concurrente simulado en Node.
-- [ ] Ejecutar \`__LOTTERYNET_SAFETY_QA__.print()\` en Rover autenticado para reconocer listeners **inline** y por propiedad del DOM (no detecta todos los listeners).
+- [x] Ejecutar \`__LOTTERYNET_SAFETY_QA__.print()\` en Rover autenticado: 50 inputs y 0 handlers inline/propiedades; monitor de eventos `eventObserverActive=false` (no medido).
 - [ ] Abrir DevTools Network con **Preserve log** y distinguir las solicitudes propias de Virtual Lotteries por iniciador y lotería; evitar compartir cuerpos, cookies o cabeceras.
 - [ ] Validar efectivamente el llenado con los otros scripts en un entorno real **aislado y autorizado**, demostrando que LotteryNet no inicia ni induce procesamiento.
 
 **Decisión:** el punto de entrada \`src/index.js\` sigue inactivo; sin botón ni AUTO funcional hasta completar los controles pertinentes.
+
+## 16. Diagnóstico pasivo en sesión Rover autenticada — 20/10/2026
+
+**Evidencia remitida por el usuario** mediante `__LOTTERYNET_SAFETY_QA__.print()`, del userscript QA `v0.1.0`:
+
+| Campo observado | Resultado |
+| --- | --- |
+| `dateControlPresent` / `tableFound` | `true` / `true` |
+| `rows` | `247` |
+| Diez sorteos identificados una vez | `10/10` |
+| `badge` correcto | `true` en los diez |
+| Cinco inputs por sorteo | `5` en cada fila, `50/50` total |
+| Atributos `loteria` coherentes | `5` en cada fila, `50/50` total |
+| Manejadores `oninput/onchange/onblur` **inline** | `0` |
+| Manejadores de propiedades DOM `oninput/onchange/onblur` | `0` |
+| Inputs dentro de `form` | `0` |
+| `eventObserverActive` | `false` |
+| `untrustedEvents` | `0` (sin monitor activo) |
+
+**Interpretación precisa:** la estructura, identidad y ausencia de manejadores **directos inline/propiedades** queda verificada en la sesión autenticada. **No puede declararse aprobada la ausencia de eventos sintéticos en vivo**, ya que el observador de eventos todavía no había sido activado (`eventObserverActive: false`). El valor `0` corresponde al contador inactivo. Tampoco es posible inferir del DOM que no existan listeners delegados por `addEventListener`, `MutationObserver`, interceptores de propiedades, peticiones en background o POST de otros scripts. Que los inputs no estén dentro de un `form` solo descarta esa estructura HTML; no elimina los envíos de JavaScript.
+
+Los mensajes de Virtual Lotteries `[Fuentes] Botones instalados` no son evidencia de procesamiento. Ese script utiliza códigos de sorteo diferentes. LotteryUSA comparte las diez filas, pero su llenado es exclusivamente manual mediante botones en la versión revisada. Ninguno de los dos scripts se ha modificado.
+
+### Próximo procedimiento no destructivo
+
+1. Mantener `LotteryNet/src/index.js` **INACTIVO** y el diagnóstico pasivo habilitado; no pulsar Process/Save/Save All.
+2. Ejecutar `__LOTTERYNET_SAFETY_QA__.observe()` para comenzar a contar los eventos **que ocurran normalmente**, sin provocarlos. Cerrar con `__LOTTERYNET_SAFETY_QA__.stop()`. Los contadores no prueban que no existan listeners.
+3. Abrir DevTools → Network, activar **Preserve log**, identificar solicitudes con ruta `__inc/procesarResultados.php`; anotar solo método, marca de tiempo y origen/iniciador, **sin compartir cuerpos, tokens, cookies ni cabeceras**. Distinguir POST independientes de Virtual Lotteries sobre otros códigos de los diez sorteos de LotteryNet.
+4. Si no aparece ningún POST, reportar solo **«sin POST observado durante esta ventana»**, no «procesamiento imposible». Dado que LotteryNet permanece desactivado, esto constituye **línea de base**, no prueba real de llenado ni causalidad.
+5. Antes de habilitar un llenado de LotteryNet, requerir un entorno de ensayo autorizado y aislado o pruebas capaces de bloquear envíos; no disparar un procesamiento real para probar el detector.
+
+**Puerta actual:** manejo inline/propiedades aprobado; monitor de eventos real, auditoría Network y prueba controlada de llenado siguen pendientes.
+

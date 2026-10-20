@@ -1,5 +1,12 @@
 # Changelog
 
+## Diagnóstico pasivo real de manejadores — 2026-10-20
+- El usuario ejecutó el QA pasivo v0.1.0 en Rover autenticado: 247 filas, 10/10 sorteos y 50/50 inputs/códigos correctos.
+- Cero manejadores inline o por propiedades DOM `oninput`/`onchange`/`onblur`; cero inputs dentro de `form`.
+- `eventObserverActive=false`: no se ha medido todavía el tráfico de eventos; no inferir ausencia de listeners delegados ni de POST.
+- Pendiente baseline de Network, atribución de solicitudes y prueba de llenado en entorno seguro. Entrada funcional INACTIVA.
+
+
 ## Regresión de convivencia manual LotteryUSA — 2026-10-20
 - Añadido `tests/browser/manual-usa-overlap.mjs`: prueba aislada Chromium/Firefox del disparo manual mediante la función `triggerInput` original de LotteryUSA v0.6.5, sin API ni Rover real.
 - Verificado que LotteryNet respeta valores manuales diferentes, es idempotente con iguales, completa parciales y se abstiene de restaurar sobre cambios tras Search; el botón de LotteryUSA puede sobrescribir y LotteryNet no lo deshace.

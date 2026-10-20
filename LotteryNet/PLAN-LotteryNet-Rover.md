@@ -347,6 +347,8 @@ Se documentará la alternativa aprobada en `docs/UI-SPEC.md`, incluyendo iconos,
 
 #### 2.7 — Pruebas y criterios de aceptación
 
+**Auditoría pasiva de manejadores reales (20/10/2026):** `rover-safety-audit.user.js` v0.1.0 confirmó en Rover autenticado las 10 identidades, 50 inputs, 50 atributos `loteria` y **0 manejadores inline/propiedades**. El observador estaba **inactivo** (`eventObserverActive=false`), por lo que los contadores de eventos no equivalen a prueba dinámica. Mantener las puertas de Network, listeners delegados y llenado real abiertas. Véase [docs/QA-FASE-2.md](docs/QA-FASE-2.md#16-diagnóstico-pasivo-en-sesión-rover-autenticada--20102026).
+
 **Convivencia manual simulada completada (2026-10-20):** los siete escenarios de LotteryUSA v0.6.5 por botón y el caso de carrera concurrente pasaron en CI con Chromium/Firefox + Node (26/26); sin sobrescribir valores diferentes desde LotteryNet y sin POST provocado en el fixture local. No equivale a la auditoría de Tampermonkey/Network real: las puertas de Fase 2 y Fase 4 permanecen abiertas. [Evidencia QA](docs/QA-FASE-2.md#15-convivencia-manual-lotteryusa-regresión-aislada-completa-2026-10-20).
 
 - [ ] Verificar que todos los estados muestran iconos y mensajes correctos.

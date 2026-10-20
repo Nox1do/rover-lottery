@@ -25,6 +25,15 @@ async function installThroughManager(context, extensionId, scriptPath) {
   await developerMode.waitFor({state: 'attached'});
   if (await developerMode.getAttribute('checked') === null) await developerMode.click();
   await settings.locator('#devMode[checked]').waitFor({state: 'attached'});
+  const allowScripts = settings.locator('#allow-user-scripts cr-toggle');
+  await allowScripts.waitFor({state: 'attached'});
+  if (await allowScripts.getAttribute('checked') === null) await allowScripts.click();
+  await settings.locator('#allow-user-scripts cr-toggle[checked]').waitFor({state: 'attached'});
+  // Chrome 138+ exposes the API only after the extension context reloads.
+  const restarted = context.waitForEvent('serviceworker');
+  await settings.locator('#dev-reload-button').click();
+  const worker = await restarted;
+  await worker.evaluate(() => chrome.userScripts.getScripts());
   const options = await context.newPage();
   await options.goto('chrome-extension://' + extensionId + '/options.html#nav=utils');
   const upload = options.locator('input[type=file]');
@@ -38,7 +47,8 @@ async function installThroughManager(context, extensionId, scriptPath) {
       if (await install.count() && await install.first().isVisible()) {
         await install.first().click();
         console.log('Tampermonkey installation confirmed through manager UI');
-        return {developerMode: true, method: 'Utilities file import and manager confirmation'};
+        return {developerMode: true, allowUserScripts: true, apiAvailableAfterReload: true,
+          method: 'Utilities file import and manager confirmation'};
       }
     }
     await new Promise(resolve => setTimeout(resolve, 100));

@@ -9,7 +9,7 @@
 
 | Comprobación | Resultado | Alcance de la evidencia |
 | --- | --- | --- |
-| Node.js 22, `npm test` | **19/19 OK, 0 fallos** | Suite completa incluida en el repositorio |
+| Node.js 22, `npm test` | **21/21 OK, 0 fallos** | Suite completa incluida en el repositorio, con fechas Rover variantes |
 | `npm run build` | **OK** | Userscript compilado, pero entrada inactiva |
 | `node --check dist/LotteryNet-Rover.user.js` | **OK** | Sintaxis de artefacto |
 | Auditoría del punto de entrada compilado | **OK** | Sin activación de llenado ni AUTO |
@@ -29,7 +29,7 @@ Los cinco campos y ceros iniciales, idempotencia, transiciones de mensajes «Con
 
 ## 2. Puertas pendientes obligatorias para Rover/Tampermonkey real
 
-- [x] Ejecutar `npm test` completo, `npm run build` y revisión de sintaxis en GitHub Actions.
+- [x] Ejecutar `npm test` completo (21 pruebas), `npm run build` y revisión de sintaxis en GitHub Actions.
 - [x] Ejecutar regresión del DOM simulado con Playwright Chromium y Firefox.
 - [ ] Confirmar `.loteria-abrev`, códigos `loteria` e inputs en **cada una de las diez filas del Rover real**.
 - [ ] Validar `#fecha`, Search, cambios de vista, AJAX y fila inexistente en una sesión Rover autenticada.
@@ -47,3 +47,15 @@ El código fuente `src/index.js` continúa **INACTIVO**; no importa ni ejecuta e
 `src/rover/fill-ui.js` asigna solamente `input.value`, sin emisión de eventos `input/change/blur`, clics, guardado ni peticiones HTTP a Rover. Es un mecanismo **preliminar** que exige validación real antes de usarse.
 
 **Regla invariable:** Lottery.net consulta → valida → llena las casillas visibles → informa el estado → termina. **Nunca procesa.**
+
+## 4. Refuerzo de compatibilidad de fecha y diagnóstico seguro — 2026-10-20
+
+Se inspeccionó el código existente `Loterias USA/versions/Rovs-Loterias-USA-v0.6.5.user.js`. Ese userscript contempla `#fecha`, `#fecha_desde` y controles alternativos, con fechas `YYYY-MM-DD`, `YYYY/MM/DD`, `MM/DD/YYYY` y el formato `DD/MM/YYYY` cuando el primer componente supera 12.
+
+LotteryNet ahora valida explícitamente esos formatos sin inferir el día actual. **Dos controles de fecha contradictorios bloquean el llenado.** Esta compatibilidad se incorporó a `src/rover/rows.js` y a pruebas Node; todavía no verifica el DOM autenticado.
+
+**Diagnóstico opcional:** `tests/browser/rover-dom-audit.user.js` es un userscript **independiente, solo lectura**, que ofrece `__LOTTERYNET_DOM_AUDIT__.print()` en la consola de una sesión Rover. Examina exclusivamente las identidades de los diez sorteos, presencia de fecha y nombres/atributos de inputs. No recoge números de resultados, tokens, contraseñas ni sesiones; no envía solicitudes, no cambia inputs y no realiza POST. No está instalado por estas pruebas. No debe confundirse con el userscript funcional.
+
+**Bloqueo confirmado:** el navegador Opera del usuario respondió «Browser not connected» al intentar recuperar pestañas. No fue posible observar el DOM autenticado ni auditar los manejadores reales de `input/change` y la pestaña Network. La prueba final real permanece **PENDIENTE** y la entrada de producción permanece **INACTIVA**.
+
+**Ejecución de referencia con 21/21 Node + Playwright exitosos:** [GitHub Actions 39434128974](https://github.com/Nox1do/rover-lottery/actions/runs/39434128974).

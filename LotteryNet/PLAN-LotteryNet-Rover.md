@@ -252,7 +252,7 @@ Referencias oficiales: [Documentación de Tampermonkey](https://www.tampermonkey
 
 ### Fase 2 — Motor de llenado visual e interfaz Intelligence UI
 
-**Nota de avance (2026-10-20):** existen los módulos de identificación, llenado de valores sin emitir eventos de formulario, caché y renderizado «En fila». **Node 22 (19/19 pruebas), compilación y regresión Playwright (Chromium y Firefox, 16 aserciones cada uno) se verificaron únicamente sobre un DOM simulado.** La entrada del userscript sigue inactiva; **los criterios de salida de Fase 2 no se han superado** porque faltan pruebas de Rover real y Tampermonkey. Evidencia: [docs/QA-FASE-2.md](docs/QA-FASE-2.md).
+**Nota de avance (2026-10-20):** existen los módulos de identificación, llenado de valores sin emitir eventos de formulario, caché y renderizado «En fila». **Node 22 (21/21 pruebas), compilación y regresión Playwright (Chromium y Firefox, 16 aserciones cada uno) se verificaron únicamente sobre un DOM simulado.** La entrada del userscript sigue inactiva; **los criterios de salida de Fase 2 no se han superado** porque faltan pruebas de Rover real y Tampermonkey. Evidencia: [docs/QA-FASE-2.md](docs/QA-FASE-2.md).
 
 **Objetivo:** implementar el llenado seguro de las casillas de Rover e incorporar una interfaz visual que comunique con precisión los estados del sistema, sin realizar ningún procesamiento ni guardado de resultados.
 
@@ -362,6 +362,9 @@ La fase se considerará completada únicamente cuando:
 4. Las pruebas confirmen cero procesamiento y cero guardado automático en Rover.
 
 **Regla invariable:** Lottery.net consulta → valida → llena las casillas → informa visualmente el estado → termina. Nunca procesa.
+
+
+**Compatibilidad observada (2026-10-20):** la implementación reconoce variantes de fecha utilizadas por LotteryUSA v0.6.5, rechazando controles divergentes. Se ha preparado un diagnóstico de DOM **solo lectura** para una sesión Rover autenticada, pero la conexión del navegador sigue indisponible. No confundir pruebas Playwright con datos simulados con validación de Tampermonkey real.
 
 ### Fase 3 — AUTO, botón manual y multitab
 

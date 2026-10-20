@@ -1,5 +1,12 @@
 # Changelog
 
+## Compatibilidad de fecha y auditoría de DOM — 2026-10-20
+- Analizada la lectura de fecha en LotteryUSA v0.6.5; agregado parseo estricto de formatos Rover y detección de controles contradictorios.
+- Suite Node ampliada a **21/21 pruebas aprobadas**; regresión Playwright simulada permanece correcta en Chromium/Firefox.
+- Preparado `tests/browser/rover-dom-audit.user.js` como diagnóstico opcional **solo lectura**, sin captura de números ni red.
+- Opera no conectado: **no se verificó Rover autenticado ni Tampermonkey real**, por lo que el userscript funcional sigue inactivo.
+
+
 ## QA automatizada reproducible — 2026-10-20
 - Nuevo workflow `.github/workflows/lotterynet-qa.yml`: Node 22, `npm test`, `npm run build`, verificación de sintaxis y auditoría de entrada inactiva.
 - **19/19 pruebas unitarias pasan**, sin fallos.

@@ -34,17 +34,18 @@ async function installThroughManager(context, extensionId, scriptPath) {
   while (Date.now() < deadline) {
     for (const candidate of context.pages()) {
       if (!candidate.url().startsWith('chrome-extension://' + extensionId + '/')) continue;
-      const install = candidate.getByRole('button', {name: /^Install$/i});
+      const install = candidate.locator('.ask_action_buttons').getByRole('button', {name: /^(Install|Import)$/i});
       if (await install.count() && await install.first().isVisible()) {
         await install.first().click();
         console.log('Tampermonkey installation confirmed through manager UI');
-        return {developerMode: true, method: 'Utilities file import and Install confirmation'};
+        return {developerMode: true, method: 'Utilities file import and manager confirmation'};
       }
     }
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   for (const candidate of context.pages()) {
     console.log('INSTALL DIAGNOSTIC', candidate.url(), (await candidate.locator('body').innerText().catch(() => '')).slice(0,7000));
+    await candidate.screenshot({path: path.join(directory, 'install-' + context.pages().indexOf(candidate) + '.png')}).catch(() => {});
   }
   throw Error('Tampermonkey did not show its Install confirmation');
 }

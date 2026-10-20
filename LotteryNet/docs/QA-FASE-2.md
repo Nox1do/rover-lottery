@@ -130,3 +130,37 @@ Opera Browser Connector confirmó en modo lectura que Rover mostraba la fecha **
 
 **Operaciones:** no se editaron valores, no se enviaron solicitudes y no se presionaron botones de procesamiento desde el conector. Mantener la entrada del userscript funcional desactivada.
 
+## 8. Rover autenticado — tercera página 201–247 (19/10/2026)
+
+Opera Browser Connector confirmó en modo lectura:
+- Fecha de Rover: **10/19/2026**.
+- Paginación: **«Showing 201 to 247 of 247 entries»**.
+- Dos sorteos pendientes localizados, con cinco inputs accesibles \`primera\`, \`segunda\`, \`tercera\`, \`pick3\` y \`pick4\`:
+
+| Sorteo | Nombre principal visible | Código abreviado visible |
+| --- | --- | --- |
+| \`oh-am\` | OHIO MIDDAY | \`OHIO-MD\` |
+| \`tn-morning\` | TENNESSEE MORNING | \`TN-MORNING\` |
+
+### Consolidado: diez sorteos identificados
+
+Los diez valores \`roverLabel\` de \`src/states/*.js\` coinciden exactamente con los **nombres principales mostrados en el árbol de accesibilidad de Rover**, para la fecha y paginación examinadas.
+
+| ID del proyecto | Nombre principal Rover | Código abreviado Rover | Página |
+| --- | --- | --- | --- |
+| \`fl-am\` | FLORIDA AM | \`FL-AM\` | 2 |
+| \`fl-pm\` | FLORIDA PM | \`FL-PM\` | 1 |
+| \`la-pm\` | LOUISIANA EVENING | \`LOUI-EVEN\` | 1 |
+| \`oh-am\` | OHIO MIDDAY | \`OHIO-MD\` | 3 |
+| \`oh-pm\` | OHIO EVENING | \`OHIO-EVEN\` | 1 |
+| \`tn-morning\` | TENNESSEE MORNING | \`TN-MORNING\` | 3 |
+| \`tn-midday\` | TENNESSEE MIDDAY | \`TN-MD\` | 2 |
+| \`tn-pm\` | TENNESSEE EVENING | \`TN-EVEN\` | 1 |
+| \`in-am\` | INDIANA MIDDAY | \`IN-MD\` | 2 |
+| \`in-pm\` | INDIANA EVENING | \`IN-EVEN\` | 1 |
+
+**Total de identidades visuales: 10/10 confirmadas.** Los números de página se refieren a la tabla paginada de 247 registros observada el 19 de octubre, no al orden fijo de futuras búsquedas.
+
+**Importante:** el código abreviado es **texto visible**, no prueba del contenido de un atributo HTML \`loteria\` ni de un ID de base de datos. El árbol de accesibilidad tampoco verifica \`#tableResult\`, \`.res_tr\`, el HTML crudo ni las acciones de Tampermonkey. La fase de integración real y la auditoría de posibles eventos y POST siguen **pendientes**. No instalar ni activar el llenado funcional hasta concluir esas pruebas.
+
+**Operación de inspección:** sin editar inputs, sin pulsar procesamiento ni enviar resultados. La entrada principal de LotteryNet permanece inactiva.

@@ -7,6 +7,7 @@ export const tennessee = Object.freeze([
     "timeZone": "America/Chicago",
     "turn": "MORNING",
     "roverLabel": "TENNESSEE MORNING",
+    "roverCode": "TN-MORNING",
     "games": [
       "p3",
       "p4"
@@ -19,6 +20,7 @@ export const tennessee = Object.freeze([
     "timeZone": "America/Chicago",
     "turn": "MIDDAY",
     "roverLabel": "TENNESSEE MIDDAY",
+    "roverCode": "TN-MD",
     "games": [
       "p3",
       "p4"
@@ -31,6 +33,7 @@ export const tennessee = Object.freeze([
     "timeZone": "America/Chicago",
     "turn": "EVENING",
     "roverLabel": "TENNESSEE EVENING",
+    "roverCode": "TN-EVEN",
     "games": [
       "p3",
       "p4"

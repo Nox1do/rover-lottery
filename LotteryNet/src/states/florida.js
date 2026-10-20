@@ -7,6 +7,7 @@ export const florida = Object.freeze([
     "timeZone": "America/New_York",
     "turn": "MIDDAY",
     "roverLabel": "FLORIDA AM",
+    "roverCode": "FL-AM",
     "games": [
       "p3",
       "p4"
@@ -19,6 +20,7 @@ export const florida = Object.freeze([
     "timeZone": "America/New_York",
     "turn": "EVENING",
     "roverLabel": "FLORIDA PM",
+    "roverCode": "FL-PM",
     "games": [
       "p3",
       "p4"

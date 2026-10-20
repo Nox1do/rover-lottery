@@ -7,6 +7,7 @@ export const louisiana = Object.freeze([
     "timeZone": "America/Chicago",
     "turn": "EVENING",
     "roverLabel": "LOUISIANA EVENING",
+    "roverCode": "LOUI-EVEN",
     "games": [
       "p3",
       "p4"

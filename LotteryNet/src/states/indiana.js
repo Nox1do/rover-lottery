@@ -7,6 +7,7 @@ export const indiana = Object.freeze([
     "timeZone": "America/New_York",
     "turn": "MIDDAY",
     "roverLabel": "INDIANA MIDDAY",
+    "roverCode": "IN-MD",
     "games": [
       "p3",
       "p4"
@@ -19,6 +20,7 @@ export const indiana = Object.freeze([
     "timeZone": "America/New_York",
     "turn": "EVENING",
     "roverLabel": "INDIANA EVENING",
+    "roverCode": "IN-EVEN",
     "games": [
       "p3",
       "p4"

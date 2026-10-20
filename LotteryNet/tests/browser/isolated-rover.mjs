@@ -11,8 +11,8 @@ import assert from 'node:assert/strict';
 
 const base=fileURLToPath(new URL('../../',import.meta.url));
 const fixtureRow=()=>[
- '<tr class="res_tr"><td><div class="lottery-title"><strong>FLORIDA AM</strong> <span class="loteria-abrev">FL-AM</span></div></td>',
- ...['primera','segunda','tercera','pick3','pick4'].map(k=>'<td><input type="text" name="'+k+'" loteria="111" value=""></td>'),
+ '<tr class="res_tr"><td style="display:none;">13:30:00</td><td><span><span class="loteria-nombre">FLORIDA AM</span><span class="loteria-abrev">FL-AM</span></span></td>',
+ ...['primera','segunda','tercera','pick3','pick4'].map(k=>'<td><input type="text" name="'+k+'" loteria="FL-AM" value=""></td>'),
  '</tr>'
 ].join('');
 const documentHtml='<!doctype html><html><head><meta charset="utf-8"><title>Isolated Rover fixture</title></head><body>'+
@@ -59,7 +59,7 @@ try {
     const {fillVisualInputs}=await import('/src/rover/fill-ui.js');
     const {createVisualCache,restoreVisibleValues}=await import('/src/rover/restore.js');
     const {mountInlineStatus,setInlineStatus,UI_STATES}=await import('/src/ui/controls.js');
-    const draw={id:'fl-am',roverLabel:'FLORIDA AM'};
+    const draw={id:'fl-am',roverLabel:'FLORIDA AM',roverCode:'FL-AM'};
     const date='2026-10-19';
     let events=0;
     for(const type of ['input','change','blur'])document.addEventListener(type,()=>events++,true);
@@ -74,7 +74,7 @@ try {
     mountInlineStatus({root:document,draw,date,state:'COMPLETADO'});
     const inlineCount=document.querySelectorAll('[data-lnr-inline="fl-am"]').length;
     const completed=updated.textContent;
-    const firstCellChildrenBefore=document.querySelectorAll('tr.res_tr:first-child > td:first-child .lnr-inline-state').length;
+    const firstCellChildrenBefore=document.querySelectorAll('tr.res_tr:first-child > td:nth-child(2) .lnr-inline-state').length;
     const existing=document.querySelector('input[name="tercera"]');
     existing.value='91';
     const conflicted=fillVisualInputs({root:document,draw,date,p3:'407',p4:'0832'});
@@ -115,15 +115,19 @@ try {
    assert.equal(auditAfter.matchedRows,2,engine+' audit after cloning two matching rows');
    const probe=await page.evaluate(()=>{
      const body=document.querySelector('#tableResult tbody');
-     const make=html=>{const row=document.createElement('tr');row.innerHTML='<td>'+html+'</td>';body.appendChild(row);};
-     make('<div><strong>OHIO MIDDAY</strong><span>OHIO-MD</span></div>');
-     make('<div><strong>FLORIDA AM MARIAGE PALE</strong><span>FL-AM-MR</span></div>');
+     const add=(name,code)=>{
+       const row=document.createElement('tr');
+       row.innerHTML='<td style="display:none">12:10:00</td><td><span><span class="loteria-nombre">'+name+'</span><span class="loteria-abrev">'+code+'</span></span></td>';
+       body.appendChild(row);
+     };
+     add('OHIO MIDDAY','OHIO-MD');
+     add('FLORIDA AM MARIAGE PALE','FL-AM-MR');
      return window.__LOTTERYNET_DOM_AUDIT__.snapshot();
    });
-   assert.equal(probe.version,'0.3.0',engine);
+   assert.equal(probe.version,'0.4.0',engine);
    assert.equal(probe.candidates.filter(x=>x.target==='OHIO MIDDAY').length,1,engine+' exact code pair');
    assert.equal(probe.candidates.filter(x=>x.target==='FLORIDA AM').length,2,engine+' no derivative collision');
-   assert.ok(probe.nearMatches.some(x=>x.possible.includes('FLORIDA AM')),engine+' derivative reported only');
+   assert.equal(probe.candidates.some(x=>x.target==='FLORIDA AM MARIAGE PALE'),false,engine+' no derivative');
    assert.equal(result.conflict,'CONFLICTO',engine);
    assert.deepEqual(result.conflictValues,['07','08','91','407','0832'],engine);
    assert.equal(result.stored,true,engine);

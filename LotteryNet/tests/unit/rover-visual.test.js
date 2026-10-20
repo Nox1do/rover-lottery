@@ -5,18 +5,18 @@ import {visibleRoverDate,parseRoverDate,primaryRoverName,findUniqueRoverRow} fro
 import {fillVisualInputs,planVisualFill} from '../../src/rover/fill-ui.js';
 import {createVisualCache,restoreVisibleValues} from '../../src/rover/restore.js';
 
-const draw={id:'fl-am',roverLabel:'FLORIDA AM'};
+const draw={id:'fl-am',roverLabel:'FLORIDA AM',roverCode:'FL-AM'};
 const fields=['primera','segunda','tercera','pick3','pick4'];
 function fixture(values=['','','','','']){
   const inputs=fields.map((name,i)=>({name,value:values[i],readOnly:false,disabled:false,
-    getAttribute:key=>key==='loteria'?'111':null,
+    getAttribute:key=>key==='loteria'?'FL-AM':null,
     hasAttribute:key=>key==='loteria'}));
-  const label={textContent:'FLORIDA AM'};
-  const abbreviation={nodeType:1,textContent:'FL-AM',matches:s=>s.includes('.loteria-abrev'),querySelector:()=>null};
-  const cell={childNodes:[{nodeType:3,textContent:label.textContent},abbreviation],
-    querySelector:s=>s==='.loteria-abrev'?abbreviation:null};
-  const row={querySelector:sel=>sel==='td'?cell:sel==='.loteria-abrev'?abbreviation:null,
-    querySelectorAll:sel=>inputs.filter(i=>sel==='input[name="'+i.name+'"]')};
+  const name={textContent:'FLORIDA AM'},badge={textContent:'FL-AM'};
+  const row={querySelectorAll:sel=>sel==='td .loteria-nombre'?[name]:
+    inputs.filter(x=>sel==='input[name="'+x.name+'"]')};
+  const cell={closest:sel=>sel==='tr'?row:null,
+    querySelectorAll:sel=>sel==='.loteria-abrev'?[badge]:sel==='.loteria-nombre'?[name]:[]};
+  name.closest=sel=>sel==='td'?cell:null;
   const table={querySelectorAll:sel=>sel==='tbody tr'?[row]:[]};
   let date='10/19/2026',inputEvents=0;
   const root={
@@ -99,43 +99,18 @@ test('fallar cerradamente ante fechas discrepantes; soportar #fecha_desde',()=>{
  assert.equal(visibleRoverDate(root),null);
 });
 
-test('el nombre principal identifica sorteo; el distintivo de código NO se confunde con nombre',()=>{
-  const cell={
-    childNodes:[
-      {nodeType:3,textContent:'FLORIDA PM '},
-      {nodeType:1,textContent:'FL-PM',matches:s=>s.includes('.loteria-abrev'),querySelector:()=>null}
-    ],querySelector:s=>s==='.loteria-abrev'?{textContent:'FL-PM'}:null
-  };
-  assert.equal(primaryRoverName(cell),'FLORIDAPM');
-  cell.childNodes.push({nodeType:1,textContent:'Casillas completadas',
-    matches:selector=>selector.includes('[data-lnr-inline]'),querySelector:()=>null});
-  assert.equal(primaryRoverName(cell),'FLORIDAPM'); // Own status must not alter identity
-  assert.notEqual(primaryRoverName(cell),'FLPM');
-  const derived={childNodes:[{nodeType:3,textContent:'FLORIDA PM MARIAGE PALE'}]};
-  assert.equal(primaryRoverName(derived),'FLORIDAPMMARIAGEPALE');
-  assert.notEqual(primaryRoverName(derived),'FLORIDAPM');
-  const mixed={childNodes:[{nodeType:3,textContent:'FLORIDA PM'},{nodeType:3,textContent:'OTRO SORTEO'}]};
-  assert.notEqual(primaryRoverName(mixed),'FLORIDAPM'); // unrelated text must not match the approved identity
-  const text = value => ({nodeType:3,textContent:value});
-  const element = (tag,children=[],isBadge=false) => ({
-    nodeType:1,tagName:tag,childNodes:children,
-    matches:selector=>isBadge && selector.includes('.loteria-abrev'),
-    querySelector:()=>null
-  });
-  const nested=element('TD',[element('DIV',[
-    element('STRONG',[text('FLORIDA')]),text(' '),
-    element('B',[text('AM')]),
-    element('SPAN',[text('FL-AM')],true)
-  ])]);
-  assert.equal(primaryRoverName(nested),'FLORIDAAM');
-  const deep=element('TD',[element('DIV',[
-    element('B',[text('FLORIDA AM')]),
-    element('SPAN',[text('FL-AM')],true),
-    element('SPAN',[text('Casillas completadas')],false)
-  ])]);
-  // An unknown unlabeled inline element must not silently be interpreted
-  // as a verified draw name.
-  assert.notEqual(primaryRoverName(deep),'FLORIDAAM');
-  deep.childNodes[0].childNodes[2].matches=selector=>selector.includes('[data-lnr-inline]');
-  assert.equal(primaryRoverName(deep),'FLORIDAAM');
+test('nombre, abreviatura y cinco loteria son independientes',()=>{
+ const f=fixture(),base={root:f.root,draw,date:'2026-10-19'};
+ const ok=findUniqueRoverRow(base);
+ assert.equal(ok.ok,true);
+ assert.equal(ok.code,'FL-AM');
+ assert.equal(primaryRoverName(ok.label),'FLORIDAAM');
+ assert.equal(findUniqueRoverRow({...base,draw:{...draw,roverCode:'FL-AM-MR'}}).status,'CONFLICTO');
+ assert.equal(findUniqueRoverRow({...base,draw:{...draw,roverLabel:'FLORIDA AM MARIAGE PALE'}}).status,'SIN_FILA');
+ f.inputs[0].getAttribute=k=>k==='loteria'?'FL-AM-MR':null;
+ assert.equal(findUniqueRoverRow(base).status,'CONFLICTO');
+});
+test('no aceptar una identidad sin roverCode verificado',()=>{
+ const f=fixture();
+ assert.equal(findUniqueRoverRow({root:f.root,draw:{id:'fl-am',roverLabel:'FLORIDA AM'},date:'2026-10-19'}).status,'SIN_FILA');
 });

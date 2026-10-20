@@ -42,64 +42,46 @@ export function visibleRoverDate(root) {
  return dates.size===1?[...dates][0]:null;
 }
 
-/**
- * Choose the main draw name from the first table cell, never from its abbreviated
- * badge alone. Main text and code appear separately in real Rover accessibility.
- * Exact equality deliberately excludes derivative lotteries such as "FLORIDA PM
- * MARIAGE PALE" when the target is "FLORIDA PM".
- */
-export function primaryRoverName(cell) {
-  if (!cell) return null;
-  const parts = [];
-  // Rover can nest the main name and abbreviation inside the same wrapper:
-  // <td><div><b>FLORIDA AM</b><span class="loteria-abrev">FL-AM</span></div></td>.
-  // Iterate text leaves rather than reading the wrapper's combined textContent.
-  const ignored = '.loteria-abrev,[data-lnr-inline],.lnr-inline-state,[role="status"],' +
-    'a,button,[role="button"],input,select,textarea,script,style,svg,[aria-hidden="true"]';
-  const walk = node => {
-    if (node.nodeType === 3) {
-      const value = String(node.textContent ?? '').trim();
-      if (value) parts.push(value);
-      return;
-    }
-    if (node.nodeType !== 1 || node.matches?.(ignored)) return;
-    for (const child of Array.from(node.childNodes ?? [])) walk(child);
-  };
-  for (const node of Array.from(cell.childNodes ?? [])) walk(node);
-  const value = norm(parts.join(' '));
-  // No fallback to the abbreviated code: a missing main title must fail closed.
-  return value || null;
+/** Rover HTML 2026-10-19: first td hidden (time), second td draw name. */
+export function identifyRoverHeading(row) {
+ if(!row?.querySelectorAll)return null;
+ const names=Array.from(row.querySelectorAll('td .loteria-nombre'));
+ if(names.length!==1)return null;
+ const cell=names[0].closest?.('td');
+ if(!cell||cell.closest?.('tr')!==row)return null;
+ const badges=Array.from(cell.querySelectorAll('.loteria-abrev'));
+ if(badges.length!==1)return null;
+ const label=norm(names[0].textContent);
+ const code=String(badges[0].textContent??'').trim();
+ return label&&code?{label,code,cell}:null;
 }
-
-/**
- * Identity gate: one named row, one date, five uniquely named inputs, and a
- * consistent per-row lottery code. Never assume a row's badge equals its title.
- */
-export function findUniqueRoverRow({root,draw,date}={}) {
-  if (!root?.querySelector || !draw?.roverLabel || !draw?.id || !date)
-    return {ok:false,status:'SIN_FILA',reason:'Identidad/DOM incompletos'};
-  if (visibleRoverDate(root)!==date)
-    return {ok:false,status:'CONFLICTO',reason:'Fecha visible distinta'};
-  const table=root.querySelector('#tableResult');
-  if (!table) return {ok:false,status:'SIN_FILA',reason:'Tabla de loterías sin identificar'};
-  // tr.res_tr is not yet confirmed in the real authenticated DOM. Using every
-  // tbody tr is safe here because the exact identity and all five inputs are
-  // subsequently required.
-  const candidates=Array.from(table.querySelectorAll('tbody tr')).filter(tr=>{
-    const cell=tr.querySelector('td');
-    return primaryRoverName(cell)===norm(draw.roverLabel);
-  });
-  if (candidates.length!==1)
-    return {ok:false,status:'SIN_FILA',reason:candidates.length?'Fila ambigua o duplicada':'Fila no encontrada'};
-  const row=candidates[0];
-  const fields=FIELD_NAMES.map(name=>{
-    const list=Array.from(row.querySelectorAll('input[name="'+name+'"]'));
-    return list.length===1?list[0]:null;
-  });
-  if (fields.some(x=>!x) || new Set(fields).size!==5)
-    return {ok:false,status:'SIN_FILA',reason:'Cinco campos no inequívocos'};
-  const code=String(fields[0].getAttribute('loteria')??'').trim();
-  if (!code || fields.some(x=>x.hasAttribute('loteria') && String(x.getAttribute('loteria')).trim()!==code))
-    return {ok:false,status:'CONFLICTO',reason:'Código de lotería ausente o inconsistente'};
-  return {ok:true,row,fields,code,label:row.querySelector('td')};
+export function primaryRoverName(cell) {
+ if(!cell?.querySelectorAll)return null;
+ const titles=Array.from(cell.querySelectorAll('.loteria-nombre'));
+ return titles.length===1?norm(titles[0].textContent)||null:null;
+}
+/** Exact approved name, badge code, date and all five input codes. */
+export function findUniqueRoverRow({root,draw,date}={}){
+ if(!root?.querySelector||!draw?.id||!draw?.roverLabel||!draw?.roverCode||!date)
+   return {ok:false,status:'SIN_FILA',reason:'Identidad/DOM incompletos'};
+ if(visibleRoverDate(root)!==date)
+   return {ok:false,status:'CONFLICTO',reason:'Fecha visible distinta'};
+ const table=root.querySelector('#tableResult');
+ if(!table)return {ok:false,status:'SIN_FILA',reason:'Tabla no encontrada'};
+ const matches=Array.from(table.querySelectorAll('tbody tr')).map(row=>({row,heading:identifyRoverHeading(row)}))
+   .filter(x=>x.heading?.label===norm(draw.roverLabel));
+ if(matches.length!==1)
+   return {ok:false,status:'SIN_FILA',reason:matches.length?'Fila duplicada':'Fila no encontrada'};
+ const {row,heading}=matches[0];
+ if(heading.code!==draw.roverCode)
+   return {ok:false,status:'CONFLICTO',reason:'Código abreviado inconsistente'};
+ const fields=FIELD_NAMES.map(name=>{
+   const found=Array.from(row.querySelectorAll('input[name="'+name+'"]'));
+   return found.length===1?found[0]:null;
+ });
+ if(fields.some(x=>!x)||new Set(fields).size!==5)
+   return {ok:false,status:'SIN_FILA',reason:'Cinco inputs no inequívocos'};
+ if(fields.some(x=>x.getAttribute('loteria')!==draw.roverCode))
+   return {ok:false,status:'CONFLICTO',reason:'Atributos loteria contradictorios'};
+ return {ok:true,row,fields,code:draw.roverCode,label:heading.cell};
 }

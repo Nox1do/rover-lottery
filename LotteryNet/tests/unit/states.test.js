@@ -7,9 +7,11 @@ test('exactamente 10 sorteos y 5 estados aprobados', () => {
   assert.equal(DRAWS.length, 10);
   assert.deepEqual([...new Set(DRAWS.map(x => x.state))].sort(), ['FL','IN','LA','OH','TN']);
   assert.equal(new Set(DRAWS.map(x => x.id)).size, 10);
+  assert.equal(new Set(DRAWS.map(x => x.roverCode)).size,10);
   for (const draw of DRAWS) {
     assert.deepEqual(draw.games, ['p3', 'p4']);
     assert.ok(draw.roverLabel);
+    assert.ok(draw.roverCode);
     assert.ok(draw.timeZone.startsWith('America/'));
   }
 });

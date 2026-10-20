@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {DRAWS} from '../../src/states/index.js';
+import {verifyScenarios} from './helpers/assert-scenarios.mjs';
 import {installNetworkGuard} from './helpers/network-guard.mjs';
 
 const base = fileURLToPath(new URL('../../', import.meta.url));
@@ -32,6 +32,7 @@ async function resourcesForTest() {
   const add = async (url, relative, contentType) => resources.set(url, {
     body: await readFile(path.join(base, relative), 'utf8'), contentType
   });
+  await add(origin + '/tests/browser/helpers/ten-draw-cases.js', 'tests/browser/helpers/ten-draw-cases.js', 'text/javascript');
   await add(origin + '/', 'tests/fixtures/rover/ten-draws-sanitized.html', 'text/html');
   for (const relative of await readdir(path.join(base, 'src'), {recursive: true})) {
     if (relative.endsWith('.js')) {
@@ -140,142 +141,13 @@ async function verifyNetworkBoundary(browser, resources) {
 
 async function exerciseDraws(page, cases) {
   return page.evaluate(async ({cases, date, postFillObservationMs}) => {
-    const {DRAWS} = await import('/src/states/index.js');
-    const {extractFromPage} = await import('/src/providers/lottery-net.js');
-    const {fillVisualInputs} = await import('/src/rover/fill-ui.js');
-    const {findUniqueRoverRow, FIELD_NAMES} = await import('/src/rover/rows.js');
-    const {createVisualCache, restoreVisibleValues} = await import('/src/rover/restore.js');
-    const {mountInlineStatus, setInlineStatus} = await import('/src/ui/controls.js');
-    const html = new Map(await Promise.all(cases.map(async item => [item.url,
-      await (await fetch(item.url)).text()])));
-    // A fresh, pristine fixture for each scenario avoids inter-test state.
-    const pristine = document.querySelector('#tableResult tbody').innerHTML;
-    const reset = () => {
-      document.querySelector('#tableResult tbody').innerHTML = pristine;
-      document.querySelector('#fecha').value = '10/19/2026';
-    };
-    const events = {input: 0, change: 0, blur: 0};
-    let processClicks = 0;
-    for (const type of Object.keys(events)) document.addEventListener(type, event => {
-      if (!event.target.matches?.('#tableResult input')) return;
-      events[type]++;
-      // Adversarial listener; any event-driven attempt is a functional failure.
-      fetch('/unexpected-event-processing', {method: 'POST'}).catch(() => {});
-    }, true);
-    document.addEventListener('click', event => {
-      if (event.target.matches?.('[data-qa-process]')) processClicks++;
-    });
-    const results = [];
-    for (const draw of DRAWS) {
-      reset();
-      const row = () => findUniqueRoverRow({root: document, draw, date}).row;
-      const values = () => FIELD_NAMES.map(name => row().querySelector('input[name="' + name + '"]').value);
-      const allValues = () => Array.from(document.querySelectorAll('#tableResult input')).map(input => input.value);
-      const otherValues = () => Array.from(document.querySelectorAll('#tableResult input'))
-        .filter(input => input.getAttribute('loteria') !== draw.roverCode).map(input => input.value);
-      const input = game => {
-        const item = cases.find(item => item.state === draw.state && item.game === game);
-        return extractFromPage(html.get(item.url), {state: draw.state, game, date, turn: draw.turn}).value;
-      };
-      const p3 = input('p3'), p4 = input('p4');
-      const fill = (extra = {}) => fillVisualInputs({root: document, draw, date, p3, p4, ...extra});
-      const run = (scenario, action) => { reset(); results.push({id: draw.id, scenario, ...action()}); };
-      run('full', () => {
-        const button = document.createElement('button'); button.dataset.qaProcess = '1';
-        button.textContent = 'Synthetic process sentinel'; row().lastElementChild.append(button);
-        const before = otherValues();
-        const result = fill();
-        const mounted = mountInlineStatus({root: document, draw, date, state: 'CARGANDO'});
-        const loading = mounted.element.textContent;
-        setInlineStatus(mounted.element, 'COMPLETADO');
-        return {result, values: values(), before, after: otherValues(), loading, completed: mounted.element.textContent};
-      });
-      run('idempotent', () => { fill(); return {result: fill(), values: values()}; });
-      run('p3-only', () => ({result: fill({p4: null}), values: values()}));
-      run('p4-only', () => ({result: fill({p3: null}), values: values()}));
-      run('leading-zeros', () => ({result: fill({p3: '007', p4: '0032'}), values: values()}));
-      run('conflict', () => {
-        row().querySelector('[name="pick3"]').value = p3 === '999' ? '998' : '999';
-        const before = allValues(); return {result: fill(), before, after: allValues()};
-      });
-      run('date-changed', () => {
-        document.querySelector('#fecha').value = '10/18/2026';
-        const result = fill(); return {result, all: allValues()};
-      });
-      run('search-restore', () => {
-        const cache = createVisualCache(); cache.remember({draw, date, p3, p4}); fill();
-        document.querySelector('#tableResult tbody').innerHTML = pristine;
-        return {result: restoreVisibleValues({root: document, draw, date, cache}), values: values()};
-      });
-      run('restore-conflict', () => {
-        const cache = createVisualCache(); cache.remember({draw, date, p3, p4});
-        document.querySelector('#tableResult tbody').innerHTML = pristine;
-        row().querySelector('[name="pick3"]').value = p3 === '999' ? '998' : '999';
-        const before = allValues();
-        return {result: restoreVisibleValues({root: document, draw, date, cache}), before, after: allValues()};
-      });
-      run('wrong-code', () => {
-        row().querySelector('input').setAttribute('loteria', 'WRONG-CODE');
-        return {result: fill(), all: allValues()};
-      });
-      run('duplicate-row', () => {
-        row().after(row().cloneNode(true)); return {result: fill(), all: allValues()};
-      });
-      run('missing-row', () => { row().remove(); return {result: fill(), all: allValues()}; });
-    }
-    // Observe browser task turns and fire-and-forget traffic before taking
-    // event/click snapshots. Routing remains active throughout this interval.
-    // This bounds the measurement; it makes no claim about arbitrarily late work.
-    await new Promise(resolve => setTimeout(resolve, postFillObservationMs));
-    return {results, events, processClicks};
+    const {runTenDrawCases} = await import('/tests/browser/helpers/ten-draw-cases.js');
+    const htmlByUrl = Object.fromEntries(await Promise.all(cases.map(async item =>
+      [item.url, await (await fetch(item.url)).text()])));
+    return runTenDrawCases({cases, date, htmlByUrl, postFillObservationMs});
   }, {cases, date, postFillObservationMs});
 }
 
-function verifyScenarios(output, cases) {
-  assert.equal(output.results.length, DRAWS.length * 12);
-  for (const draw of DRAWS) {
-    const value = game => cases.find(item => item.state === draw.state && item.game === game)
-      .draws.find(item => item.turn === draw.turn).value;
-    const p3 = value('p3'), p4 = value('p4');
-    const expected = [p3.slice(-2), p4.slice(0, 2), p4.slice(-2), p3, p4];
-    const rows = output.results.filter(item => item.id === draw.id);
-    assert.equal(rows.length, 12);
-    for (const item of rows) {
-      const label = draw.id + ': ' + item.scenario;
-      if (['full', 'search-restore'].includes(item.scenario)) {
-        assert.equal(item.result.status, 'COMPLETADO', label);
-        assert.equal(item.result.written, 5, label);
-        assert.deepEqual(item.values, expected, label);
-        if (item.scenario === 'full') {
-          assert.deepEqual(item.after, item.before, label + ' other draws unchanged');
-          assert.equal(item.loading, 'Consultando', label);
-          assert.equal(item.completed, 'Casillas completadas', label);
-        }
-      } else if (item.scenario === 'idempotent') {
-        assert.equal(item.result.status, 'COINCIDENTE', label);
-        assert.equal(item.result.written, 0, label);
-        assert.deepEqual(item.values, expected, label);
-      } else if (item.scenario === 'p3-only' || item.scenario === 'p4-only') {
-        assert.equal(item.result.status, 'PARCIAL', label);
-        assert.deepEqual(item.values, item.scenario === 'p3-only'
-          ? [expected[0], '', '', p3, ''] : ['', expected[1], expected[2], '', p4], label);
-      } else if (item.scenario === 'leading-zeros') {
-        assert.equal(item.result.status, 'COMPLETADO', label);
-        assert.deepEqual(item.values, ['07', '00', '32', '007', '0032'], label);
-      } else if (item.before) {
-        assert.equal(item.result.status, 'CONFLICTO', label);
-        assert.deepEqual(item.after, item.before, label);
-      } else {
-        assert.equal(item.result.ok, false, label);
-        assert.equal(item.result.status,
-          ['duplicate-row', 'missing-row'].includes(item.scenario) ? 'SIN_FILA' : 'CONFLICTO', label);
-        assert(item.all.every(value => value === ''), label + ' no writes');
-      }
-    }
-  }
-  assert.deepEqual(output.events, {input: 0, change: 0, blur: 0});
-  assert.equal(output.processClicks, 0);
-}
 
 try {
   report.fixture = JSON.parse(await readFile(path.join(base, 'tests/fixtures/rover/provenance.json')));

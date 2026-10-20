@@ -73,3 +73,34 @@ jobs:
         run: node tests/browser/isolated-rover.mjs
       - name: Verify manual LotteryUSA overlap without processing
         run: node tests/browser/manual-usa-overlap.mjs
+
+  tampermonkey:
+    name: Tampermonkey official extension QA
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: LotteryNet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser tools
+        run: npm install --no-audit --no-fund --no-save playwright@1.56.1
+      - name: Install full Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify official Tampermonkey package
+        run: python3 tests/browser/tampermonkey/prepare-extension.py
+      - name: Inspect extension controls before the isolated fill test
+        run: node tests/browser/tampermonkey/probe.mjs
+      - name: Save QA diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lotterynet-tampermonkey-qa
+          path: |
+            LotteryNet/test-results/tampermonkey/*.json
+            LotteryNet/test-results/tampermonkey/*.png
+          if-no-files-found: ignore

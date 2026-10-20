@@ -116,4 +116,26 @@ test('el nombre principal identifica sorteo; el distintivo de código NO se conf
   assert.notEqual(primaryRoverName(derived),'FLORIDAPM');
   const mixed={childNodes:[{nodeType:3,textContent:'FLORIDA PM'},{nodeType:3,textContent:'OTRO SORTEO'}]};
   assert.equal(primaryRoverName(mixed),null);
+  const text = value => ({nodeType:3,textContent:value});
+  const element = (tag,children=[],isBadge=false) => ({
+    nodeType:1,tagName:tag,childNodes:children,
+    matches:selector=>isBadge && selector.includes('.loteria-abrev'),
+    querySelector:()=>null
+  });
+  const nested=element('TD',[element('DIV',[
+    element('STRONG',[text('FLORIDA')]),text(' '),
+    element('B',[text('AM')]),
+    element('SPAN',[text('FL-AM')],true)
+  ])]);
+  assert.equal(primaryRoverName(nested),'FLORIDAAM');
+  const deep=element('TD',[element('DIV',[
+    element('B',[text('FLORIDA AM')]),
+    element('SPAN',[text('FL-AM')],true),
+    element('SPAN',[text('Casillas completadas')],false)
+  ])]);
+  // An unknown unlabeled inline element must not silently be interpreted
+  // as a verified draw name.
+  assert.notEqual(primaryRoverName(deep),'FLORIDAAM');
+  deep.childNodes[0].childNodes[2].matches=selector=>selector.includes('[data-lnr-inline]');
+  assert.equal(primaryRoverName(deep),'FLORIDAAM');
 });

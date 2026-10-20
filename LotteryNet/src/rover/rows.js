@@ -50,32 +50,25 @@ export function visibleRoverDate(root) {
  */
 export function primaryRoverName(cell) {
   if (!cell) return null;
-  const names=[];
-  if (cell.childNodes) {
-    for (const node of Array.from(cell.childNodes)) {
-      // Node.TEXT_NODE (3) is available in both browsers and test doubles.
-      if (node.nodeType===3) {
-        if (String(node.textContent??'').trim()) names.push(String(node.textContent).trim());
-        continue;
-      }
-      if (node.nodeType!==1) continue;
-      // Only leaf/simple elements: avoid reading the entire cell through nested
-      // badge, action, and icon text, which can create false positives.
-      if (node.matches?.('button,a,input,select,textarea,[role="button"],[role="status"],[data-lnr-inline]')) continue;
-      if (node.querySelector?.('button,a,input,select,textarea,[role="button"]')) continue;
-      if (node.matches?.('.loteria-abrev')) continue;
-      const value=String(node.textContent??'').trim();
-      if (value) names.push(value);
+  const parts = [];
+  // Rover can nest the main name and abbreviation inside the same wrapper:
+  // <td><div><b>FLORIDA AM</b><span class="loteria-abrev">FL-AM</span></div></td>.
+  // Iterate text leaves rather than reading the wrapper's combined textContent.
+  const ignored = '.loteria-abrev,[data-lnr-inline],.lnr-inline-state,[role="status"],' +
+    'button,[role="button"],input,select,textarea,script,style,svg,[aria-hidden="true"]';
+  const walk = node => {
+    if (node.nodeType === 3) {
+      const value = String(node.textContent ?? '').trim();
+      if (value) parts.push(value);
+      return;
     }
-  }
-  // A simple one-label cell in fixtures or an alternative Rover layout.
-  if (!names.length) {
-    const badge=cell.querySelector?.('.loteria-abrev');
-    const own=String(badge?.textContent??'').trim();
-    if (own) names.push(own);
-  }
-  const unique=[...new Set(names.map(norm).filter(Boolean))];
-  return unique.length===1 ? unique[0] : null;
+    if (node.nodeType !== 1 || node.matches?.(ignored)) return;
+    for (const child of Array.from(node.childNodes ?? [])) walk(child);
+  };
+  for (const node of Array.from(cell.childNodes ?? [])) walk(node);
+  const value = norm(parts.join(' '));
+  // No fallback to the abbreviated code: a missing main title must fail closed.
+  return value || null;
 }
 
 /**

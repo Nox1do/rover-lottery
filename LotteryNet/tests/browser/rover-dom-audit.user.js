@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LotteryNet — Auditoría DOM de Rover (SOLO LECTURA)
 // @namespace    noeg.lotterynet.rover.qa
-// @version      0.1.0
+// @version      0.2.0
 // @description  Inspección estructural de filas de loterías sin modificar valores ni consultar la red.
 // @match        https://www.roversport.net/adm/es/lottery.php*
 // @match        https://roversport.net/adm/es/lottery.php*
@@ -39,6 +39,23 @@
     return date.getUTCFullYear()===y&&date.getUTCMonth()+1===m&&date.getUTCDate()===d?
       String(y).padStart(4,'0')+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'):null;
   };
+  const mainName = cell => {
+    if (!cell) return null;
+    const parts = [];
+    const excluded = '.loteria-abrev,[data-lnr-inline],.lnr-inline-state,[role="status"],' +
+      'button,[role="button"],input,select,textarea,script,style,svg,[aria-hidden="true"]';
+    const walk = node => {
+      if (node.nodeType === 3) {
+        const val = String(node.textContent ?? '').trim();
+        if (val) parts.push(val);
+        return;
+      }
+      if (node.nodeType !== 1 || node.matches?.(excluded)) return;
+      for (const child of Array.from(node.childNodes ?? [])) walk(child);
+    };
+    for (const child of Array.from(cell.childNodes ?? [])) walk(child);
+    return normalize(parts.join(' ')) || null;
+  };
   const summary = () => {
     const dateControls=selectors.map(selector=>{
       const el=document.querySelector(selector);
@@ -51,28 +68,27 @@
     const primaryTable=document.querySelector('#tableResult');
     const table=primaryTable ?? (matchedTables.length===1 ? matchedTables[0] : null);
     const rows=Array.from(table?.querySelectorAll('tbody tr')??[]);
-    const candidates=rows.map((row,index)=>{
+    const scanned=rows.map((row,index)=>{
       const cell=row.querySelector('td');
-      const label=row.querySelector('.loteria-abrev')?.textContent?.trim() ?? null;
-      // The real Rover accessibility tree exposes a primary draw name followed
-      // by a separate abbreviated code; never equate the code to the name.
-      const mainCandidates=Array.from(cell?.childNodes ?? [])
-        .filter(n=>n.nodeType===3 || (n.nodeType===1 && !n.matches?.('a,button,input,select,textarea,.loteria-abrev')))
-        .map(n=>String(n.textContent??'').trim()).filter(Boolean);
-      const target=expected.find(x=>mainCandidates.some(n=>normalize(n)===normalize(x))
-        || (mainCandidates.length===0 && normalize(label)===normalize(x)));
-      if(!target)return null;
+      const text=mainName(cell);
+      const target=expected.find(name=>normalize(name)===text) ?? null;
+      return {row,index,cell,target};
+    });
+    const candidates=scanned.filter(x=>x.target).map(({row,index,cell,target})=>{
+      // Inputs are described structurally; .value is never read.
       const inputs=Array.from(row.querySelectorAll('input')).map(el=>({
         name:el.getAttribute('name'),type:el.getAttribute('type'),hasLoteria:el.hasAttribute('loteria'),
         disabled:el.disabled,readOnly:el.readOnly
       }));
-      return {index,target,shortCodePresent:!!label,mainNameFound:mainCandidates.some(n=>normalize(n)===normalize(target)),
-        resTr:row.classList.contains('res_tr'),inputs};
-    }).filter(Boolean);
+      return {index,target,shortCodePresent:!!cell?.querySelector('.loteria-abrev'),
+        mainNameFound:true,resTr:row.classList.contains('res_tr'),inputs};
+    });
     const missing=expected.filter(x=>!candidates.some(c=>c.target===x));
     const duplicate=expected.filter(x=>candidates.filter(c=>c.target===x).length>1);
     return {audit:'LotteryNet DOM (read-only)',dateControls,tableFound:!!table,tableResultSelectorFound:!!primaryTable,
-      tableRows:rows.length,candidates,missing,duplicate};
+      tableRows:rows.length,matchedRows:candidates.length,
+      inspectedRows:scanned.length,rowsWithoutReadableMainName:scanned.filter(x=>!mainName(x.cell)).length,
+      candidates,missing,duplicate};
   };
   const api=Object.freeze({
     snapshot:summary,
@@ -80,6 +96,8 @@
       const data=summary();
       console.info('[LotteryNet DOM audit] Read-only — no result values collected.');
       console.table(data.dateControls);
+      console.info('Estructura:', {filas:data.inspectedRows, coincidencias:data.matchedRows,
+        sinNombrePrincipal:data.rowsWithoutReadableMainName, tablaIdentificada:data.tableResultSelectorFound});
       console.table(data.candidates.map(({target,mainNameFound,shortCodePresent,resTr,inputs})=>({
         target,mainNameFound,shortCodePresent,resTr,fields:inputs.map(x=>x.name).join(','),
         loteriaAttrs:inputs.filter(x=>x.hasLoteria).length

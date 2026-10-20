@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 const base=fileURLToPath(new URL('../../',import.meta.url));
 const fixtureRow=()=>[
- '<tr class="res_tr"><td>FLORIDA AM <span class="loteria-abrev">FL-AM</span></td>',
+ '<tr class="res_tr"><td><div class="lottery-title"><strong>FLORIDA AM</strong> <span class="loteria-abrev">FL-AM</span></div></td>',
  ...['primera','segunda','tercera','pick3','pick4'].map(k=>'<td><input type="text" name="'+k+'" loteria="111" value=""></td>'),
  '</tr>'
 ].join('');
@@ -27,11 +27,11 @@ const server=createServer(async(req,res)=>{
   res.end(documentHtml);
   return;
  }
- if(!pathName.startsWith('/src/')||!pathName.endsWith('.js')){
+ if(!(pathName.startsWith('/src/') || pathName==='/tests/browser/rover-dom-audit.user.js') || !pathName.endsWith('.js')){
   res.statusCode=404;res.end('Not found');return;
  }
  const file=path.resolve(base,'.'+pathName);
- if(!file.startsWith(path.join(base,'src')+path.sep)){
+ if(!(file.startsWith(path.join(base,'src')+path.sep) || file===path.join(base,'tests/browser/rover-dom-audit.user.js'))){
   res.statusCode=403;res.end('Forbidden');return;
  }
  try{
@@ -51,6 +51,10 @@ try {
     if(request.method()!=='GET'||request.url().includes('/__inc/'))outgoing.push(request.method()+' '+request.url());
    });
    await page.goto('http://127.0.0.1:'+port+'/',{waitUntil:'load'});
+   await page.addScriptTag({url:'http://127.0.0.1:'+port+'/tests/browser/rover-dom-audit.user.js'});
+   const auditBefore=await page.evaluate(()=>window.__LOTTERYNET_DOM_AUDIT__.snapshot());
+   assert.equal(auditBefore.matchedRows,1,engine+' audit nested title');
+   assert.equal(auditBefore.candidates[0].target,'FLORIDA AM',engine+' audit primary label');
    const result=await page.evaluate(async()=>{
     const {fillVisualInputs}=await import('/src/rover/fill-ui.js');
     const {createVisualCache,restoreVisibleValues}=await import('/src/rover/restore.js');
@@ -107,6 +111,8 @@ try {
    assert.equal(result.completed,'Casillas completadas',engine);
    assert.equal(result.inlineCount,1,engine);
    assert.equal(result.firstCellChildrenBefore,1,engine);
+   const auditAfter=await page.evaluate(()=>window.__LOTTERYNET_DOM_AUDIT__.snapshot());
+   assert.equal(auditAfter.matchedRows,2,engine+' audit after cloning two matching rows');
    assert.equal(result.conflict,'CONFLICTO',engine);
    assert.deepEqual(result.conflictValues,['07','08','91','407','0832'],engine);
    assert.equal(result.stored,true,engine);
@@ -117,7 +123,7 @@ try {
    assert.equal(result.events,0,engine);
    assert.equal(result.states,9,engine);
    assert.deepEqual(outgoing,[],engine);
-   console.log(engine+' isolated fixture PASS — 16 assertions, no Rover writes, no input/change/blur events');
+   console.log(engine+' isolated fixture PASS — nested names + read-only audit, no Rover writes, no input/change/blur events');
   } finally {await browser.close();}
  }
 } finally {await new Promise(resolve=>server.close(resolve));}

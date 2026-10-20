@@ -164,3 +164,15 @@ Los diez valores \`roverLabel\` de \`src/states/*.js\` coinciden exactamente con
 **Importante:** el código abreviado es **texto visible**, no prueba del contenido de un atributo HTML \`loteria\` ni de un ID de base de datos. El árbol de accesibilidad tampoco verifica \`#tableResult\`, \`.res_tr\`, el HTML crudo ni las acciones de Tampermonkey. La fase de integración real y la auditoría de posibles eventos y POST siguen **pendientes**. No instalar ni activar el llenado funcional hasta concluir esas pruebas.
 
 **Operación de inspección:** sin editar inputs, sin pulsar procesamiento ni enviar resultados. La entrada principal de LotteryNet permanece inactiva.
+
+## 9. Diagnóstico sin coincidencias con tabla válida (2026-10-20)
+
+El usuario ejecutó `__LOTTERYNET_DOM_AUDIT__.print()` en Rover autenticado: `#fecha` válido (`2026-10-19`), `#tableResult` presente, `tableRows: 247`, pero `candidates: []` y las diez identidades ausentes. Repitió con `2026-10-20`: `tableRows: 14`, `candidates: []`.
+
+**Interpretación:** la lectura de fecha/tabla funciona; el filtro del nombre principal falla. La versión anterior solo leía los elementos hijos directos y podía concatenar el nombre con el distintivo abreviado dentro de un mismo contenedor HTML.
+
+**Corrección candidata:** lectura recursiva de nodos de texto, excluyendo `.loteria-abrev`, indicadores propios y controles. Diagnóstico **0.2.0**, con conteos `inspectedRows`, `matchedRows`, `rowsWithoutReadableMainName`. Pruebas automatizadas con HTML **simulado** que reproduce un contenedor anidado; hasta recibir nuevo informe del diagnóstico, **la causa DOM real sigue sin verificarse**.
+
+El `SyntaxError: unexpected token: identifier` comunicado ocurrió durante una entrada adicional de consola; el `print()` independiente devuelve datos, por lo que ese error no demuestra que falle el userscript.
+
+**Seguridad:** sin operaciones sobre inputs, sin red, sin procesamiento, sin entrada funcional activa.

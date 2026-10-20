@@ -1,5 +1,11 @@
 # Changelog
 
+## Auditoría de nombres anidados — 2026-10-20
+- Corregido localizador de nombre principal para recorrer nodos de texto anidados e ignorar códigos abreviados, controles e indicadores, sin modificar Rover.
+- Diagnóstico independiente de solo lectura actualizado a `0.2.0`, con conteos estructurales para distinguir `tabla encontrada` de `sorteos identificados`.
+- Nuevas regresiones Node y Playwright para un nombre dentro de `div`/`strong` junto a `span.loteria-abrev`, sin asumir aún la estructura definitiva de Rover.
+- Mantener scripts funcionales inactivos; el nuevo diagnóstico debe ejecutarse en la página autenticada y confirmarse antes de habilitar escritura.
+
 ## Compatibilidad de fecha y auditoría de DOM — 2026-10-20
 - Analizada la lectura de fecha en LotteryUSA v0.6.5; agregado parseo estricto de formatos Rover y detección de controles contradictorios.
 - Suite Node ampliada a **21/21 pruebas aprobadas**; regresión Playwright simulada permanece correcta en Chromium/Firefox.

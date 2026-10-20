@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 2026-10-20 (Fase 1 parcial, sin distribución)
+- Capturados diez fragmentos HTML auténticos del 19 de octubre para FL, LA, OH, TN e IN.
+- Añadidos extractor puro de fecha/turno/posiciones, validación de origen y exclusión de bolas especiales.
+- Añadido proveedor Lottery.net y transporte exclusivamente GET, sin uso en entrada principal.
+- Añadidas pruebas de fixtures, fechas erróneas y ambigüedad.
+- Se mantienen desactivados AUTO, UI, llenado y procesamiento. Pruebas de navegador pendientes.
+
+
 ## 0.1.0 — 2026-10-19
 - Estructura `LotteryNet/` creada sin alterar proyectos existentes.
 - Copia del plan maestro y reglas `AGENTS.md`.

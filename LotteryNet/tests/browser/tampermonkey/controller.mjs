@@ -90,6 +90,8 @@ try {
   let worker = context.serviceWorkers()[0];
   if (!worker) worker = await context.waitForEvent('serviceworker', {timeout: 20000});
   const extensionId = worker.url().split('/')[2];
+  context.on('console', message => console.log('BROWSER CONSOLE', message.type(), message.text().slice(0, 2000)));
+  context.on('weberror', error => console.log('BROWSER ERROR', error.error().message));
   report.extensionId = extensionId;
   report.browser = context.browser()?.version();
   if (phase === 'preflight') report.installation = await installThroughManager(context, extensionId, scriptPath);
@@ -119,6 +121,22 @@ try {
   console.log('Tampermonkey ' + phase + ' PASS', JSON.stringify(report.manager));
 } catch (error) {
   report.status = 'FAIL'; report.error = error.message;
+  if (context) {
+    for (const worker of context.serviceWorkers()) {
+      const registration = await worker.evaluate(async () => {
+        try {return {scripts: await chrome.userScripts.getScripts()};}
+        catch (error) {return {error: error.message};}
+      }).catch(error => ({error: error.message}));
+      console.log('USERSCRIPT REGISTRATION', JSON.stringify(registration).slice(0, 8000));
+    }
+    for (const candidate of context.pages()) {
+      if (candidate === page) continue;
+      console.log('MANAGER DIAGNOSTIC', candidate.url(), (await candidate.locator('body').innerText().catch(() => '')).slice(0,7000));
+    }
+    const settings = await context.newPage();
+    await settings.goto('chrome://extensions/');
+    console.log('CHROMIUM EXTENSIONS', await settings.locator('body').innerText());
+  }
   if (page) {
     await page.screenshot({path: path.join(directory, phase + '-failure.png')}).catch(() => {});
     console.log('QA PAGE DIAGNOSTIC', (await page.locator('body').innerText().catch(() => '')).slice(-6000));

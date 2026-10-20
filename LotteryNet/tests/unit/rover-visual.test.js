@@ -12,7 +12,7 @@ function fixture(values=['','','','','']){
     getAttribute:key=>key==='loteria'?'111':null,
     hasAttribute:key=>key==='loteria'}));
   const label={textContent:'FLORIDA AM'};
-  const abbreviation={nodeType:1,textContent:'FL-AM',matches:s=>s==='.loteria-abrev',querySelector:()=>null};
+  const abbreviation={nodeType:1,textContent:'FL-AM',matches:s=>s.includes('.loteria-abrev'),querySelector:()=>null};
   const cell={childNodes:[{nodeType:3,textContent:label.textContent},abbreviation],
     querySelector:s=>s==='.loteria-abrev'?abbreviation:null};
   const row={querySelector:sel=>sel==='td'?cell:sel==='.loteria-abrev'?abbreviation:null,
@@ -103,7 +103,7 @@ test('el nombre principal identifica sorteo; el distintivo de código NO se conf
   const cell={
     childNodes:[
       {nodeType:3,textContent:'FLORIDA PM '},
-      {nodeType:1,textContent:'FL-PM',matches:s=>s==='.loteria-abrev',querySelector:()=>null}
+      {nodeType:1,textContent:'FL-PM',matches:s=>s.includes('.loteria-abrev'),querySelector:()=>null}
     ],querySelector:s=>s==='.loteria-abrev'?{textContent:'FL-PM'}:null
   };
   assert.equal(primaryRoverName(cell),'FLORIDAPM');

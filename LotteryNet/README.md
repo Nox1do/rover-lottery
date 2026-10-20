@@ -2,7 +2,7 @@
 
 Proyecto **independiente** en el monorrepositorio [rover-lottery](https://github.com/Nox1do/rover-lottery), alojado exclusivamente en `LotteryNet/`.
 
-> **Estado: SCAFFOLD / NO INSTALAR EN PRODUCCIÓN.** Esta primera entrega solo prepara la estructura; **no consulta resultados, no llena casillas y no procesa**.
+> **Estado: Fase 2, módulos visuales implementados como componentes INACTIVOS. NO INSTALAR EN PRODUCCIÓN.** La entrada no consulta, llena, guarda ni procesa resultados. Queda pendiente la prueba en Rover real.
 
 ## Objetivo aprobado
 Extraer los resultados de [Lottery.net](https://www.lottery.net/) y llenar **solo los inputs visibles** de Rover, mediante AUTO y botón manual. **Nunca** enviar ni confirmar resultados al backend de Rover.
@@ -21,6 +21,8 @@ Extraer los resultados de [Lottery.net](https://www.lottery.net/) y llenar **sol
 ## Documentos obligatorios
 - [PLAN-LotteryNet-Rover.md](./PLAN-LotteryNet-Rover.md): fuente de verdad del alcance, fases, riesgos y aceptación.
 - [AGENTS.md](./AGENTS.md): reglas para agentes y sesiones de desarrollo.
+- [docs/UI-SPEC.md](./docs/UI-SPEC.md): diseño «En fila», iconos y nueve textos aprobados.
+- [docs/QA-FASE-2.md](./docs/QA-FASE-2.md): pruebas ejecutadas y puertas pendientes.
 - [CHANGELOG.md](./CHANGELOG.md): historial.
 
 ## Herramientas de desarrollo
@@ -41,7 +43,7 @@ El comando `build` generará `dist/LotteryNet-Rover.user.js` y `dist/LotteryNet-
 - `src/providers/`: una sola fuente externa, Lottery.net.
 - `src/parsers/`: parser común y variantes Fireball/Wild Ball/Super Ball.
 - `src/rover/`: identidad de fila, **escritura visual solamente**, restauración.
-- `src/ui/`: activación AUTO y control de consulta manual.
+- `src/ui/`: indicador de fila implementado; botón manual y AUTO aún no activados.
 - `tests/unit/`: tests ejecutables hoy; `tests/fixtures/`, `tests/integration/`, `tests/browser/`: pendientes.
 - `scripts/`: construcción del userscript y metadatos.
 

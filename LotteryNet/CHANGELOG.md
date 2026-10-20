@@ -1,5 +1,14 @@
 # Changelog
 
+## Fase 2 — Módulos experimentales inactivos (2026-10-20)
+- Localización estricta por fila, fecha y cinco inputs con bloqueo de ambigüedades.
+- Llenado visual idempotente y cache/restauración por fecha, sin eventos sintéticos ni HTTP a Rover.
+- Iconos lineales y nueve estados del diseño «En fila», con accesibilidad y movimiento reducido.
+- Añadidas pruebas unitarias de DOM simulado; 20 comprobaciones directas de lógica superadas.
+- Pendientes: ejecutar `npm test`, integración con Rover y pruebas de navegador + Network con otros scripts.
+- Entrada y AUTO inactivos; sin procesamiento ni lanzamiento de producción.
+
+
 ## Especificación visual aprobada — 2026-10-20
 - Seleccionada distribución **En fila**, iconografía **Lineal** y mensajes exactos de los nueve estados.
 - Creado `docs/UI-SPEC.md` con diseño estructural, comportamiento, accesibilidad, transiciones y criterios de aceptación.

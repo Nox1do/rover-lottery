@@ -86,13 +86,15 @@ La UI no ejecutará solicitudes de guardado, procesado, confirmación o publicac
 | Representación visual `En fila` e iconografía lineal | 2.2–2.4 | **Aprobado por el usuario** |
 | Textos canónicos de los nueve estados | 2.3 | **Aprobados por el usuario** |
 | `docs/UI-SPEC.md` y alineación con plan maestro | 2.4 | **Documentado** |
-| Localizador seguro de filas e inputs de Rover | 2.1 | Pendiente de integración y prueba |
-| Indicadores reales montados en Rover | 2.5 | Pendiente de implementación |
-| Llenado de inputs, detección de conflictos y restauración | 2.5–2.6 | Pendiente de implementación y prueba |
+| Localizador seguro de filas e inputs de Rover | 2.1 | Código implementado; pendiente prueba con DOM real |
+| Indicadores reales montados en Rover | 2.5 | Renderizador implementado, entrada inactiva; pendiente integración en navegador |
+| Llenado de inputs, detección de conflictos y restauración | 2.5–2.6 | Módulos implementados e inactivos; pendientes pruebas reales |
 | Botón funcional, AUTO, multitab y reintentos | 3 | Pendiente |
 | Pruebas de navegador y ausencia de POST/guardado accidental | 4 | Pendiente |
 
 **La aprobación visual NO autoriza activar el llenado o publicar un userscript funcional sin pasar sus respectivas pruebas.**
+
+**Implementación técnica preliminar (2026-10-20):** los nueve estados del renderizador se han comprobado mediante pruebas directas; `src/index.js` permanece inactivo. No se ha verificado su integración real con Rover ni con otros userscripts. Véase [QA-FASE-2.md](QA-FASE-2.md).
 
 ## 6. Criterios de aceptación de la implementación
 

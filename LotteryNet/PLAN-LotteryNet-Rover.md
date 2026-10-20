@@ -1,7 +1,7 @@
 # PLAN MAESTRO — Lottery.net → Rover
 
 > **Documento rector del proyecto** · Versión del plan: **1.1.0** · Fecha: **2026-10-19**  
-> **Estado:** esqueleto inicial preparado; extractores, UI y automatización pendientes de implementación y validación.  
+> **Estado:** Fase 1 con extractores iniciales; Fase 2 con motor de llenado visual e indicadores lineales implementados como módulos **inactivos**. Integración y pruebas de navegador pendientes.  
 > **Fuente de datos exclusiva:** https://www.lottery.net/  
 > **Plataforma:** Tampermonkey sobre Rover (`/adm/es/lottery.php`).
 
@@ -251,6 +251,8 @@ Referencias oficiales: [Documentación de Tampermonkey](https://www.tampermonkey
 **Puerta:** las pruebas automatizadas de extracción y validación pasan para todos los sorteos soportados.
 
 ### Fase 2 — Motor de llenado visual e interfaz Intelligence UI
+
+**Nota de avance (2026-10-20):** existen los módulos de identificación, llenado de valores sin emitir eventos de formulario, caché y renderizado «En fila». La entrada del userscript sigue inactiva y **los criterios de salida de Fase 2 no se han superado**. Los riesgos restantes constan en [docs/QA-FASE-2.md](docs/QA-FASE-2.md).
 
 **Objetivo:** implementar el llenado seguro de las casillas de Rover e incorporar una interfaz visual que comunique con precisión los estados del sistema, sin realizar ningún procesamiento ni guardado de resultados.
 

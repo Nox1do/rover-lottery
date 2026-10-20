@@ -21,4 +21,4 @@
 7. Actualizar CHANGELOG y el plan **solo** con decisiones autorizadas.
 
 ## Estado actual
-**ESQUELETO, NO FUNCIONAL.** El punto de entrada no consulta Lottery.net, no arranca AUTO y no modifica casillas. No habilitar funcionalidades antes de completar las puertas del plan.
+**FASE 2, MÓDULOS INACTIVOS.** Existen módulos de identidad de filas, llenado sin eventos, caché visual e indicadores «En fila». `src/index.js` no los importa ni ejecuta. AUTO y botón pertenecen a Fase 3. La integración real en Rover no está validada; no activar funciones hasta superar las pruebas de navegador y la auditoría de Network descritas en `docs/QA-FASE-2.md`.

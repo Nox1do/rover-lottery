@@ -81,3 +81,35 @@ El **Opera Browser Connector está conectado**. Se accedió en modo lectura a la
 **Riesgo por resolver:** el nombre visible de una lotería no es necesariamente su código abreviado. La identidad debe obtenerse de una fuente DOM inequívoca, sin comparar por suposición el texto de un distintivo de código con el nombre principal.
 
 **Paso siguiente:** visualizar en Rover una fecha con sorteos de Florida, Louisiana, Ohio, Tennessee o Indiana y ejecutar la auditoría DOM opcional **solo lectura** (`tests/browser/rover-dom-audit.user.js`) en la sesión de Tampermonkey real. Si no está disponible un puente de consola, será necesario entregar la tabla estructural resultante para validar selectores. **Mantener `src/index.js` inactivo.**
+
+## 6. Rover autenticado — 19/10/2026 (observación de tabla, solo lectura)
+
+El usuario seleccionó `10/19/2026` y ejecutó Search. Se inspeccionó directamente la pestaña Rover mediante Opera Browser Connector, **sin cambiar inputs ni activar botones de fila**.
+
+- Fecha visible: **10/19/2026**.
+- DataTable: **247 registros**; muestra **1–100** en la primera página.
+- Los cinco nombres de inputs son `primera`, `segunda`, `tercera`, `pick3`, `pick4` en las filas visibles.
+- Coincidencias exactas confirmadas en la **primera página**, con nombre principal seguido de código visible independiente:
+
+| Sorteo del proyecto | Nombre principal en Rover | Código visible |
+| --- | --- | --- |
+| `in-pm` | INDIANA EVENING | `IN-EVEN` |
+| `la-pm` | LOUISIANA EVENING | `LOUI-EVEN` |
+| `fl-pm` | FLORIDA PM | `FL-PM` |
+| `oh-pm` | OHIO EVENING | `OHIO-EVEN` |
+| `tn-pm` | TENNESSEE EVENING | `TN-EVEN` |
+
+**No verificados aún en las páginas 2–3:** FLORIDA AM, OHIO MIDDAY, TENNESSEE MORNING, TENNESSEE MIDDAY e INDIANA MIDDAY. La ausencia en las primeras 100 filas **no significa ausencia en los 247 registros**.
+
+### Ajustes derivados
+
+1. `src/rover/rows.js` ahora busca el **nombre principal exacto en la primera celda** y no presupone que `.loteria-abrev` contiene el nombre: la etiqueta secundaria puede representar el código. Se evita así vincular `FLORIDA PM` a `FLORIDA PM MARIAGE PALE`.
+2. `src/ui/controls.js` monta el estado en la **primera celda** y no añade una columna a la tabla.
+3. El localizador excluye el propio `[data-lnr-inline]` de la identidad; se añadió regresión en tests.
+4. El diagnóstico `tests/browser/rover-dom-audit.user.js` separa nombre principal y abreviatura, sin recopilar valores de resultados.
+
+**Alcance de la verificación:** los textos y nombres accesibles están confirmados mediante el árbol de Opera. No se ha podido inspeccionar el HTML crudo, atributos `loteria`, id de tabla, clases `res_tr` o manejadores de eventos. Las nuevas reglas DOM son hipótesis seguras sujetas a esa verificación. La entrada sigue desactivada y no debe ejecutarse llenado en Rover real.
+
+### Pruebas
+
+La actualización introduce regresiones unitarias y Playwright con **nombre principal + distintivo de código**. El resultado definitivo debe citar una ejecución GitHub Actions posterior a estos cambios. Las ejecuciones intermedias pueden fallar mientras se ajustan fixtures; no declararlas representativas de una versión final.

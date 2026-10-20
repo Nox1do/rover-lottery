@@ -58,7 +58,7 @@
         name:el.getAttribute('name'),type:el.getAttribute('type'),hasLoteria:el.hasAttribute('loteria'),
         disabled:el.disabled,readOnly:el.readOnly
       }));
-      return {index,target,label,firstCell:firstCell.slice(0,65),
+      return {index,target,label:normalize(label)===normalize(target)?target:null,
         resTr:row.classList.contains('res_tr'),inputs};
     }).filter(Boolean);
     const missing=expected.filter(x=>!candidates.some(c=>c.target===x));

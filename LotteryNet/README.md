@@ -45,7 +45,8 @@ El comando `build` generará `dist/LotteryNet-Rover.user.js` y `dist/LotteryNet-
 - `src/rover/`: identidad de fila, **escritura visual solamente**, restauración.
 - `src/ui/`: indicador de fila implementado; botón manual y AUTO aún no activados.
 - `tests/unit/`: suite ejecutada (21/21, Node 22).
-- `tests/browser/isolated-rover.mjs`: regresión de DOM simulado con Chromium y Firefox (16 aserciones por navegador).
+- `tests/browser/isolated-rover.mjs`: regresión de DOM simulado y convivencia adversaria con Chromium y Firefox.
+- `tests/browser/rover-safety-audit.user.js`: diagnóstico pasivo de manejadores inline y eventos en Rover real; no altera resultados.
 - `.github/workflows/lotterynet-qa.yml`: CI para pruebas, compilación y auditoría de entrada inactiva.
 - Pruebas en Rover real y Tampermonkey siguen **pendientes**.
 - `scripts/`: construcción del userscript y metadatos.
@@ -57,6 +58,8 @@ El comando `build` generará `dist/LotteryNet-Rover.user.js` y `dist/LotteryNet-
 **Compatibilidad de fechas:** `src/rover/rows.js` valida distintas representaciones documentadas por el script LotteryUSA y rechaza controles contradictorios, sin asumir la fecha actual.
 
 **Diagnóstico opcional de Rover:** `tests/browser/rover-dom-audit.user.js` (solo lectura; sin envío de datos ni cambios de inputs). Requiere una sesión Rover autenticada para ofrecer evidencia, todavía no disponible desde el navegador conectado.
+
+**Prueba de convivencia:** [docs/QA-FASE-2.md](docs/QA-FASE-2.md) documenta la ruta independiente de POST de Virtual Lotteries y la separación entre pruebas simuladas y captura real de Network. El diagnóstico pasivo `__LOTTERYNET_SAFETY_QA__.print()` no demuestra por sí solo ausencia de procesamiento.
 
 ## Puertas de desarrollo
 Antes de implementar el llenado, validar las 10 páginas de juegos 3/4 en Lottery.net, su HTML, el DOM de Rover tras Search y la seguridad de los eventos `input/change` cuando otros userscripts están instalados. No elegir valores definitivos de cadence AUTO o política multihost sin pruebas/aprobación.

@@ -1,5 +1,13 @@
 # Changelog
 
+## Seguridad y coexistencia: auditoría preliminar (2026-10-20)
+- Revisión estática de Virtual Lotteries, LotteryUSA, Loterías RD y LotteryNet para identificar POST, manejadores y observadores.
+- Implementado diagnóstico pasivo de Rover `tests/browser/rover-safety-audit.user.js` v0.1.0, sin lectura de números ni eventos sintéticos.
+- Regresión Playwright con listeners hostiles que intentarían procesar por `input/change/blur`; comprobación de ausencia de activación por LotteryNet en la simulación.
+- Suite estática de seguridad adicional para la ruta de escritura visual; se mantiene la entrada funcional inactiva.
+- Pendiente auditar los scripts realmente instalados, listeners ocultos y Network real para garantizar A19.
+
+
 ## Auditoría DOM autenticada superada — 2026-10-20
 - Confirmación directa del diagnóstico v0.4.0 en Tampermonkey/Rover: 247 filas inspeccionadas y 10/10 identidades correctas.
 - En cada sorteo: nombre principal, código abreviado y los cinco atributos `loteria` coinciden.

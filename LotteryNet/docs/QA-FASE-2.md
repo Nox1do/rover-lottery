@@ -208,3 +208,39 @@ Diagnóstico v0.4.0 ejecutado en una sesión real de Tampermonkey, para la fecha
 **Conclusión:** identificación estructural de las diez loterías confirmada en Rover real; ya no existe el fallo de `matchedRows: 0`. El extracto de consola no muestra explícitamente los arrays expandidos `missing` y `duplicate`, pero las diez etiquetas distintas reportadas cubren el alcance aprobado.
 
 **Pendiente:** probar eventos, coexistencia con los otros userscripts, restauración con Search y Network para demostrar **cero procesamiento/guardado**. El diagnóstico fue de solo lectura; no habilita ni ejecuta llenado real. `src/index.js` permanece inactivo.
+
+## 13. Auditoría de convivencia: eventos y procesamiento (2026-10-20)
+
+### Evidencia de código estático
+
+Se inspeccionaron los scripts de referencia existentes en este repositorio, sin ejecutar solicitudes contra Rover:
+
+- `src/rover/fill-ui.js`: asigna `input.value` directamente y **no invoca** `dispatchEvent`, `fetch`, `click` ni rutas de procesamiento. Esta observación se complementa con pruebas y sigue condicionada a que otro script no intercepte el setter `value`.
+- `Loterias USA/versions/Rovs-Loterias-USA-v0.6.5.user.js`: `triggerInput()` emite `input`, `change` y `blur`. Su POST examinado es autenticación **a API externa de Ohio**, no a Rover.
+- `Loterias RD/Rs Loterías Rd-1.3.1.user.js`: los escuchadores de edición pueden cancelar una operación de seguimiento; el POST examinado apunta **a Facebook**. Esta revisión de código **no equivale** a una validación de todos los posibles efectos en tiempo real.
+- `virtual lottery/virtual-lottery v2 auto.user.js`: contiene `autoPost('__inc/procesarResultados.php', ...)` y puede procesar mediante su propia lógica de liderazgo y cronograma, **independientemente** de LotteryNet. Sus escuchadores de `#fecha` gestionan cambios de fecha. Su observador de resultados filtra `tr.res_tr` agregados, ignorando los indicadores internos en filas ya existentes.
+- En los dos HTML de Rover aportados no se encontraron atributos inline `oninput`, `onchange` ni `onblur`. **Esto no detecta** listeners delegados, listeners añadidos por JavaScript, setter personalizado ni otras pestañas.
+
+### Regresión hostil aislada, sin tocar Rover
+
+`tests/browser/isolated-rover.mjs` instala en un fixture local listeners ficticios que intentarían hacer POST a `/__inc/procesarResultados.php` al recibir `input`, `change` o `blur`. Ejecuta `fillVisualInputs` y la interfaz `mountInlineStatus`, y comprueba que no se activa el envío ni se hace clic sobre el botón de proceso. También confirma que los detectores pasivos registran cero eventos sintéticos. La prueba usa únicamente `127.0.0.1`, no la página auténtica.
+
+### Diagnóstico pasivo para Rover real
+
+Nuevo archivo **`tests/browser/rover-safety-audit.user.js`** (`v0.1.0`), independiente del diagnóstico DOM v0.4.0. No lee el contenido de inputs ni de historial, ni consulta Lottery.net, ni hace solicitudes a Rover, ni modifica los inputs, ni instala interceptores de `fetch` o `XMLHttpRequest`. Ofrece:
+
+- `__LOTTERYNET_SAFETY_QA__.print()`: inventario de los diez sorteos, cinco campos y presencia de manejadores **inline** `oninput/onchange/onblur` o en propiedades DOM.
+- `__LOTTERYNET_SAFETY_QA__.observe()`: añade temporalmente listeners pasivos en fase de captura y **cuenta** eventos que se produzcan por actividad normal, sin provocarlos. `stop()` los desengancha.
+- **No permite concluir que no existan listeners de `addEventListener`**, que no existan POST en background ni conocer su método/iniciador de Network.
+
+### Condiciones de seguridad que siguen bloqueadas
+
+- [x] Revisar en el código fuente conocido la presencia de procesamiento explícito y diferencias entre scripts.
+- [x] Preparar detector pasivo sin lectura de valores y regresión de conviviencia con manejadores hostiles simulados.
+- [ ] Revisar `print()` del detector pasivo en una sesión Rover autenticada con los scripts habituales.
+- [ ] Auditar DevTools Network con **Preserve log**, incluyendo `__inc/procesarResultados.php`, método, hora e iniciador, sin compartir cabeceras, cookies ni cuerpos de petición.
+- [ ] Atribuir correctamente cualquier POST **propio** de Virtual Lotteries; no atribuirlo sin pruebas a LotteryNet.
+- [ ] Antes de una prueba real de llenado, asegurar aislamiento/entorno permitido y confirmación de **cero procesamiento accidental**, con evidencia de cambios reales de UI y registro de Network.
+
+**Decisión de esta etapa:** no habilitar `src/index.js` ni distribuir LotteryNet como funcional. Esta auditoría es exploratoria: la prohibición de guardar/procesar sigue vigente y falta completar el escenario auténtico.
+

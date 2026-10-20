@@ -87,8 +87,9 @@ export function mountInlineStatus({root,draw,date,state='PENDIENTE'}={}) {
     indicator.setAttribute('role','status');
     indicator.setAttribute('aria-live','polite');
     indicator.setAttribute('aria-atomic','true');
-    // The primary name is inside the first TD; insert the status inside that
-    // same cell. Inserting after the TD would create a spurious table column.
+    // In real Rover the first TD is a hidden time-sort key. `found.label` is the
+    // exact lottery-name TD identified from `.loteria-nombre`, not the first TD.
+    // Keep the indicator inside that cell: never create a new table column.
     found.label.insertAdjacentElement('beforeend',indicator);
   }
   setInlineStatus(indicator,state);

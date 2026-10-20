@@ -17,6 +17,8 @@ const request = (url, method = 'GET') => new Promise(resolve => {
 
 (async () => {
   try {
+    const stage = value => document.body.setAttribute('data-lnr-tm-qa-stage', value);
+    stage('started');
     if (typeof GM_info === 'undefined' || GM_info.scriptHandler !== 'Tampermonkey')
       throw Error('A real Tampermonkey installation is required');
     const manager = {handler: GM_info.scriptHandler, version: GM_info.version,
@@ -30,8 +32,10 @@ const request = (url, method = 'GET') => new Promise(resolve => {
     GM_deleteValue(key);
     const deleted = GM_getValue(key, 'missing') === 'missing';
     if (!stored || !deleted) throw Error('Real GM storage check failed');
+    stage('storage-verified');
     const local = await request(location.origin + '/gm-ok');
     if (!local.ok || local.text !== 'local-ok') throw Error('GM background request to local fixture failed');
+    stage('local-gm-verified');
     const external = await request(__LOTTERYNET_OUTSIDE_CANARY__ + '/gm-' + phase, 'POST');
     if (phase === 'preflight') {
       if (!external.ok) throw Error('GM canary must be reachable before isolation');
@@ -39,6 +43,7 @@ const request = (url, method = 'GET') => new Promise(resolve => {
       return;
     }
     if (external.ok) throw Error('GM background request escaped the network namespace');
+    stage('outside-gm-blocked');
     const cases = __LOTTERYNET_QA_CASES__;
     const htmlByUrl = {};
     for (const item of cases) {

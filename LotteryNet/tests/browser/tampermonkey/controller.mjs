@@ -60,6 +60,8 @@ async function installThroughManager(context, extensionId, scriptPath) {
       const install = candidate.locator('.ask_action_buttons').getByRole('button', {name: /^(Install|Import)$/i});
       if (await install.count() && await install.first().isVisible()) {
         await install.first().click();
+        await options.getByText('Installed Userscripts', {exact: true}).click();
+        await options.getByText('LotteryNet — Tampermonkey isolated QA', {exact: true}).first().waitFor();
         console.log('Tampermonkey installation confirmed through manager UI');
         return {method: 'Utilities file import and manager confirmation'};
       }
@@ -146,10 +148,11 @@ try {
 } catch (error) {
   report.status = 'FAIL'; report.error = error.message;
   console.error('QA FAILURE', error.stack);
+  console.log('LOCAL REQUESTS', JSON.stringify(received));
   if (context) {
     for (const worker of context.serviceWorkers()) {
       const registration = await worker.evaluate(async () => {
-        try {return {registeredCount: (await chrome.userScripts.getScripts()).length};}
+        try {return {registered: (await chrome.userScripts.getScripts()).map(({id, matches, runAt, world}) => ({id, matches, runAt, world}))};}
         catch (error) {return {error: error.message};}
       }).catch(error => ({error: error.message}));
       console.log('USERSCRIPT REGISTRATION', JSON.stringify(registration).slice(0, 8000));
@@ -163,6 +166,7 @@ try {
     console.log('CHROMIUM EXTENSIONS', await settings.locator('body').innerText());
   }
   if (page) {
+    console.log('SCRIPT STAGE', await page.locator('body').getAttribute('data-lnr-tm-qa-stage'));
     await page.screenshot({path: path.join(directory, phase + '-failure.png')}).catch(() => {});
     console.log('QA PAGE DIAGNOSTIC', (await page.locator('body').innerText().catch(() => '')).slice(-6000));
   }

@@ -107,6 +107,9 @@ test('el nombre principal identifica sorteo; el distintivo de código NO se conf
     ],querySelector:s=>s==='.loteria-abrev'?{textContent:'FL-PM'}:null
   };
   assert.equal(primaryRoverName(cell),'FLORIDAPM');
+  cell.childNodes.push({nodeType:1,textContent:'Casillas completadas',
+    matches:selector=>selector.includes('[data-lnr-inline]'),querySelector:()=>null});
+  assert.equal(primaryRoverName(cell),'FLORIDAPM'); // Own status must not alter identity
   assert.notEqual(primaryRoverName(cell),'FLPM');
   const derived={childNodes:[{nodeType:3,textContent:'FLORIDA PM MARIAGE PALE'}]};
   assert.equal(primaryRoverName(derived),'FLORIDAPMMARIAGEPALE');

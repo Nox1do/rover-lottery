@@ -18,7 +18,7 @@ let page;
 let server;
 const received = [];
 
-async function installThroughManager(context, extensionId, scriptPath) {
+async function ensureManagerPermission(context, extensionId) {
   const settings = await context.newPage();
   await settings.goto('chrome://extensions/?id=' + extensionId);
   const developerMode = settings.locator('#devMode');
@@ -29,12 +29,25 @@ async function installThroughManager(context, extensionId, scriptPath) {
   await allowScripts.waitFor({state: 'attached'});
   if (await allowScripts.getAttribute('checked') === null) await allowScripts.click();
   await settings.locator('#allow-user-scripts cr-toggle[checked]').waitFor({state: 'attached'});
-  // Chrome 138+ exposes the API only after the extension context reloads.
-  const [worker] = await Promise.all([
-    context.waitForEvent('serviceworker'),
-    settings.locator('extensions-detail-view #dev-reload-button').click()
-  ]);
-  await worker.evaluate(() => chrome.userScripts.getScripts());
+  const deadline = Date.now() + 20000;
+  while (Date.now() < deadline) {
+    for (const worker of context.serviceWorkers()) {
+      if (!worker.url().startsWith('chrome-extension://' + extensionId + '/')) continue;
+      const available = await worker.evaluate(async () => {
+        try {await chrome.userScripts.getScripts(); return true;}
+        catch {return false;}
+      }).catch(() => false);
+      if (available) {
+        await settings.close();
+        return {developerMode: true, allowUserScripts: true, realApiAvailable: true};
+      }
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  throw Error('Native userscript permission did not enable the real API');
+}
+
+async function installThroughManager(context, extensionId, scriptPath) {
   const options = await context.newPage();
   await options.goto('chrome-extension://' + extensionId + '/options.html#nav=utils');
   const upload = options.locator('input[type=file]');
@@ -48,8 +61,7 @@ async function installThroughManager(context, extensionId, scriptPath) {
       if (await install.count() && await install.first().isVisible()) {
         await install.first().click();
         console.log('Tampermonkey installation confirmed through manager UI');
-        return {developerMode: true, allowUserScripts: true, apiAvailableAfterReload: true,
-          method: 'Utilities file import and manager confirmation'};
+        return {method: 'Utilities file import and manager confirmation'};
       }
     }
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -105,6 +117,7 @@ try {
   context.on('weberror', error => console.log('BROWSER ERROR', error.error().message));
   report.extensionId = extensionId;
   report.browser = context.browser()?.version();
+  report.permissions = await ensureManagerPermission(context, extensionId);
   if (phase === 'preflight') report.installation = await installThroughManager(context, extensionId, scriptPath);
   page = await context.newPage();
   await page.goto(origin + '/rover.html?phase=' + phase);
@@ -136,7 +149,7 @@ try {
   if (context) {
     for (const worker of context.serviceWorkers()) {
       const registration = await worker.evaluate(async () => {
-        try {return {scripts: await chrome.userScripts.getScripts()};}
+        try {return {registeredCount: (await chrome.userScripts.getScripts()).length};}
         catch (error) {return {error: error.message};}
       }).catch(error => ({error: error.message}));
       console.log('USERSCRIPT REGISTRATION', JSON.stringify(registration).slice(0, 8000));

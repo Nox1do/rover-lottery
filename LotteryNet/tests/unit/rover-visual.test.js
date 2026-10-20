@@ -114,3 +114,22 @@ test('no aceptar una identidad sin roverCode verificado',()=>{
  const f=fixture();
  assert.equal(findUniqueRoverRow({root:f.root,draw:{id:'fl-am',roverLabel:'FLORIDA AM'},date:'2026-10-19'}).status,'SIN_FILA');
 });
+
+test('cambio concurrente de LotteryUSA durante la escritura aborta y conserva el valor manual',()=>{
+ const f=fixture();
+ let firstValue='';
+ Object.defineProperty(f.inputs[0],'value',{
+   get:()=>firstValue,
+   set(value){
+     firstValue=value;
+     // Simulates manual LotteryUSA changing a different field at the moment
+     // LotteryNet starts filling. The old value must NEVER be overwritten.
+     f.inputs[1].value='46';
+   },
+   configurable:true
+ });
+ const result=fillVisualInputs({root:f.root,draw,date:'2026-10-19',p3:'407',p4:'0832'});
+ assert.equal(result.ok,false);
+ assert.equal(result.status,'ERROR');
+ assert.deepEqual(f.inputs.map(x=>x.value),['','46','','','']);
+});

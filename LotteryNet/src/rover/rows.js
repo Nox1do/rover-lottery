@@ -61,7 +61,7 @@ export function primaryRoverName(cell) {
       if (node.nodeType!==1) continue;
       // Only leaf/simple elements: avoid reading the entire cell through nested
       // badge, action, and icon text, which can create false positives.
-      if (node.matches?.('button,a,input,select,textarea,[role="button"]')) continue;
+      if (node.matches?.('button,a,input,select,textarea,[role="button"],[role="status"],[data-lnr-inline]')) continue;
       if (node.querySelector?.('button,a,input,select,textarea,[role="button"]')) continue;
       if (node.matches?.('.loteria-abrev')) continue;
       const value=String(node.textContent??'').trim();

@@ -1,11 +1,12 @@
 import { build } from 'esbuild';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
 const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const base = 'https://raw.githubusercontent.com/Nox1do/rover-lottery/main/LotteryNet/dist/';
 const lines = [
   '// ==UserScript==',
-  '// @name         LotteryNet Rover (SCaffold - INACTIVO)',
+  '// @name         LotteryNet Rover (Scaffold - INACTIVO)',
   '// @namespace    noeg.lotterynet.rover',
   `// @version      ${version}`,
   '// @description  Proyecto Lottery.net independiente: esqueleto sin llenado ni procesamiento.',
@@ -27,12 +28,12 @@ const lines = [
 ].join('\n') + '\n';
 await mkdir(new URL('../dist/', import.meta.url), { recursive: true });
 await build({
-  entryPoints: [new URL('../src/index.js', import.meta.url).pathname],
+  entryPoints: [fileURLToPath(new URL('../src/index.js', import.meta.url))],
   bundle: true,
   platform: 'browser',
   format: 'iife',
   target: ['chrome109', 'firefox115'],
-  outfile: new URL('../dist/LotteryNet-Rover.user.js', import.meta.url).pathname,
+  outfile: fileURLToPath(new URL('../dist/LotteryNet-Rover.user.js', import.meta.url)),
   banner: { js: lines.trimEnd() },
   legalComments: 'none',
 });

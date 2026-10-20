@@ -237,10 +237,29 @@ Nuevo archivo **`tests/browser/rover-safety-audit.user.js`** (`v0.1.0`), indepen
 
 - [x] Revisar en el código fuente conocido la presencia de procesamiento explícito y diferencias entre scripts.
 - [x] Preparar detector pasivo sin lectura de valores y regresión de conviviencia con manejadores hostiles simulados.
-- [ ] Revisar `print()` del detector pasivo en una sesión Rover autenticada con los scripts habituales.
+- [ ] Revisar `print()` del detector pasivo en Rover autenticado y comprobar que los manejadores locales no procesen tras actividades de LotteryNet.
+- [ ] Probar convivencia de entradas cuando LotteryUSA se utiliza **manualmente**, preservando la regla LotteryNet de no sobrescribir valores distintos.
 - [ ] Auditar DevTools Network con **Preserve log**, incluyendo `__inc/procesarResultados.php`, método, hora e iniciador, sin compartir cabeceras, cookies ni cuerpos de petición.
-- [ ] Atribuir correctamente cualquier POST **propio** de Virtual Lotteries; no atribuirlo sin pruebas a LotteryNet.
+- [x] Confirmar alcance separado de Virtual Lotteries: cero códigos compartidos en los scripts revisados; no atribuir sus POST a LotteryNet sin evidencia de causalidad.
 - [ ] Antes de una prueba real de llenado, asegurar aislamiento/entorno permitido y confirmación de **cero procesamiento accidental**, con evidencia de cambios reales de UI y registro de Network.
 
 **Decisión de esta etapa:** no habilitar `src/index.js` ni distribuir LotteryNet como funcional. Esta auditoría es exploratoria: la prohibición de guardar/procesar sigue vigente y falta completar el escenario auténtico.
+
+## 14. Separación real de sorteos y disparadores (aclaración del usuario, 2026-10-20)
+
+**El usuario confirma dos restricciones operativas:**
+- **Virtual Lotteries v2 Auto gestiona sorteos distintos de LotteryNet.** La revisión del objeto `LOTERIAS` en `virtual lottery/virtual-lottery v2 auto.user.js` confirmó que sus códigos incluyen Pick and Win (`WIN-*`), Rapid (`RPL-*`), Premier, Brazil/QPlay y Queen (`QLT-*`), entre otros; **ninguno** coincide con los diez `roverCode` aprobados para LotteryNet (FL/LA/OH/TN/IN). Sus consultas y POST pertenecen a sus propias loterías y **no deben usarse como evidencia de que LotteryNet guarda o procesa**. El procesamiento `autoPost('__inc/procesarResultados.php')` está limitado en el código revisado a los códigos de su configuración automática, no a una fila de LotteryNet.
+- **Rovs Loterías USA opera manualmente por botones.** En `Loterias USA/versions/Rovs-Loterias-USA-v0.6.5.user.js`, `btn.onclick = () => executeScrape(...)` inicia la consulta; no se encontró un disparador AUTO periódico para llenar esas filas. Coincide con LotteryNet en los **diez sorteos**, pero **no compite de manera automática** cuando nadie pulsa sus botones.
+
+### Matriz de riesgo ajustada
+
+| Proyecto concurrente | Sorteos compartidos con LotteryNet | Escritura automática sobre esos sorteos | Qué verificar |
+| --- | --- | --- | --- |
+| Virtual Lotteries v2 Auto | **0 de 10** en la configuración revisada | No, gestiona loterías diferentes | No duplicar su UI/códigos; los POST propios no son atribuibles a LotteryNet sin causalidad demostrada |
+| Rovs Loterías USA v0.6.5 | **10 de 10** | No: consultas iniciadas por botón | Si el usuario pulsa un botón luego de LotteryNet, la función `fillTable()` de LotteryUSA **puede sobrescribir valores**; probar la secuencia manual y evitar atribuir ese cambio a LotteryNet |
+| LotteryNet (proyectado) | Solo sus 10 sorteos | AUTO aún desactivado | No sobrescribir distintos; ningún clic de procesar, evento sintético o POST a Rover; revalidar fecha/fila y no procesar |
+
+**Conclusión corregida:** el riesgo principal NO es un procesamiento de Virtual Lotteries sobre los resultados de LotteryNet. El caso funcional de convivencia se concentra en **dos scripts que pueden llenar la misma fila solo cuando el usuario utiliza manualmente LotteryUSA**, además de eventos de página desconocidos. Mantener los scripts existentes activos; no requieren modificaciones por esta aclaración.
+
+**Límites:** esta matriz procede de los archivos versionados y del modo de uso confirmado por el usuario. No equivale a inspeccionar todas las extensiones instaladas en el navegador. Un POST de Virtual Lotteries para sus propios sorteos puede aparecer en DevTools Network; la auditoría debe filtrar **código, fecha e iniciador** y distinguirlo de cualquier operación atribuible a LotteryNet. La validación de que LotteryNet nunca envía ni induce procesamiento sigue siendo obligatoria antes de activarlo.
 

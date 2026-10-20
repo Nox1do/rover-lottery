@@ -1,5 +1,12 @@
 # Changelog
 
+## Separación de alcance y modo manual — 2026-10-20
+- El usuario confirmó: Virtual Lotteries v2 Auto trabaja con sorteos ajenos a LotteryNet; LotteryUSA consulta y llena solo mediante clic manual.
+- Verificado en fuentes versionadas: Virtual Lotteries usa otros códigos (ninguno de los diez FL/LA/OH/TN/IN); el POST de ese proyecto no constituye por sí solo un riesgo de procesamiento de LotteryNet.
+- Verificado en LotteryUSA v0.6.5: `btn.onclick` es el disparador de consultas; los diez sorteos se solapan, pero no hay llenado automático periódico.
+- QA y plan refinados: el riesgo real pendiente es un posible conflicto de valores con una acción manual de LotteryUSA, más los listeners de página aún sin auditar. Sin modificar código funcional ni scripts existentes.
+
+
 ## Seguridad y coexistencia: auditoría preliminar (2026-10-20)
 - Revisión estática de Virtual Lotteries, LotteryUSA, Loterías RD y LotteryNet para identificar POST, manejadores y observadores.
 - Implementado diagnóstico pasivo de Rover `tests/browser/rover-safety-audit.user.js` v0.1.0, sin lectura de números ni eventos sintéticos.

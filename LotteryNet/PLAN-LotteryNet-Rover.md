@@ -52,6 +52,8 @@ Debe ofrecer **dos vías de ejecución** que comparten el mismo motor de consult
 
 ## 2. Independencia de LotteryUSA y Virtual Lotteries — OBLIGATORIO
 
+**Compatibilidad documentada (2026-10-20):** en los scripts revisados, Virtual Lotteries v2 Auto tiene **cero códigos de sorteo comunes** con LotteryNet; su ruta de procesamiento de otras loterías no es por sí misma una interferencia de LotteryNet. Rovs Loterías USA v0.6.5 **sí comparte los diez sorteos**, pero solo consulta/llena al pulsar sus botones; no existe una competencia automática programada por ese script. La validación de convivencia se limitará a seguridad de los cambios de LotteryNet, listeners de página y posibles conflictos cuando el usuario active manualmente LotteryUSA. No alterar los otros scripts.
+
 - LotteryUSA se utilizó **solo como ejemplo e inventario** de sorteos/casillas, y como referencia de mapeo con Rover.
 - `Virtual Lotteries v2 Auto v3.2.7` se utilizó **solo como referencia** de seguimiento automático, llenado, restauración de campos y coordinación entre pestañas.
 - El nuevo proyecto **no importa**, no llama y no depende de funciones, claves de almacenamiento, variables globales, configuración, mensajes, bloqueos, scripts instalados ni proveedores de LotteryUSA o Virtual Lotteries.
@@ -433,7 +435,7 @@ La fase se considerará completada únicamente cuando:
 1. **Destino GitHub — RESUELTO:** `Nox1do/rover-lottery/LotteryNet/` en `main`, autorizado expresamente por el usuario.
 2. **Cadencia automática:** intervalos, ventana antes/después del sorteo, límites y reintentos.
 3. **Política de correcciones publicadas posteriormente** cuando las casillas ya estén llenas; por defecto, **no sobrescribir**.
-4. **Convivencia operativa con scripts existentes** en las mismas filas de Rover; definir cómo evitar que ellos procesen reaccionando a cambios de inputs.
+4. **Convivencia operativa:** Virtual Lotteries usa otras loterías (códigos disjuntos); LotteryUSA comparte los diez sorteos pero su llenado se dispara manualmente. Mantener bloqueo de valores diferentes en LotteryNet y verificar la secuencia manual de LotteryUSA, así como efectos eventuales de listeners en Rover. No exigir modificar Virtual Lotteries ni atribuirle un conflicto sin evidencia.
 5. **Selección de líder multihost** si están abiertas simultáneamente `.net` y `.lol`.
 6. **Ubicación del botón y panel** en la interfaz real de Rover.
 

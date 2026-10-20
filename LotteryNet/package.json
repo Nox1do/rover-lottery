@@ -1,0 +1,14 @@
+{
+  "name": "lotterynet-rover",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Independent Lottery.net -> Rover visual-only userscript (scaffold)",
+  "scripts": {
+    "test": "node --test",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

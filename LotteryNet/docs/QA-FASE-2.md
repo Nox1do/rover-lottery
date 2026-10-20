@@ -59,3 +59,25 @@ LotteryNet ahora valida explícitamente esos formatos sin inferir el día actual
 **Bloqueo confirmado:** el navegador Opera del usuario respondió «Browser not connected» al intentar recuperar pestañas. No fue posible observar el DOM autenticado ni auditar los manejadores reales de `input/change` y la pestaña Network. La prueba final real permanece **PENDIENTE** y la entrada de producción permanece **INACTIVA**.
 
 **Ejecución de referencia con 21/21 Node + Playwright exitosos:** [GitHub Actions 39434128974](https://github.com/Nox1do/rover-lottery/actions/runs/39434128974).
+
+## 5. Inspección autenticada mediante Opera (2026-10-20)
+
+El **Opera Browser Connector está conectado**. Se accedió en modo lectura a la pestaña autenticada:
+`https://www.roversport.lol/adm/es/lottery.php`.
+
+### Comprobado directamente en la interfaz visible
+
+- La fecha seleccionada es **10/20/2026**.
+- La tabla muestra **7 filas de 7 resultados visibles**, correspondientes a otras loterías; **ninguno de los diez sorteos FL/LA/OH/TN/IN** forma parte de esta vista.
+- Cada fila expone un **nombre principal** y un **código abreviado** distinto (por ejemplo, ANGUILLA 10AM / ANGUILLA-10AM).
+- El árbol de accesibilidad ofrece diez columnas: LOTERIA, HORA, 1ERA, 2DA, 3RA, PICK 3, PICK 4, PEND., PROC. y ACCION.
+- Las cinco casillas de resultados aparecen con nombres accesibles exactos `primera`, `segunda`, `tercera`, `pick3`, `pick4`.
+- La vista presenta un botón **Search** y otros controles de acción. No se pulsó ninguno ni se modificaron resultados.
+
+### Sigue sin confirmarse
+
+**El conector de Opera permite examinar capturas y árbol de accesibilidad, pero no ejecutar JavaScript ni inspeccionar el DOM crudo, atributos CSS, gestores de Tampermonkey, eventos o Network.** Por ello, la inspección no confirma aún los selectores internos `#tableResult`, `tr.res_tr`, `.loteria-abrev` ni el atributo `loteria`. Tampoco verifica los nombres principales de los diez sorteos en la página real. No reemplaza la prueba de seguridad sobre procesamiento indirecto.
+
+**Riesgo por resolver:** el nombre visible de una lotería no es necesariamente su código abreviado. La identidad debe obtenerse de una fuente DOM inequívoca, sin comparar por suposición el texto de un distintivo de código con el nombre principal.
+
+**Paso siguiente:** visualizar en Rover una fecha con sorteos de Florida, Louisiana, Ohio, Tennessee o Indiana y ejecutar la auditoría DOM opcional **solo lectura** (`tests/browser/rover-dom-audit.user.js`) en la sesión de Tampermonkey real. Si no está disponible un puente de consola, será necesario entregar la tabla estructural resultante para validar selectores. **Mantener `src/index.js` inactivo.**

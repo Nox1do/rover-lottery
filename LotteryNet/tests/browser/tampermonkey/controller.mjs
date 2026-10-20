@@ -75,6 +75,33 @@ async function installThroughManager(context, extensionId, scriptPath) {
   throw Error('Tampermonkey did not show its Install confirmation');
 }
 
+async function waitForManagerBootstrap(context, extensionId) {
+  const worker = context.serviceWorkers().find(item => item.url().startsWith('chrome-extension://' + extensionId + '/'));
+  const userAgent = await worker.evaluate(() => navigator.userAgent);
+  const major = userAgent.match(/(?:Chrome|Chromium)\/(\d+)/)?.[1];
+  assert(major, 'Chromium major version unavailable');
+  const marker = 'nt7mb+' + major;
+  let initial;
+  const deadline = Date.now() + 20000;
+  while (Date.now() < deadline) {
+    for (const current of context.serviceWorkers()) {
+      if (!current.url().startsWith('chrome-extension://' + extensionId + '/')) continue;
+      const registered = await current.evaluate(async () => (await chrome.userScripts.getScripts())
+        .map(({id, matches, runAt, world, allFrames}) => ({id, matches, runAt, world, allFrames}))).catch(() => []);
+      initial ??= registered;
+      const eligible = registered.filter(item => item.world === 'USER_SCRIPT' && item.runAt === 'document_start'
+        && item.allFrames === true && item.matches?.includes('<all_urls>'));
+      if (eligible.some(item => item.id === '1|page|' + marker)
+          && eligible.some(item => item.id.startsWith('3|content|' + marker + '|r|'))) {
+        console.log('Manager bootstrap ready before navigation', JSON.stringify({initialCount: initial.length, registered}));
+        return {initial, registered};
+      }
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  throw Error('Tampermonkey did not register its real page/content bootstrap');
+}
+
 try {
   if (phase === 'isolated') {
     const namespace = await readlink('/proc/self/ns/net');
@@ -121,6 +148,7 @@ try {
   report.browser = context.browser()?.version();
   report.permissions = await ensureManagerPermission(context, extensionId);
   if (phase === 'preflight') report.installation = await installThroughManager(context, extensionId, scriptPath);
+  report.bootstrap = await waitForManagerBootstrap(context, extensionId);
   page = await context.newPage();
   await page.goto(origin + '/rover.html?phase=' + phase);
   const pageProbe = await page.evaluate(async url => {

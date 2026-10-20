@@ -1,7 +1,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {visibleRoverDate,parseRoverDate,findUniqueRoverRow} from '../../src/rover/rows.js';
+import {visibleRoverDate,parseRoverDate,primaryRoverName,findUniqueRoverRow} from '../../src/rover/rows.js';
 import {fillVisualInputs,planVisualFill} from '../../src/rover/fill-ui.js';
 import {createVisualCache,restoreVisibleValues} from '../../src/rover/restore.js';
 
@@ -12,9 +12,12 @@ function fixture(values=['','','','','']){
     getAttribute:key=>key==='loteria'?'111':null,
     hasAttribute:key=>key==='loteria'}));
   const label={textContent:'FLORIDA AM'};
-  const row={querySelector:sel=>sel==='.loteria-abrev'?label:null,
+  const abbreviation={nodeType:1,textContent:'FL-AM',matches:s=>s==='.loteria-abrev',querySelector:()=>null};
+  const cell={childNodes:[{nodeType:3,textContent:label.textContent},abbreviation],
+    querySelector:s=>s==='.loteria-abrev'?abbreviation:null};
+  const row={querySelector:sel=>sel==='td'?cell:sel==='.loteria-abrev'?abbreviation:null,
     querySelectorAll:sel=>inputs.filter(i=>sel==='input[name="'+i.name+'"]')};
-  const table={querySelectorAll:sel=>sel==='tbody tr.res_tr'?[row]:[]};
+  const table={querySelectorAll:sel=>sel==='tbody tr'?[row]:[]};
   let date='10/19/2026',inputEvents=0;
   const root={
     querySelector:sel=>sel==='#fecha'?{value:date}:sel==='#tableResult'?table:
@@ -94,4 +97,20 @@ test('fallar cerradamente ante fechas discrepantes; soportar #fecha_desde',()=>{
  assert.equal(visibleRoverDate(root),'2026-10-20');
  b.value='not a date';
  assert.equal(visibleRoverDate(root),null);
+});
+
+test('el nombre principal identifica sorteo; el distintivo de código NO se confunde con nombre',()=>{
+  const cell={
+    childNodes:[
+      {nodeType:3,textContent:'FLORIDA PM '},
+      {nodeType:1,textContent:'FL-PM',matches:s=>s==='.loteria-abrev',querySelector:()=>null}
+    ],querySelector:s=>s==='.loteria-abrev'?{textContent:'FL-PM'}:null
+  };
+  assert.equal(primaryRoverName(cell),'FLORIDAPM');
+  assert.notEqual(primaryRoverName(cell),'FLPM');
+  const derived={childNodes:[{nodeType:3,textContent:'FLORIDA PM MARIAGE PALE'}]};
+  assert.equal(primaryRoverName(derived),'FLORIDAPMMARIAGEPALE');
+  assert.notEqual(primaryRoverName(derived),'FLORIDAPM');
+  const mixed={childNodes:[{nodeType:3,textContent:'FLORIDA PM'},{nodeType:3,textContent:'OTRO SORTEO'}]};
+  assert.equal(primaryRoverName(mixed),null);
 });

@@ -258,8 +258,10 @@ Referencias oficiales: [Documentación de Tampermonkey](https://www.tampermonkey
 
 #### 2.1 — Identificación de filas e inputs
 
-- [ ] Identificar las filas correspondientes a cada lotería, turno y fecha.
-- [ ] Validar la estructura y los cinco inputs de cada fila.
+**Auditoría DOM real v0.4.0 (2026-10-20):** 10/10 sorteos identificados en la sesión autenticada de Rover, fecha 19/10/2026, con los cinco campos y atributos `loteria` verificados. Esta evidencia **no valida todavía** eventos, Network, convivencia ni restauración tras Search.
+
+- [x] Identificar las filas correspondientes a cada lotería, turno y fecha (10/10 identidades exactas, 19/10/2026).
+- [x] Validar la estructura y los cinco inputs de cada fila (cinco nombres y atributos `loteria` por sorteo).
 - [ ] Detectar reconstrucciones de la tabla mediante Search.
 - [ ] Rechazar filas ambiguas o que no correspondan a la fecha seleccionada.
 

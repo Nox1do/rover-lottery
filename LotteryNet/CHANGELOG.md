@@ -1,5 +1,13 @@
 # Changelog
 
+## Corrección DOM con archivos reales — 2026-10-20
+- Identificado el origen de `matchedRows: 0`: primera celda oculta con hora, nombre en segunda celda.
+- Verificados 10 sorteos, códigos y cinco atributos `loteria` por fila en HTML del usuario.
+- Localizador estricto por `.loteria-nombre`, `.loteria-abrev`, fecha y código `loteria` de los cinco inputs.
+- Diagnóstico de solo lectura v0.4.0; pruebas unitarias y navegador con fixture sintético fiel a la estructura.
+- Prohibido procesamiento; la entrada de producción sigue inactiva.
+
+
 ## Diagnóstico DOM v0.3.0 (2026-10-20)
 - Evidencia real del fallo: 247 filas legibles, pero 0/10 coincidencias con el método anterior.
 - Diagnóstico de solo lectura amplía la detección a la identidad exacta nombre + código conocido; informes de coincidencias cercanas exclusivamente diagnósticos.

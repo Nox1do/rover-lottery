@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LotteryNet — Auditoría DOM de Rover (SOLO LECTURA)
 // @namespace    noeg.lotterynet.rover.qa
-// @version      0.3.0
+// @version      0.4.0
 // @description  Inspección estructural de filas de loterías sin modificar valores ni consultar la red.
 // @match        https://www.roversport.net/adm/es/lottery.php*
 // @match        https://roversport.net/adm/es/lottery.php*
@@ -70,45 +70,37 @@
     const table=primaryTable ?? (matchedTables.length===1 ? matchedTables[0] : null);
     const rows=Array.from(table?.querySelectorAll('tbody tr')??[]);
     const scanned=rows.map((row,index)=>{
-      const cell=row.querySelector('td');
-      const cleaned=mainName(cell);
-      const whole=normalize(cell?.textContent??''); // Only first (lottery name) cell.
-      const exact=expected.filter(name=>{
-        const n=normalize(name),pair=normalize(name+codes[name]);
-        return cleaned===n||cleaned===pair||whole===n||whole===pair;
-      });
-      const target=exact.length===1?exact[0]:null;
-      // Informational ONLY. Never fill from this substring match:
-      // FLORIDA AM MARIAGE PALE can look similar to FLORIDA AM.
-      const near=expected.filter(name=>whole.includes(normalize(name))&&
-        whole.includes(normalize(codes[name])));
-      return {row,index,cell,target,cleaned,whole,near,exactCount:exact.length};
+      // Real Rover: hidden sort-time td followed by td with main lottery name.
+      const titleNodes=Array.from(row.querySelectorAll('td .loteria-nombre'));
+      const title=titleNodes.length===1?titleNodes[0]:null;
+      const cell=title?.closest('td')??null;
+      const badges=cell?Array.from(cell.querySelectorAll('.loteria-abrev')):[];
+      const badge=badges.length===1?badges[0]:null;
+      const main=normalize(title?.textContent),code=normalize(badge?.textContent);
+      const names=expected.filter(name=>normalize(name)===main);
+      const target=names.length===1&&code===normalize(codes[names[0]])?names[0]:null;
+      return {row,index,cell,main,code,target,names,titleCount:titleNodes.length,badgeCount:badges.length};
     });
     const candidates=scanned.filter(x=>x.target).map(({row,index,cell,target})=>{
-      // Inputs are described structurally; .value is never read.
-      const inputs=Array.from(row.querySelectorAll('input')).map(el=>({
-        name:el.getAttribute('name'),type:el.getAttribute('type'),hasLoteria:el.hasAttribute('loteria'),
-        disabled:el.disabled,readOnly:el.readOnly
-      }));
-      return {index,target,code:codes[target],strategy:
-        normalize(cell?.textContent??'')===normalize(target+codes[target])?'exact-name-plus-code':
-        mainName(cell)===normalize(target)?'exact-main-name':'exact-composite',
+      const inputs=['primera','segunda','tercera','pick3','pick4'].map(name=>{
+        const list=Array.from(row.querySelectorAll('input[name="'+name+'"]'));
+        return {name,count:list.length,hasLoteria:list.length===1 &&
+          list[0].getAttribute('loteria')===codes[target]};
+      });
+      return {index,target,code:codes[target],strategy:'loteria-nombre + loteria-abrev',
         shortCodePresent:!!cell?.querySelector('.loteria-abrev'),
         mainNameFound:true,resTr:row.classList.contains('res_tr'),inputs};
     });
     const missing=expected.filter(x=>!candidates.some(c=>c.target===x));
     const duplicate=expected.filter(x=>candidates.filter(c=>c.target===x).length>1);
-    const nearMatches=scanned.filter(x=>x.near.length&&!x.target).slice(0,35).map(x=>({
-      index:x.index,possible:x.near,firstCellTextLength:x.whole.length,
-      firstCellTags:x.cell?Array.from(x.cell.querySelectorAll('*')).slice(0,8).map(el=>{
-        const names=Array.from(el.classList??[]).slice(0,2).join('.');
-        return el.tagName.toLowerCase()+(names?'.'+names:'');
-      }).join(' > '):'',badgePresent:!!x.cell?.querySelector('.loteria-abrev')
+    const nearMatches=scanned.filter(x=>x.names.length&&!x.target).slice(0,30).map(x=>({
+      index:x.index,possible:x.names,titleNodes:x.titleCount,abbreviations:x.badgeCount,
+      codeMatchesExpected:x.names.some(name=>x.code===normalize(codes[name]))
     }));
-    return {audit:'LotteryNet DOM (read-only)',version:'0.3.0',
+    return {audit:'LotteryNet DOM (read-only)',version:'0.4.0',
       dateControls,tableFound:!!table,tableResultSelectorFound:!!primaryTable,
       tableRows:rows.length,matchedRows:candidates.length,
-      inspectedRows:scanned.length,rowsWithoutReadableMainName:scanned.filter(x=>!x.cleaned).length,
+      inspectedRows:scanned.length,rowsWithoutReadableMainName:scanned.filter(x=>!x.main).length,
       candidates,missing,duplicate,nearMatches};
   };
   const api=Object.freeze({
@@ -132,5 +124,5 @@
   Object.defineProperty(window,'__LOTTERYNET_DOM_AUDIT__',{
     configurable:true,enumerable:false,writable:false,value:api
   });
-  console.info('[LotteryNet DOM audit v0.3.0] Solo lectura. Ejecuta __LOTTERYNET_DOM_AUDIT__.print() tras Search.');
+  console.info('[LotteryNet DOM audit v0.4.0] Solo lectura. Ejecuta __LOTTERYNET_DOM_AUDIT__.print() tras Search.');
 })();

@@ -184,3 +184,13 @@ La versión 0.2.0 sigue informando 247 filas, cero filas sin texto y cero coinci
 La versión 0.3.0 comprueba el nombre completo exacto y también la cadena exacta nombre + código abreviado, confirmada visualmente, por ejemplo FLORIDA AM + FL-AM. Informa coincidencias cercanas por separado sin autorizarlas para llenado; no recopila los valores de resultados ni modifica la página. Los diagnósticos de estructura informan solo etiquetas CSS, número de caracteres y nombre de sorteo conocido.
 
 La regresión Playwright incluye la variante de nombre + código sin la clase de abreviatura y excluye FLORIDA AM MARIAGE PALE del sorteo estándar. Pendiente ejecutar v0.3.0 en Rover autenticado para establecer los selectores definitivos.
+
+## 11. HTML real: causa raíz comprobada (2026-10-20)
+
+Archivos aportados: `Pasted text(20261020-153237).txt` y `verResultados2(1).php`. Se examinó la estructura **localmente**, sin publicar historial ni valores de resultados. En 247 filas, la primera celda `td` está **oculta** y contiene la hora interna de ordenación; la segunda tiene `.loteria-nombre` y `.loteria-abrev` dentro de un tooltip. Eso explica `matchedRows: 0` en las versiones 0.2/0.3, que inspeccionaban la primera celda como si fuera el nombre.
+
+Las diez identidades aprobadas se encontraron **exactamente una vez**; cada una contiene exactamente los cinco inputs `primera`, `segunda`, `tercera`, `pick3`, `pick4` con atributo `loteria` igual al código abreviado publicado. El código de Rover se registró como `roverCode` en `src/states/` y el localizador exige coincidencia estricta de **nombre + código abreviado + los cinco códigos `loteria`**. Si falta alguno, no escribir.
+
+`rover-dom-audit.user.js` v0.4.0 utiliza estos selectores exactos y conserva su política de solo lectura. La regresión de navegador usa un fixture **sintético sin resultados ni historiales** que respeta las dos celdas y sus atributos.
+
+**Permanece pendiente:** ejecutar el diagnóstico v0.4.0 en Rover autenticado, verificar convivencia y Network antes de activar cualquier llenado. `src/index.js` sigue inactivo.

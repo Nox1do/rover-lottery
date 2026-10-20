@@ -46,24 +46,32 @@
       const v=String(el.value??'');
       return {selector,present:true,empty:!v.trim(),valid:!!key(v),date:key(v)};
     });
-    const table=document.querySelector('#tableResult');
+    const matchedTables=Array.from(document.querySelectorAll('table'))
+      .filter(t=>t.querySelector('input[name="primera"]') && t.querySelector('input[name="pick4"]'));
+    const primaryTable=document.querySelector('#tableResult');
+    const table=primaryTable ?? (matchedTables.length===1 ? matchedTables[0] : null);
     const rows=Array.from(table?.querySelectorAll('tbody tr')??[]);
     const candidates=rows.map((row,index)=>{
+      const cell=row.querySelector('td');
       const label=row.querySelector('.loteria-abrev')?.textContent?.trim() ?? null;
-      const firstCell=row.querySelector('td')?.textContent?.trim() ?? '';
-      const target=expected.find(x=>normalize(x)===normalize(label) ||
-        normalize(x)===normalize(firstCell));
+      // The real Rover accessibility tree exposes a primary draw name followed
+      // by a separate abbreviated code; never equate the code to the name.
+      const mainCandidates=Array.from(cell?.childNodes ?? [])
+        .filter(n=>n.nodeType===3 || (n.nodeType===1 && !n.matches?.('a,button,input,select,textarea,.loteria-abrev')))
+        .map(n=>String(n.textContent??'').trim()).filter(Boolean);
+      const target=expected.find(x=>mainCandidates.some(n=>normalize(n)===normalize(x))
+        || (mainCandidates.length===0 && normalize(label)===normalize(x)));
       if(!target)return null;
       const inputs=Array.from(row.querySelectorAll('input')).map(el=>({
         name:el.getAttribute('name'),type:el.getAttribute('type'),hasLoteria:el.hasAttribute('loteria'),
         disabled:el.disabled,readOnly:el.readOnly
       }));
-      return {index,target,label:normalize(label)===normalize(target)?target:null,
+      return {index,target,shortCodePresent:!!label,mainNameFound:mainCandidates.some(n=>normalize(n)===normalize(target)),
         resTr:row.classList.contains('res_tr'),inputs};
     }).filter(Boolean);
     const missing=expected.filter(x=>!candidates.some(c=>c.target===x));
     const duplicate=expected.filter(x=>candidates.filter(c=>c.target===x).length>1);
-    return {audit:'LotteryNet DOM (read-only)',dateControls,tableFound:!!table,
+    return {audit:'LotteryNet DOM (read-only)',dateControls,tableFound:!!table,tableResultSelectorFound:!!primaryTable,
       tableRows:rows.length,candidates,missing,duplicate};
   };
   const api=Object.freeze({
@@ -72,8 +80,8 @@
       const data=summary();
       console.info('[LotteryNet DOM audit] Read-only — no result values collected.');
       console.table(data.dateControls);
-      console.table(data.candidates.map(({target,label,resTr,inputs})=>({
-        target,label,resTr,fields:inputs.map(x=>x.name).join(','),
+      console.table(data.candidates.map(({target,mainNameFound,shortCodePresent,resTr,inputs})=>({
+        target,mainNameFound,shortCodePresent,resTr,fields:inputs.map(x=>x.name).join(','),
         loteriaAttrs:inputs.filter(x=>x.hasLoteria).length
       })));
       console.info('Missing',data.missing,'Duplicates',data.duplicate);

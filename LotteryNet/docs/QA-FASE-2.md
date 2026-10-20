@@ -113,3 +113,20 @@ El usuario seleccionó `10/19/2026` y ejecutó Search. Se inspeccionó directame
 ### Pruebas
 
 La actualización introduce regresiones unitarias y Playwright con **nombre principal + distintivo de código**. Se detectó y corrigió que el indicador de estado añadido a la primera celda debía excluirse de la identidad del sorteo. **Regresión completa superada: 22/22 tests Node, 16 verificaciones en Chromium y 16 en Firefox (DOM simulado), cero eventos sintéticos/POST**, en [GitHub Actions 39438170804](https://github.com/Nox1do/rover-lottery/actions/runs/39438170804). **No confirma los selectores DOM reales ni seguridad con los demás userscripts de Rover.**
+
+## 7. Rover autenticado — segunda página 101–200 (19/10/2026)
+
+Opera Browser Connector confirmó en modo lectura que Rover mostraba la fecha **10/19/2026** y la paginación **«Showing 101 to 200 of 247 entries»**. En esa segunda página se identificaron tres sorteos adicionales, separados de sus códigos cortos:
+
+| Sorteo del proyecto | Nombre principal visible | Código visible | Campos |
+| --- | --- | --- | --- |
+| \`fl-am\` | FLORIDA AM | \`FL-AM\` | \`primera, segunda, tercera, pick3, pick4\` |
+| \`in-am\` | INDIANA MIDDAY | \`IN-MD\` | \`primera, segunda, tercera, pick3, pick4\` |
+| \`tn-midday\` | TENNESSEE MIDDAY | \`TN-MD\` | \`primera, segunda, tercera, pick3, pick4\` |
+
+**Control de identidad:** también se observó \`FLORIDA AM MARIAGE PALE\` con código \`FL-AM-MR\`. No pertenece al sorteo \`fl-am\` y nunca debe seleccionarse por coincidencia parcial.
+
+**Balance:** **8 de 10** sorteos identificados en las páginas 1 y 2 mediante el árbol de accesibilidad. Faltan por localizar \`OHIO MIDDAY\` y \`TENNESSEE MORNING\`, posiblemente en la página 3 (201–247); aún no examinada. Esto verifica los **nombres accesibles y campos visibles**, pero **no** los selectores DOM crudos, atributos \`loteria\`, conexiones a Tampermonkey, manejadores de eventos ni Network.
+
+**Operaciones:** no se editaron valores, no se enviaron solicitudes y no se presionaron botones de procesamiento desde el conector. Mantener la entrada del userscript funcional desactivada.
+

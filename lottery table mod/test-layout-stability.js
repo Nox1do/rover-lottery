@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('Rs-loteria-res-tabla-mod.user.js', 'utf8');
 
-assert.match(source, /^\/\/ @version\s+1\.6\.21$/m);
+assert.match(source, /^\/\/ @version\s+1\.6\.22$/m);
 assert.ok(source.includes('const LAYOUT_SETTLE_MS = 180;'));
 assert.ok(source.includes('const LAYOUT_MAX_WAIT_MS = 900;'));
 assert.ok(source.includes('new ResizeObserver((entries) => {'));

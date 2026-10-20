@@ -1,11 +1,19 @@
 # Changelog
 
+## QA automatizada reproducible — 2026-10-20
+- Nuevo workflow `.github/workflows/lotterynet-qa.yml`: Node 22, `npm test`, `npm run build`, verificación de sintaxis y auditoría de entrada inactiva.
+- **19/19 pruebas unitarias pasan**, sin fallos.
+- Regresión aislada Playwright en **Chromium y Firefox**: **16 aserciones satisfactorias por navegador**, sin emisión de `input/change/blur` ni solicitudes de escritura en la tabla simulada.
+- Evidencia: https://github.com/Nox1do/rover-lottery/actions/runs/39431580644
+- **NO se ha validado Rover real ni Tampermonkey instalado**; la integración sigue deshabilitada.
+
+
 ## Fase 2 — Módulos experimentales inactivos (2026-10-20)
 - Localización estricta por fila, fecha y cinco inputs con bloqueo de ambigüedades.
 - Llenado visual idempotente y cache/restauración por fecha, sin eventos sintéticos ni HTTP a Rover.
 - Iconos lineales y nueve estados del diseño «En fila», con accesibilidad y movimiento reducido.
 - Añadidas pruebas unitarias de DOM simulado; 20 comprobaciones directas de lógica superadas.
-- Pendientes: ejecutar `npm test`, integración con Rover y pruebas de navegador + Network con otros scripts.
+- Completados: `npm test` (19/19), build y Playwright sobre DOM simulado. Pendientes: pruebas reales en Rover/Tampermonkey y auditoría Network con otros scripts.
 - Entrada y AUTO inactivos; sin procesamiento ni lanzamiento de producción.
 
 

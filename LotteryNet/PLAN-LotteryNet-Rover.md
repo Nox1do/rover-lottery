@@ -252,7 +252,7 @@ Referencias oficiales: [Documentación de Tampermonkey](https://www.tampermonkey
 
 ### Fase 2 — Motor de llenado visual e interfaz Intelligence UI
 
-**Nota de avance (2026-10-20):** existen los módulos de identificación, llenado de valores sin emitir eventos de formulario, caché y renderizado «En fila». La entrada del userscript sigue inactiva y **los criterios de salida de Fase 2 no se han superado**. Los riesgos restantes constan en [docs/QA-FASE-2.md](docs/QA-FASE-2.md).
+**Nota de avance (2026-10-20):** existen los módulos de identificación, llenado de valores sin emitir eventos de formulario, caché y renderizado «En fila». **Node 22 (19/19 pruebas), compilación y regresión Playwright (Chromium y Firefox, 16 aserciones cada uno) se verificaron únicamente sobre un DOM simulado.** La entrada del userscript sigue inactiva; **los criterios de salida de Fase 2 no se han superado** porque faltan pruebas de Rover real y Tampermonkey. Evidencia: [docs/QA-FASE-2.md](docs/QA-FASE-2.md).
 
 **Objetivo:** implementar el llenado seguro de las casillas de Rover e incorporar una interfaz visual que comunique con precisión los estados del sistema, sin realizar ningún procesamiento ni guardado de resultados.
 

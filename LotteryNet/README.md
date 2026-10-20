@@ -44,8 +44,15 @@ El comando `build` generará `dist/LotteryNet-Rover.user.js` y `dist/LotteryNet-
 - `src/parsers/`: parser común y variantes Fireball/Wild Ball/Super Ball.
 - `src/rover/`: identidad de fila, **escritura visual solamente**, restauración.
 - `src/ui/`: indicador de fila implementado; botón manual y AUTO aún no activados.
-- `tests/unit/`: tests ejecutables hoy; `tests/fixtures/`, `tests/integration/`, `tests/browser/`: pendientes.
+- `tests/unit/`: suite ejecutada (19/19, Node 22).
+- `tests/browser/isolated-rover.mjs`: regresión de DOM simulado con Chromium y Firefox (16 aserciones por navegador).
+- `.github/workflows/lotterynet-qa.yml`: CI para pruebas, compilación y auditoría de entrada inactiva.
+- Pruebas en Rover real y Tampermonkey siguen **pendientes**.
 - `scripts/`: construcción del userscript y metadatos.
+
+## Pruebas registradas
+
+[GitHub Actions — ejecución aprobada, 2026-10-20](https://github.com/Nox1do/rover-lottery/actions/runs/39431580644): 19 pruebas Node aprobadas, compilación correcta y 16 aserciones Playwright por navegador (Chromium y Firefox), **solo sobre un fixture local**. Se mantiene explícitamente pendiente la validación del Rover autenticado con Tampermonkey y sus userscripts existentes.
 
 ## Puertas de desarrollo
 Antes de implementar el llenado, validar las 10 páginas de juegos 3/4 en Lottery.net, su HTML, el DOM de Rover tras Search y la seguridad de los eventos `input/change` cuando otros userscripts están instalados. No elegir valores definitivos de cadence AUTO o política multihost sin pruebas/aprobación.

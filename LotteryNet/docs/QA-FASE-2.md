@@ -1,36 +1,49 @@
-# QA de Fase 2 — Estado preliminar
+# QA de Fase 2 — Ejecutada, pendiente integración Rover real
 
-**Fecha:** 2026-10-20. **No apto para producción.** Diseño aprobado «En fila», iconografía lineal y nueve estados exactos.
+**Fecha:** 2026-10-20. **Estado:** módulo inactivo, NO APTO PARA PRODUCCIÓN.  
+**Diseño:** «En fila», iconos lineales, nueve estados y mensajes aprobados.
 
-## Evidencia disponible
+## 1. Evidencia verificada
 
-Se ejecutaron **20 comprobaciones directas de lógica en V8** sobre los archivos publicados en GitHub, con objetos DOM simulados:
+**GitHub Actions:** [LotteryNet QA, ejecución 39431580644](https://github.com/Nox1do/rover-lottery/actions/runs/39431580644) — conclusión: **SUCCESS**, dos trabajos completados.
 
-- Identidad inequívoca de fila, nombres de campos, fecha y rechazo de duplicados.
-- Conservación de ceros iniciales, mapeo completo de cinco campos y resultados parciales.
-- Idempotencia, protección de valores previos y no sobrescritura por conflicto.
-- Caché local y restauración visual solo cuando la fecha corresponde.
-- Nueve mensajes y sus transiciones, con ausencia de controles Fase 3.
-- Ausencia de llamadas de red y de `dispatchEvent` en los módulos del motor.
-- `src/index.js` continúa inactivo.
+| Comprobación | Resultado | Alcance de la evidencia |
+| --- | --- | --- |
+| Node.js 22, `npm test` | **19/19 OK, 0 fallos** | Suite completa incluida en el repositorio |
+| `npm run build` | **OK** | Userscript compilado, pero entrada inactiva |
+| `node --check dist/LotteryNet-Rover.user.js` | **OK** | Sintaxis de artefacto |
+| Auditoría del punto de entrada compilado | **OK** | Sin activación de llenado ni AUTO |
+| Playwright Chromium | **PASS, 16 aserciones** | Tabla Rover **simulada**, no la web autenticada |
+| Playwright Firefox | **PASS, 16 aserciones** | Tabla Rover **simulada**, no la web autenticada |
+| Eventos `input/change/blur` en navegador de prueba | **0** | Durante el llenado visual en la tabla simulada |
+| Solicitudes de escritura / acceso a `/__inc/` en prueba | **0** | Red del fixture local, NO Network de Rover real |
 
-Existen pruebas Node en `tests/unit/rover-visual.test.js` y `tests/unit/inline-ui.test.js`, pero **no se ha ejecutado la suite completa `npm test` ni `npm run build`** sobre una copia íntegra del repositorio.
+**Archivos de pruebas:**
+- `tests/unit/rover-visual.test.js` y `tests/unit/inline-ui.test.js`: validaciones unitarias.
+- `tests/browser/isolated-rover.mjs`: Playwright en Chromium y Firefox, servidor local simulado.
+- `.github/workflows/lotterynet-qa.yml`: ejecuta ambos trabajos automáticamente en push y pull request.
 
-## Comprobaciones necesarias antes de activar
+### Escenarios cubiertos en navegador simulado
 
-- [ ] Ejecutar `npm test` y `npm run build` en el repositorio.
-- [ ] Verificar la etiqueta `.loteria-abrev` en cada una de las diez filas del Rover real y confirmar que contiene los nombres esperados.
-- [ ] Verificar `#fecha`, los cinco inputs y el atributo `loteria` en la tabla inicial y tras Search.
-- [ ] Probar escritura de valores y restauración sin afectar correcciones manuales.
-- [ ] Revisar compatibilidad con Rovs Loterías USA y Virtual Lotteries instalados.
-- [ ] Verificar iconos y mensajes con Tampermonkey en Firefox y Chrome/Chromium.
-- [ ] Comprobar con Network que no se envían solicitudes POST/PUT/PATCH/DELETE ni se procesa de forma indirecta.
-- [ ] Validar cambio de fecha, vista AJAX, desaparición de fila y carga tardía.
+Los cinco campos y ceros iniciales, idempotencia, transiciones de mensajes «Consultando» → «Casillas completadas», indicador único por fila, conflicto sin sobrescritura, caché, reconstrucción de filas tras Search, rechazo de fecha distinta, filas duplicadas y no emisión de eventos ni solicitudes de escritura.
 
-## Límites y seguridad
+## 2. Puertas pendientes obligatorias para Rover/Tampermonkey real
 
-El código de `src/rover/fill-ui.js` modifica únicamente `input.value` **sin emitir eventos `input`, `change` o `blur`**, para evitar activar manejadores desconocidos hasta su inspección. No hay botón de consulta funcional, scheduler ni enlace desde `src/index.js`: la distribución operativa sigue suspendida.
+- [x] Ejecutar `npm test` completo, `npm run build` y revisión de sintaxis en GitHub Actions.
+- [x] Ejecutar regresión del DOM simulado con Playwright Chromium y Firefox.
+- [ ] Confirmar `.loteria-abrev`, códigos `loteria` e inputs en **cada una de las diez filas del Rover real**.
+- [ ] Validar `#fecha`, Search, cambios de vista, AJAX y fila inexistente en una sesión Rover autenticada.
+- [ ] Ejecutar Playwright/Firefox y Chromium **con Tampermonkey real instalado** y probar la coexistencia con los scripts activos.
+- [ ] Auditar Network en Rover real: ningún POST/PUT/PATCH/DELETE, ni procesamiento indirecto provocado por manejadores.
+- [ ] Confirmar que una corrección manual y otros userscripts no son sobreescritos.
+- [ ] Evaluar si los inputs visuales requieren `input/change` y demostrar que esos eventos no procesan ni guardan; actualmente **no se emiten**.
 
-La coincidencia de identidad es deliberadamente exacta. Si Rover usa nombres abreviados en `.loteria-abrev`, el llenado se bloqueará; no se habilitará una coincidencia aproximada sin validar una alternativa inequívoca.
+**Limitación efectiva:** el conector de Opera respondió «Browser not connected»; no hay acceso a la sesión Rover del usuario ni a sus extensiones Tampermonkey. Por ello, ninguna prueba realizada se declara validación del navegador autenticado.
 
-**Regla invariable:** consultar, validar, completar inputs visibles y detenerse. Nunca guardar/procesar en Rover.
+## 3. Protección y alcance
+
+El código fuente `src/index.js` continúa **INACTIVO**; no importa ni ejecuta el motor, no monta la UI, no inicia AUTO y no consulta resultados. La compilación de esta fase no representa una distribución para producción.
+
+`src/rover/fill-ui.js` asigna solamente `input.value`, sin emisión de eventos `input/change/blur`, clics, guardado ni peticiones HTTP a Rover. Es un mecanismo **preliminar** que exige validación real antes de usarse.
+
+**Regla invariable:** Lottery.net consulta → valida → llena las casillas visibles → informa el estado → termina. **Nunca procesa.**

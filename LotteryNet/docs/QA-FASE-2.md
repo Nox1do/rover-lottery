@@ -333,3 +333,24 @@ Los mensajes de Virtual Lotteries `[Fuentes] Botones instalados` no son evidenci
 
 **Puerta actual:** manejo inline/propiedades aprobado; monitor de eventos real, auditoría Network y prueba controlada de llenado siguen pendientes.
 
+## 17. Observación pasiva activa y Network de base — 20/10/2026
+
+El usuario remitió dos secuencias `observe()` → `stop()` del auditor v0.1.0. Ambas devolvieron `active: true` al iniciar y `eventObserverActive: false` al detener: este último valor es el estado normal después de `stop()`, no un fallo de activación.
+
+La tabla inspeccionada tenía **39 filas**. El inventario posterior encontró exactamente una fila y cinco campos para **OHIO MIDDAY** y **TENNESSEE MORNING**; los otros ocho sorteos no estaban presentes en el DOM inspeccionado. Esta observación no reemplaza la comprobación estructural anterior de los diez sorteos sobre 247 filas.
+
+- `untrustedEvents: 0` y `eventsByCode: {}` en ambas salidas: ningún evento elegible registrado en esas ventanas. `eventCounts` se recibió colapsado, sin sus valores individuales.
+- No se recibió duración de las ventanas, fecha seleccionada ni prueba de que las filas permanecieran iguales durante toda la observación.
+- Al preguntarle si apareció alguna solicitud en Network con el filtro `procesarResultados.php`, el usuario respondió **«No»**. Se registra como **sin solicitudes observadas con ese filtro durante la ventana reportada**, por confirmación del usuario, sin captura ni inspección directa de DevTools.
+- Los mensajes de sesión HTTP de Loterías RD no aportan evidencia de envío ni de procesamiento de LotteryNet.
+
+**Resultado:** línea de base pasiva parcial registrada para la vista con dos sorteos presentes. No se registró llenado de LotteryNet durante la observación; no acredita causalidad, ausencia de listeners ni ausencia de escrituras a otras rutas. No declarar A19 superado ni solicitar repetir el mismo ciclo pasivo como si validara un llenado.
+
+### Siguiente ensayo pendiente
+
+La siguiente evidencia útil es un **llenado controlado**, con bloqueo efectivo de las salidas de red antes de cualquier escritura de campos. Debe comprobarse primero que el mecanismo impide envíos, incluyendo los originados por la página y los userscripts; un filtro de DevTools solo observa y no bloquea. No sustituir ese aislamiento por interceptores parciales de `fetch`/XHR en la página.
+
+El ensayo deberá registrar las filas realmente cubiertas, fecha y turno, conservación de valores existentes, cambios de UI, eventos y solicitudes intentadas, diferenciando las solicitudes bloqueadas de las efectivamente enviadas. Después deberá comprobar restauración tras Search y convivencia manual, y conservar los límites de la prueba. Las regresiones locales ya ejecutadas siguen siendo simulaciones, no este ensayo autenticado con Tampermonkey.
+
+**Limitación de ejecución:** el conector de Opera disponible permite leer la interfaz, pero no ejecutar consola ni controlar Network o Tampermonkey. No se ha demostrado un mecanismo de bloqueo de red en esa sesión. Por tanto, el ensayo controlado no se ejecutó y `src/index.js` permanece **INACTIVO**; no se ha completado la Fase 2 ni activado AUTO.
+

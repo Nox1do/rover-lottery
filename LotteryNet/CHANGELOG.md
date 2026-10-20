@@ -1,5 +1,11 @@
 # Changelog
 
+## Línea de base pasiva parcial y Network — 2026-10-20
+- El usuario inició y detuvo dos ventanas de observación; el estado inactivo tras `stop()` es normal. Sin eventos elegibles registrados en los contadores remitidos.
+- Cobertura de la vista: 39 filas, con OHIO MIDDAY y TENNESSEE MORNING presentes (cinco campos cada uno); no extrapolar a los diez sorteos.
+- El usuario confirmó que no observó solicitudes con el filtro `procesarResultados.php`; sin captura, duración ni prueba de llenado causal.
+- Documentado el siguiente ensayo con bloqueo efectivo de salidas de red; pendiente mecanismo de aislamiento en la sesión autenticada. Sin cambios funcionales ni activación de AUTO.
+
 ## Diagnóstico pasivo real de manejadores — 2026-10-20
 - El usuario ejecutó el QA pasivo v0.1.0 en Rover autenticado: 247 filas, 10/10 sorteos y 50/50 inputs/códigos correctos.
 - Cero manejadores inline o por propiedades DOM `oninput`/`onchange`/`onblur`; cero inputs dentro de `form`.

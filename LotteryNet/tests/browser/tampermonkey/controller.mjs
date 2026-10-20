@@ -30,9 +30,10 @@ async function installThroughManager(context, extensionId, scriptPath) {
   if (await allowScripts.getAttribute('checked') === null) await allowScripts.click();
   await settings.locator('#allow-user-scripts cr-toggle[checked]').waitFor({state: 'attached'});
   // Chrome 138+ exposes the API only after the extension context reloads.
-  const restarted = context.waitForEvent('serviceworker');
-  await settings.locator('#dev-reload-button').click();
-  const worker = await restarted;
+  const [worker] = await Promise.all([
+    context.waitForEvent('serviceworker'),
+    settings.locator('extensions-detail-view #dev-reload-button').click()
+  ]);
   await worker.evaluate(() => chrome.userScripts.getScripts());
   const options = await context.newPage();
   await options.goto('chrome-extension://' + extensionId + '/options.html#nav=utils');
@@ -131,6 +132,7 @@ try {
   console.log('Tampermonkey ' + phase + ' PASS', JSON.stringify(report.manager));
 } catch (error) {
   report.status = 'FAIL'; report.error = error.message;
+  console.error('QA FAILURE', error.stack);
   if (context) {
     for (const worker of context.serviceWorkers()) {
       const registration = await worker.evaluate(async () => {

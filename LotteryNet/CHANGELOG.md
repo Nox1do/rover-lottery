@@ -1,5 +1,12 @@
 # Changelog
 
+## Diagnóstico DOM v0.3.0 (2026-10-20)
+- Evidencia real del fallo: 247 filas legibles, pero 0/10 coincidencias con el método anterior.
+- Diagnóstico de solo lectura amplía la detección a la identidad exacta nombre + código conocido; informes de coincidencias cercanas exclusivamente diagnósticos.
+- Pruebas Chromium/Firefox del caso de código abreviado sin clase y descarte de Mariage Pale.
+- Motor funcional y procesamiento permanecen inactivos.
+
+
 ## Auditoría de nombres anidados — 2026-10-20
 - Corregido localizador de nombre principal para recorrer nodos de texto anidados e ignorar códigos abreviados, controles e indicadores, sin modificar Rover.
 - Diagnóstico independiente de solo lectura actualizado a `0.2.0`, con conteos estructurales para distinguir `tabla encontrada` de `sorteos identificados`.

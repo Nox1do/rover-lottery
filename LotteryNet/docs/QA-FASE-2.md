@@ -176,3 +176,11 @@ El usuario ejecutó `__LOTTERYNET_DOM_AUDIT__.print()` en Rover autenticado: `#f
 El `SyntaxError: unexpected token: identifier` comunicado ocurrió durante una entrada adicional de consola; el `print()` independiente devuelve datos, por lo que ese error no demuestra que falle el userscript.
 
 **Seguridad:** sin operaciones sobre inputs, sin red, sin procesamiento, sin entrada funcional activa.
+
+## 10. Nuevo diagnóstico de identidad v0.3.0 (2026-10-20)
+
+La versión 0.2.0 sigue informando 247 filas, cero filas sin texto y cero coincidencias en Rover real. La causa exacta de la estructura HTML continúa sin determinarse.
+
+La versión 0.3.0 comprueba el nombre completo exacto y también la cadena exacta nombre + código abreviado, confirmada visualmente, por ejemplo FLORIDA AM + FL-AM. Informa coincidencias cercanas por separado sin autorizarlas para llenado; no recopila los valores de resultados ni modifica la página. Los diagnósticos de estructura informan solo etiquetas CSS, número de caracteres y nombre de sorteo conocido.
+
+La regresión Playwright incluye la variante de nombre + código sin la clase de abreviatura y excluye FLORIDA AM MARIAGE PALE del sorteo estándar. Pendiente ejecutar v0.3.0 en Rover autenticado para establecer los selectores definitivos.

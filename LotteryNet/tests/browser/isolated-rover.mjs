@@ -113,6 +113,17 @@ try {
    assert.equal(result.firstCellChildrenBefore,1,engine);
    const auditAfter=await page.evaluate(()=>window.__LOTTERYNET_DOM_AUDIT__.snapshot());
    assert.equal(auditAfter.matchedRows,2,engine+' audit after cloning two matching rows');
+   const probe=await page.evaluate(()=>{
+     const body=document.querySelector('#tableResult tbody');
+     const make=html=>{const row=document.createElement('tr');row.innerHTML='<td>'+html+'</td>';body.appendChild(row);};
+     make('<div><strong>OHIO MIDDAY</strong><span>OHIO-MD</span></div>');
+     make('<div><strong>FLORIDA AM MARIAGE PALE</strong><span>FL-AM-MR</span></div>');
+     return window.__LOTTERYNET_DOM_AUDIT__.snapshot();
+   });
+   assert.equal(probe.version,'0.3.0',engine);
+   assert.equal(probe.candidates.filter(x=>x.target==='OHIO MIDDAY').length,1,engine+' exact code pair');
+   assert.equal(probe.candidates.filter(x=>x.target==='FLORIDA AM').length,2,engine+' no derivative collision');
+   assert.ok(probe.nearMatches.some(x=>x.possible.includes('FLORIDA AM')),engine+' derivative reported only');
    assert.equal(result.conflict,'CONFLICTO',engine);
    assert.deepEqual(result.conflictValues,['07','08','91','407','0832'],engine);
    assert.equal(result.stored,true,engine);

@@ -1,0 +1,53 @@
+name: LotteryNet QA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'LotteryNet/**'
+      - '.github/workflows/lotterynet-qa.yml'
+  pull_request:
+    paths:
+      - 'LotteryNet/**'
+      - '.github/workflows/lotterynet-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node 22 tests and inert bundle audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: LotteryNet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install build dependency
+        run: npm install --no-audit --no-fund
+      - name: Run full test suite
+        run: npm test
+      - name: Compile userscript
+        run: npm run build
+      - name: Syntax check built artifact
+        run: node --check dist/LotteryNet-Rover.user.js
+      - name: Ensure bundler entry remains inert
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const src=fs.readFileSync('src/index.js','utf8');
+          const bundle=fs.readFileSync('dist/LotteryNet-Rover.user.js','utf8');
+          const forbidden=/\b(?:fetchLotteryNetResult|getLotteryNetHtml|fillVisualInputs|mountInlineStatus|startScheduler|autoProcesar)\s*\(/;
+          if (forbidden.test(src) || forbidden.test(bundle)) {
+            throw Error('Production entry invokes nonvalidated functionality');
+          }
+          if (!bundle.includes('INACTIVO')) {
+            throw Error('Bundle missing inactive-development label');
+          }
+          console.log('Inactive bundle audit passed');
+          NODE

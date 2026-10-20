@@ -55,7 +55,7 @@ export function primaryRoverName(cell) {
   // <td><div><b>FLORIDA AM</b><span class="loteria-abrev">FL-AM</span></div></td>.
   // Iterate text leaves rather than reading the wrapper's combined textContent.
   const ignored = '.loteria-abrev,[data-lnr-inline],.lnr-inline-state,[role="status"],' +
-    'button,[role="button"],input,select,textarea,script,style,svg,[aria-hidden="true"]';
+    'a,button,[role="button"],input,select,textarea,script,style,svg,[aria-hidden="true"]';
   const walk = node => {
     if (node.nodeType === 3) {
       const value = String(node.textContent ?? '').trim();

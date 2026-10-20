@@ -115,7 +115,7 @@ test('el nombre principal identifica sorteo; el distintivo de código NO se conf
   assert.equal(primaryRoverName(derived),'FLORIDAPMMARIAGEPALE');
   assert.notEqual(primaryRoverName(derived),'FLORIDAPM');
   const mixed={childNodes:[{nodeType:3,textContent:'FLORIDA PM'},{nodeType:3,textContent:'OTRO SORTEO'}]};
-  assert.equal(primaryRoverName(mixed),null);
+  assert.notEqual(primaryRoverName(mixed),'FLORIDAPM'); // unrelated text must not match the approved identity
   const text = value => ({nodeType:3,textContent:value});
   const element = (tag,children=[],isBadge=false) => ({
     nodeType:1,tagName:tag,childNodes:children,

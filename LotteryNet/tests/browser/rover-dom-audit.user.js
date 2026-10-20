@@ -43,7 +43,7 @@
     if (!cell) return null;
     const parts = [];
     const excluded = '.loteria-abrev,[data-lnr-inline],.lnr-inline-state,[role="status"],' +
-      'button,[role="button"],input,select,textarea,script,style,svg,[aria-hidden="true"]';
+      'a,button,[role="button"],input,select,textarea,script,style,svg,[aria-hidden="true"]';
     const walk = node => {
       if (node.nodeType === 3) {
         const val = String(node.textContent ?? '').trim();

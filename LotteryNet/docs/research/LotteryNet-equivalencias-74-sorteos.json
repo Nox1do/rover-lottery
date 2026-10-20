@@ -997,7 +997,8 @@
     {
       "id": "ky-pm",
       "nombreFilaRover": "KENTUCKY EVENING",
-      "categoria": "NOCHE",      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
       "estado": "kentucky",
       "turnoEnLotteryNet": "Evening",
       "requiere3": true,

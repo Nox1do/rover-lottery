@@ -7,6 +7,6 @@
 - Función pura para mapear Pick/Cash/Daily 3 y 4 a los cinco inputs de Rover.
 - Contratos **no implementados** para extractor, transporte, scheduler, coordinación multitab, escritura y UI.
 - Pruebas iniciales de configuración, mapeo y ausencia de procesamiento.
-- Preparación de build esbuild; distribución de producción **no realizada**.
+- Preparación de build esbuild con rutas portables en Windows; distribución de producción **no realizada**.
 
 **Validación:** pruebas unitarias locales previstas con `npm test`; pruebas reales de navegador y distribución pendientes. No declarar funciones en producción.

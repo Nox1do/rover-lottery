@@ -1,5 +1,12 @@
 # Changelog
 
+## Auditoría DOM autenticada superada — 2026-10-20
+- Confirmación directa del diagnóstico v0.4.0 en Tampermonkey/Rover: 247 filas inspeccionadas y 10/10 identidades correctas.
+- En cada sorteo: nombre principal, código abreviado y los cinco atributos `loteria` coinciden.
+- Verificación de estructura 2.1 completada en el plan, sin confundir variantes ni procesar resultados.
+- Pendientes: manejadores de eventos, Network, coexistencia y restauración real; script funcional continúa inactivo.
+
+
 ## Corrección DOM con archivos reales — 2026-10-20
 - Identificado el origen de `matchedRows: 0`: primera celda oculta con hora, nombre en segunda celda.
 - Verificados 10 sorteos, códigos y cinco atributos `loteria` por fila en HTML del usuario.

@@ -87,7 +87,9 @@ export function mountInlineStatus({root,draw,date,state='PENDIENTE'}={}) {
     indicator.setAttribute('role','status');
     indicator.setAttribute('aria-live','polite');
     indicator.setAttribute('aria-atomic','true');
-    found.label.insertAdjacentElement('afterend',indicator);
+    // The primary name is inside the first TD; insert the status inside that
+    // same cell. Inserting after the TD would create a spurious table column.
+    found.label.insertAdjacentElement('beforeend',indicator);
   }
   setInlineStatus(indicator,state);
   return {ok:true,status:state,element:indicator};

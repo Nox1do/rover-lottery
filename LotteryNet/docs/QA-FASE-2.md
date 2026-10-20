@@ -194,3 +194,17 @@ Las diez identidades aprobadas se encontraron **exactamente una vez**; cada una 
 `rover-dom-audit.user.js` v0.4.0 utiliza estos selectores exactos y conserva su política de solo lectura. La regresión de navegador usa un fixture **sintético sin resultados ni historiales** que respeta las dos celdas y sus atributos.
 
 **Permanece pendiente:** ejecutar el diagnóstico v0.4.0 en Rover autenticado, verificar convivencia y Network antes de activar cualquier llenado. `src/index.js` sigue inactivo.
+
+## 12. Identidad DOM confirmada por el usuario en Rover autenticado — 2026-10-20
+
+Diagnóstico v0.4.0 ejecutado en una sesión real de Tampermonkey, para la fecha seleccionada `2026-10-19`:
+
+- `#fecha`: presente y válido, `2026-10-19`.
+- `#tableResult`: presente; `tableRows: 247`, `inspectedRows: 247`.
+- `matchedRows: 10`, `rowsWithoutReadableMainName: 0`.
+- Diez nombres únicos en `candidates`: INDIANA EVENING, LOUISIANA EVENING, FLORIDA PM, OHIO EVENING, TENNESSEE EVENING, FLORIDA AM, INDIANA MIDDAY, TENNESSEE MIDDAY, OHIO MIDDAY, TENNESSEE MORNING.
+- Los diez registros reportan `mainNameFound: true`, `shortCodePresent: true`, `resTr: true`, los cinco campos `primera,segunda,tercera,pick3,pick4` y `loteriaAttrs: 5`.
+
+**Conclusión:** identificación estructural de las diez loterías confirmada en Rover real; ya no existe el fallo de `matchedRows: 0`. El extracto de consola no muestra explícitamente los arrays expandidos `missing` y `duplicate`, pero las diez etiquetas distintas reportadas cubren el alcance aprobado.
+
+**Pendiente:** probar eventos, coexistencia con los otros userscripts, restauración con Search y Network para demostrar **cero procesamiento/guardado**. El diagnóstico fue de solo lectura; no habilita ni ejecuta llenado real. `src/index.js` permanece inactivo.

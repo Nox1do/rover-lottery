@@ -44,10 +44,11 @@ El comando `build` generará `dist/LotteryNet-Rover.user.js` y `dist/LotteryNet-
 - `src/parsers/`: parser común y variantes Fireball/Wild Ball/Super Ball.
 - `src/rover/`: identidad de fila, **escritura visual solamente**, restauración.
 - `src/ui/`: indicador de fila implementado; botón manual y AUTO aún no activados.
-- `tests/unit/`: suite ejecutada (26/26, Node 22).
+- `tests/unit/`: suite actual ejecutada (28/28, Node 24 local; CI configurado con Node 22).
 - `tests/browser/isolated-rover.mjs`: regresión DOM y eventos adversarios en Chromium/Firefox.
 - `tests/browser/manual-usa-overlap.mjs`: convivencia manual con LotteryUSA v0.6.5; usa solo su función real `triggerInput` dentro de un fixture local, sin API externas.
 - `tests/browser/rover-safety-audit.user.js`: diagnóstico pasivo de manejadores inline y eventos en Rover real; no altera resultados.
+- `tests/browser/network-blocked-rover.mjs`: 120 escenarios por navegador sobre diez filas capturadas y depuradas, con controles positivos de bloqueo. Informe local y límites en [QA, sección 18](docs/QA-FASE-2.md#18-ensayo-aislado-con-diez-filas-capturadas-y-bloqueo-verificado--20102026).
 - `.github/workflows/lotterynet-qa.yml`: CI para pruebas, compilación y auditoría de entrada inactiva.
 - Pruebas en Rover real y Tampermonkey siguen **pendientes**.
 - `scripts/`: construcción del userscript y metadatos.

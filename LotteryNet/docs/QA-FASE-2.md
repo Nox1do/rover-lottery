@@ -354,3 +354,53 @@ El ensayo deberá registrar las filas realmente cubiertas, fecha y turno, conser
 
 **Limitación de ejecución:** el conector de Opera disponible permite leer la interfaz, pero no ejecutar consola ni controlar Network o Tampermonkey. No se ha demostrado un mecanismo de bloqueo de red en esa sesión. Por tanto, el ensayo controlado no se ejecutó y `src/index.js` permanece **INACTIVO**; no se ha completado la Fase 2 ni activado AUTO.
 
+## 18. Ensayo aislado con diez filas capturadas y bloqueo verificado — 20/10/2026
+
+**Diseño aprobado por el usuario:** ampliar las pruebas existentes con las diez filas del HTML aportado, depuradas de datos e historiales; comprobar el bloqueo antes de llenar; respuestas locales y módulos reales; registrar intentos bloqueados y eventos. No activar la entrada de producción.
+
+### Alcance y procedencia
+
+`tests/fixtures/rover/ten-draws-sanitized.html` conserva la estructura seleccionada de diez filas únicas de `verResultados2(1).php` y cincuenta inputs vacíos. Se retiraron resultados, horas, historiales, IDs, atributos ajenos al localizador, acciones y scripts. El envoltorio de documento y la fecha seleccionada 19/10/2026 son del ensayo. La procedencia y el SHA-256 quedan en `tests/fixtures/rover/provenance.json`.
+
+Los módulos de `src/` se ejecutan sin modificar. El HTML de los diez juegos de Lottery.net se responde con los fixtures ya versionados del 19/10/2026; el parser real identifica fecha, turno y dígitos antes de llenar. Los valores con ceros adicionales del escenario `leading-zeros` son datos sintéticos de prueba, no resultados oficiales.
+
+### Bloqueo y controles
+
+Antes de crear la página, el contexto de Playwright bloquea Service Workers e instala rutas HTTP/WebSocket. Solo los GET de recursos conocidos reciben respuestas estáticas; otras solicitudes se abortan y los sockets se cierran sin conectar con un servidor. Los registros conservan método, origen y path, sin cabeceras ni cuerpos.
+
+1. Cada navegador demuestra primero que un POST sin protección llega al servidor receptor de `127.0.0.1`.
+2. Bajo protección se intentan GET, POST, PUT, PATCH y DELETE a una ruta de proceso **del servidor local de prueba**, XHR, otro POST receptor, GET a un dominio reservado `.invalid`, beacon, formulario, popup y WebSocket: **doce intentos bloqueados**. Ninguno llega al receptor durante esta fase.
+3. Se vuelve a cargar la tabla limpia y se mide el llenado aparte, manteniendo el bloqueo durante una ventana adicional de 500 ms antes de capturar los contadores finales de eventos/clics y comprobar Network. Los intentos deliberados anteriores no se atribuyen a LotteryNet. No se afirma ausencia de tareas diferidas para después de esa ventana.
+4. Para evitar falsos positivos de políticas de acceso a redes privadas, la tabla y el receptor usan el mismo origen local. Un bypass deliberado debe llegar al receptor y hacer fallar el ensayo.
+
+### Resultados locales
+
+| Comprobación | Chromium 153.0.8010.0 | Firefox 153.0 |
+| --- | --- | --- |
+| Sorteos / campos cubiertos | 10 / 50 | 10 / 50 |
+| Escenarios funcionales | 120 correctos | 120 correctos |
+| Conexiones deliberadas bloqueadas | 12 | 12 |
+| Solicitudes intentadas durante llenado | 0 | 0 |
+| Solicitudes que llegaron al receptor durante fases protegidas | 0 | 0 |
+| Eventos `input/change/blur` de llenado | 0 / 0 / 0 | 0 / 0 / 0 |
+| Clics de procesamiento | 0 | 0 |
+| Bypass deliberado del bloqueo | Detectado; prueba falla | Detectado; prueba falla |
+| Emisión deliberada de `input` durante escritura | Detectada; prueba falla | Detectada; prueba falla |
+| POST diferido con `setTimeout(..., 0)` | Detectado; prueba falla | Detectado; prueba falla |
+
+Cada sorteo pasa los doce casos: llenado completo, idempotencia, solo juego 3, solo juego 4, ceros iniciales, conflicto previo, fecha cambiada, reconstrucción tipo Search/restauración, conflicto al restaurar, código `loteria` alterado, fila duplicada y fila ausente. El caso completo comprueba además mensajes de UI y ausencia de cambios en los otros nueve sorteos.
+
+**Regresión:** `npm test` (28/28), `npm run build`, sintaxis del bundle, suite previa de DOM y suite de convivencia manual LotteryUSA, correctas. La entrada existente `isolated-rover.mjs` ejecuta también el ensayo nuevo; `npm run test:browser:blocked` lo ejecuta por separado. No se ha registrado todavía una ejecución de GitHub Actions para esta ampliación.
+
+**Entorno:** Node 24.19.0 y Playwright 1.62.1. Chromium usa un ejecutable alternativo de `@sparticuz/chromium`; Firefox usa la descarga de Playwright. La descarga estándar de Chromium devolvió ZIP truncado. Firefox inicialmente falló al crear el namespace de su sandbox interno (`uid_map: EPERM`); la ejecución local correcta utilizó `MOZ_DISABLE_CONTENT_SANDBOX=1`. Son condiciones locales documentadas, no modificaciones de producción ni supuestos sobre el navegador del usuario.
+
+**Evidencia:** [informe por navegador y caso](qa/network-blocked-2026-10-20.json) y [controles de mutación](qa/network-blocked-mutations-2026-10-20.json). Las mutaciones se retiraron antes de la ejecución final correcta; `src/` no tiene cambios.
+
+**Corrección durante revisión:** antes de añadir la ventana final, una mutación que lanzaba POST en una tarea diferida produjo un falso `PASS`. Se reprodujo ese fallo, se añadió observación antes de serializar contadores y la misma mutación pasó a fallar en ambos motores por intento de solicitud. Se mantuvo el bloqueo durante toda la medición; la corrección afecta solo al ensayo.
+
+### Límites y siguiente puerta
+
+El ensayo utiliza procesos reales de Chromium y Firefox con una **copia depurada**, sin sesión autenticada, manejadores originales de Rover ni Tampermonkey. Los listeners hostiles y botones centinela son sintéticos; la convivencia manual previa utiliza solo la función `triggerInput` extraída de LotteryUSA. La reconstrucción de Search se reproduce reemplazando filas, sin llamar al AJAX de Rover.
+
+El bloqueo cubre las páginas del contexto de prueba, no es un cortafuegos del sistema y no demuestra bloqueo del proceso de fondo de una extensión. La prueba real con Tampermonkey, otros userscripts instalados y Network autenticado sigue pendiente. No volver a pedir la misma observación pasiva como sustituto de esa prueba. **Fase 2/A19 reales no se declaran completos y `src/index.js` sigue INACTIVO.**
+

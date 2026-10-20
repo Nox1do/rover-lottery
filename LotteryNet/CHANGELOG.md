@@ -1,5 +1,14 @@
 # Changelog
 
+## Ensayo aislado ampliado a diez filas — 2026-10-20
+- Añadida una copia depurada de las diez filas del HTML del usuario, con cincuenta campos vacíos y procedencia SHA-256; sin resultados originales, historiales, IDs, acciones ni scripts de Rover.
+- Nuevo ensayo Playwright: doce escenarios por sorteo en Chromium y Firefox; fuente Lottery.net respondida desde fixtures, módulos reales de extracción, llenado, restauración e interfaz.
+- Bloqueo por contexto para HTTP y WebSocket, Service Workers deshabilitados y doce conexiones de control bloqueadas por navegador. Servidor local receptor verificado antes de activar el bloqueo.
+- Verificados 240 escenarios en total, cero solicitudes de llenado, cero eventos sintéticos y cero clics de procesamiento. Mutaciones deliberadas de bypass y emisión de `input` detectadas en ambos motores y luego retiradas.
+- Corregida una carrera del ensayo detectada en revisión: observar 500 ms adicionales antes de capturar contadores evita cerrar con un POST diferido pendiente. El falso `PASS` anterior se reprodujo y la mutación diferida ahora falla en ambos navegadores; el límite temporal queda explícito.
+- Suite completa: 28/28 Node, build y sintaxis correctos; regresiones previas de DOM y convivencia manual correctas en ambos navegadores. Evidencia local guardada en `docs/qa/`.
+- La entrada de CI existente ejecutará también el ensayo ampliado; todavía no se atribuye una ejecución CI a estos cambios. No cambia `src/`, AUTO ni la distribución de producción. Tampermonkey y Rover autenticado siguen pendientes.
+
 ## Línea de base pasiva parcial y Network — 2026-10-20
 - El usuario inició y detuvo dos ventanas de observación; el estado inactivo tras `stop()` es normal. Sin eventos elegibles registrados en los contadores remitidos.
 - Cobertura de la vista: 39 filas, con OHIO MIDDAY y TENNESSEE MORNING presentes (cinco campos cada uno); no extrapolar a los diez sorteos.

@@ -250,14 +250,112 @@ Referencias oficiales: [Documentación de Tampermonkey](https://www.tampermonkey
 
 **Puerta:** las pruebas automatizadas de extracción y validación pasan para todos los sorteos soportados.
 
-### Fase 2 — Motor de llenado visual
+### Fase 2 — Motor de llenado visual e interfaz Intelligence UI
 
-- [ ] Implementar descubrimiento seguro de filas e inputs.
-- [ ] Escribir solo campos válidos, sin sobrescrituras, sin clics de procesamiento y sin peticiones de escritura a Rover.
-- [ ] Incorporar caché por identidad, restauración después de Search y detección de cambios de fecha.
-- [ ] Instrumentar pruebas que intercepten/cuenten intentos de procesar o guardar.
+**Objetivo:** implementar el llenado seguro de las casillas de Rover e incorporar una interfaz visual que comunique con precisión los estados del sistema, sin realizar ningún procesamiento ni guardado de resultados.
 
-**Puerta:** completar los cinco inputs o subconjuntos parciales con idempotencia y **cero procesamiento**.
+#### 2.1 — Identificación de filas e inputs
+
+- [ ] Identificar las filas correspondientes a cada lotería, turno y fecha.
+- [ ] Validar la estructura y los cinco inputs de cada fila.
+- [ ] Detectar reconstrucciones de la tabla mediante Search.
+- [ ] Rechazar filas ambiguas o que no correspondan a la fecha seleccionada.
+
+#### 2.2 — Diseño visual con Intelligence UI (OBLIGATORIO)
+
+Antes de implementar la interfaz definitiva, realizar una etapa de diseño y evaluación visual.
+
+- [ ] Crear una representación visual de la interfaz integrada en Rover.
+- [ ] Presentar alternativas de diseño para iconografía, colores, mensajes y ubicación.
+- [ ] Mostrar los estados de búsqueda, carga, completado y error.
+- [ ] Diferenciar indicadores globales e indicadores individuales por sorteo.
+- [ ] Evaluar legibilidad, accesibilidad y coherencia con la interfaz existente.
+- [ ] Solicitar aprobación del usuario sobre el diseño seleccionado.
+
+**La aprobación visual es una puerta obligatoria antes de integrar la interfaz definitiva.**
+
+#### 2.3 — Catálogo de estados, iconos y mensajes
+
+Propuesta inicial, sujeta a evaluación mediante Intelligence UI:
+
+| Estado      | Icono sugerido (Lucide) | Mensaje principal                      |
+| ----------- | ----------------------- | -------------------------------------- |
+| BUSCANDO    | `search`                | Buscando sorteo                        |
+| CARGANDO    | `loader-circle`         | Consultando                            |
+| COMPLETADO  | `circle-check`          | Casillas completadas                   |
+| ERROR       | `circle-alert`          | Error al consultar o llenar            |
+| PENDIENTE   | `clock-3`               | Resultado aún no disponible            |
+| PARCIAL     | `circle-dot`            | Resultado parcialmente disponible      |
+| COINCIDENTE | `check-check`           | Los valores ya coinciden               |
+| CONFLICTO   | `triangle-alert`        | Los valores existentes son diferentes  |
+| SIN_FILA    | `search-x`              | No se encontró la fila correspondiente |
+
+**Reglas de presentación:**
+
+- El indicador BUSCANDO corresponde a la identificación del sorteo o fila.
+- CARGANDO corresponde a la consulta de red o extracción de información.
+- COMPLETADO significa únicamente que los inputs visibles están llenos correctamente.
+- Los estados de error deben describir el problema sin presentarlo como un resultado procesado.
+- Los colores serán informativos y no constituirán el único medio para distinguir estados.
+- Las animaciones de carga deberán detenerse al finalizar la operación.
+- La interfaz no debe bloquear los controles originales de Rover.
+
+#### 2.4 — Representación y aprobación del diseño
+
+El entregable visual deberá incluir:
+
+- Vista general del panel Lottery.net.
+- Apariencia de un sorteo pendiente, buscando y cargando.
+- Apariencia de una fila con las cinco casillas completadas.
+- Representación de un resultado parcial.
+- Tratamiento visual de conflictos, errores y ausencia de resultados.
+- Estados y mensajes asociados al botón «Consultar y llenar».
+- Comportamiento responsive cuando el espacio sea limitado.
+
+Se documentará la alternativa aprobada en `docs/UI-SPEC.md`, incluyendo iconos, colores, textos y reglas de transición.
+
+**El botón y AUTO pueden representarse visualmente durante esta fase; su integración funcional pertenece a la Fase 3.**
+
+#### 2.5 — Motor de llenado visual
+
+- [ ] Aplicar exclusivamente resultados con fecha, turno y juego verificados.
+- [ ] Completar únicamente inputs vacíos o elegibles.
+- [ ] Conservar valores existentes idénticos.
+- [ ] Bloquear sobrescrituras cuando exista conflicto.
+- [ ] Diferenciar resultados completos y parciales.
+- [ ] Reflejar los cambios mediante los indicadores visuales aprobados.
+- [ ] No activar botones de procesamiento, confirmación ni guardado.
+- [ ] No realizar solicitudes de escritura al servidor de Rover.
+
+#### 2.6 — Persistencia visual y restauración
+
+- [ ] Mantener una caché independiente de Lottery.net.
+- [ ] Detectar cuándo Rover reconstruye las filas después de Search.
+- [ ] Restaurar únicamente los valores que correspondan a la fecha y turno visibles.
+- [ ] No sobrescribir correcciones manuales.
+- [ ] Evitar cambios duplicados o repetitivos.
+
+#### 2.7 — Pruebas y criterios de aceptación
+
+- [ ] Verificar que todos los estados muestran iconos y mensajes correctos.
+- [ ] Verificar que BUSCANDO y CARGANDO no permanecen activos después de finalizar.
+- [ ] Confirmar que COMPLETADO no implica procesamiento en Rover.
+- [ ] Comprobar errores, resultados parciales, conflictos y filas inexistentes.
+- [ ] Verificar que el llenado visual conserva los ceros iniciales.
+- [ ] Confirmar que Search y los cambios de fecha no restauran datos incorrectos.
+- [ ] Auditar que ningún cambio visual desencadena procesamiento ni guardado automático.
+- [ ] Conservar evidencia visual y resultados de las pruebas.
+
+**Puerta de calidad de la Fase 2:**
+
+La fase se considerará completada únicamente cuando:
+
+1. El usuario haya aprobado la representación visual y el catálogo de estados.
+2. La interfaz implementada corresponda al diseño aprobado.
+3. El llenado visual sea correcto, idempotente y libre de sobrescrituras indebidas.
+4. Las pruebas confirmen cero procesamiento y cero guardado automático en Rover.
+
+**Regla invariable:** Lottery.net consulta → valida → llena las casillas → informa visualmente el estado → termina. Nunca procesa.
 
 ### Fase 3 — AUTO, botón manual y multitab
 

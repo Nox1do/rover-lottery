@@ -1,5 +1,11 @@
 # Changelog
 
+## Plan UI Fase 2 — 2026-10-20
+- Incorporada al plan maestro la etapa obligatoria de representación visual con Intelligence UI, catálogo de iconos, estados y mensajes, aprobación de la interfaz y criterios de calidad antes del llenado.
+- Mensajes aprobados: BUSCANDO «Buscando sorteo» y CARGANDO «Consultando».
+- Sin cambios al userscript, automatización ni procesamiento de resultados.
+
+
 ## 0.2.0 — 2026-10-20 (Fase 1 parcial, sin distribución)
 - Capturados diez fragmentos HTML auténticos del 19 de octubre para FL, LA, OH, TN e IN.
 - Añadidos extractor puro de fecha/turno/posiciones, validación de origen y exclusión de bolas especiales.

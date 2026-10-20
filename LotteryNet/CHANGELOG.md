@@ -1,5 +1,11 @@
 # Changelog
 
+## Especificación visual aprobada — 2026-10-20
+- Seleccionada distribución **En fila**, iconografía **Lineal** y mensajes exactos de los nueve estados.
+- Creado `docs/UI-SPEC.md` con diseño estructural, comportamiento, accesibilidad, transiciones y criterios de aceptación.
+- Actualizado plan maestro a **1.1.0** con las decisiones aprobadas; permanecen pendientes la integración, las pruebas reales y el llenado visual.
+- **Sin cambios de código de producción, AUTO ni procesamiento.**
+
 ## Plan UI Fase 2 — 2026-10-20
 - Incorporada al plan maestro la etapa obligatoria de representación visual con Intelligence UI, catálogo de iconos, estados y mensajes, aprobación de la interfaz y criterios de calidad antes del llenado.
 - Mensajes aprobados: BUSCANDO «Buscando sorteo» y CARGANDO «Consultando».

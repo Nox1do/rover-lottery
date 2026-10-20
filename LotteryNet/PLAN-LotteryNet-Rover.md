@@ -1,6 +1,6 @@
 # PLAN MAESTRO — Lottery.net → Rover
 
-> **Documento rector del proyecto** · Versión del plan: **1.0.0** · Fecha: **2026-10-19**  
+> **Documento rector del proyecto** · Versión del plan: **1.1.0** · Fecha: **2026-10-19**  
 > **Estado:** esqueleto inicial preparado; extractores, UI y automatización pendientes de implementación y validación.  
 > **Fuente de datos exclusiva:** https://www.lottery.net/  
 > **Plataforma:** Tampermonkey sobre Rover (`/adm/es/lottery.php`).
@@ -265,18 +265,20 @@ Referencias oficiales: [Documentación de Tampermonkey](https://www.tampermonkey
 
 Antes de implementar la interfaz definitiva, realizar una etapa de diseño y evaluación visual.
 
-- [ ] Crear una representación visual de la interfaz integrada en Rover.
-- [ ] Presentar alternativas de diseño para iconografía, colores, mensajes y ubicación.
-- [ ] Mostrar los estados de búsqueda, carga, completado y error.
-- [ ] Diferenciar indicadores globales e indicadores individuales por sorteo.
+**Decisión visual APROBADA el 2026-10-20:** distribución **En fila**, iconografía **Lineal** y los nueve mensajes exactos de la sección 2.3. Se descartan para esta versión las alternativas «Barra + fila» y «Panel». La selección aprobada se documenta en [docs/UI-SPEC.md](docs/UI-SPEC.md), sin habilitar aún funcionalidades del userscript.
+
+- [x] Crear una representación visual de la interfaz integrada en Rover.
+- [x] Presentar alternativas de diseño para iconografía, colores, mensajes y ubicación.
+- [x] Mostrar los estados de búsqueda, carga, completado y error.
+- [x] Diferenciar indicadores globales e indicadores individuales por sorteo.
 - [ ] Evaluar legibilidad, accesibilidad y coherencia con la interfaz existente.
-- [ ] Solicitar aprobación del usuario sobre el diseño seleccionado.
+- [x] Solicitar aprobación del usuario sobre el diseño seleccionado.
 
 **La aprobación visual es una puerta obligatoria antes de integrar la interfaz definitiva.**
 
 #### 2.3 — Catálogo de estados, iconos y mensajes
 
-Propuesta inicial, sujeta a evaluación mediante Intelligence UI:
+**Catálogo de estados, iconos y mensajes aprobado por el usuario el 2026-10-20** para el diseño En fila y los iconos lineales:
 
 | Estado      | Icono sugerido (Lucide) | Mensaje principal                      |
 | ----------- | ----------------------- | -------------------------------------- |
@@ -301,6 +303,8 @@ Propuesta inicial, sujeta a evaluación mediante Intelligence UI:
 - La interfaz no debe bloquear los controles originales de Rover.
 
 #### 2.4 — Representación y aprobación del diseño
+
+**Diseño elegido: En fila + iconografía Lineal.** Los iconos y textos definitivos son los de la sección 2.3; la especificación de ubicación, accesibilidad y transiciones queda en [docs/UI-SPEC.md](docs/UI-SPEC.md). **Aprobación visual obtenida; implementación y validación en navegador pendientes.**
 
 El entregable visual deberá incluir:
 
@@ -350,7 +354,7 @@ Se documentará la alternativa aprobada en `docs/UI-SPEC.md`, incluyendo iconos,
 
 La fase se considerará completada únicamente cuando:
 
-1. El usuario haya aprobado la representación visual y el catálogo de estados.
+1. El usuario haya aprobado la representación visual y el catálogo de estados (**cumplido el 2026-10-20; no implica que la fase esté finalizada**).
 2. La interfaz implementada corresponda al diseño aprobado.
 3. El llenado visual sea correcto, idempotente y libre de sobrescrituras indebidas.
 4. Las pruebas confirmen cero procesamiento y cero guardado automático en Rover.

@@ -30,21 +30,8 @@
  ]);
  const names=['primera','segunda','tercera','pick3','pick4'];
  const observed={active:false,startedAt:null,counts:{input:0,change:0,blur:0},
-  untrusted:0,targets:{},handler:null};
+  untrusted:0,targets:{}};
  const safeKey=code=>expected.some(([,c])=>c===code)?code:null;
- const namesOnly=(el)=>names.map(name=>{
-   const list=Array.from(el.querySelectorAll('input[name="'+name+'"]'));
-   const input=list.length===1?list[0]:null;
-   return {name,count:list.length,
-    inlineInput:!!input?.getAttribute('oninput'),
-    inlineChange:!!input?.getAttribute('onchange'),
-    inlineBlur:!!input?.getAttribute('onblur'),
-    propertyInput:typeof input?.oninput==='function',
-    propertyChange:typeof input?.onchange==='function',
-    propertyBlur:typeof input?.onblur==='function',
-    form:!!input?.closest('form'),
-    codeConsistent:!!input&&input.getAttribute('loteria')===el.dataset.qaExpectedCode};
- });
  const snapshot=()=>{
    const table=document.querySelector('#tableResult');
    const rows=Array.from(table?.querySelectorAll('tbody tr')??[]);

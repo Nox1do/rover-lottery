@@ -3,6 +3,8 @@
 **Fecha:** 2026-10-20. **Estado:** módulo inactivo, NO APTO PARA PRODUCCIÓN.  
 **Diseño:** «En fila», iconos lineales, nueve estados y mensajes aprobados.
 
+**Último avance:** Tampermonkey real en Chromium y réplica local con aislamiento del sistema, validado en la sección 19. Rover autenticado y convivencia con todas las extensiones del usuario siguen pendientes.
+
 ## 1. Evidencia verificada
 
 **GitHub Actions:** [LotteryNet QA, ejecución 39431580644](https://github.com/Nox1do/rover-lottery/actions/runs/39431580644) — conclusión: **SUCCESS**, dos trabajos completados.
@@ -390,7 +392,7 @@ Antes de crear la página, el contexto de Playwright bloquea Service Workers e i
 
 Cada sorteo pasa los doce casos: llenado completo, idempotencia, solo juego 3, solo juego 4, ceros iniciales, conflicto previo, fecha cambiada, reconstrucción tipo Search/restauración, conflicto al restaurar, código `loteria` alterado, fila duplicada y fila ausente. El caso completo comprueba además mensajes de UI y ausencia de cambios en los otros nueve sorteos.
 
-**Regresión:** `npm test` (28/28), `npm run build`, sintaxis del bundle, suite previa de DOM y suite de convivencia manual LotteryUSA, correctas. La entrada existente `isolated-rover.mjs` ejecuta también el ensayo nuevo; `npm run test:browser:blocked` lo ejecuta por separado. No se ha registrado todavía una ejecución de GitHub Actions para esta ampliación.
+**Regresión:** `npm test` (28/28), `npm run build`, sintaxis del bundle, suite previa de DOM y suite de convivencia manual LotteryUSA, correctas. La entrada existente `isolated-rover.mjs` ejecuta también el ensayo nuevo; `npm run test:browser:blocked` lo ejecuta por separado. Posteriormente se verificó esta ampliación en [GitHub Actions 39467286725](https://github.com/Nox1do/rover-lottery/actions/runs/39467286725), con ambos trabajos correctos.
 
 **Entorno:** Node 24.19.0 y Playwright 1.62.1. Chromium usa un ejecutable alternativo de `@sparticuz/chromium`; Firefox usa la descarga de Playwright. La descarga estándar de Chromium devolvió ZIP truncado. Firefox inicialmente falló al crear el namespace de su sandbox interno (`uid_map: EPERM`); la ejecución local correcta utilizó `MOZ_DISABLE_CONTENT_SANDBOX=1`. Son condiciones locales documentadas, no modificaciones de producción ni supuestos sobre el navegador del usuario.
 
@@ -403,4 +405,59 @@ Cada sorteo pasa los doce casos: llenado completo, idempotencia, solo juego 3, s
 El ensayo utiliza procesos reales de Chromium y Firefox con una **copia depurada**, sin sesión autenticada, manejadores originales de Rover ni Tampermonkey. Los listeners hostiles y botones centinela son sintéticos; la convivencia manual previa utiliza solo la función `triggerInput` extraída de LotteryUSA. La reconstrucción de Search se reproduce reemplazando filas, sin llamar al AJAX de Rover.
 
 El bloqueo cubre las páginas del contexto de prueba, no es un cortafuegos del sistema y no demuestra bloqueo del proceso de fondo de una extensión. La prueba real con Tampermonkey, otros userscripts instalados y Network autenticado sigue pendiente. No volver a pedir la misma observación pasiva como sustituto de esa prueba. **Fase 2/A19 reales no se declaran completos y `src/index.js` sigue INACTIVO.**
+
+## 19. Tampermonkey real y aislamiento de red del sistema — 20/10/2026
+
+**Resultado:** [GitHub Actions 39475193126](https://github.com/Nox1do/rover-lottery/actions/runs/39475193126), commit `ff4991c1d37b8a72a20aa50a25cead0c6b5b450b`: los tres trabajos terminaron **SUCCESS**. Incluye **30/30 pruebas Node**, build y auditoría de entrada inactiva, las regresiones Chromium/Firefox anteriores y el ensayo nuevo con gestor real. No se modificó `src/` ni se activó el userscript de producción.
+
+### Gestor, instalación y procedencia
+
+Se descargó por HTTPS el paquete estable de [Tampermonkey](https://www.tampermonkey.net/crx/tampermonkey_stable.crx), versión **5.4.1**, Manifest V3, fijando su SHA-256 a `a124e3189ecc0981ce79ef182dd3897a75fe22fc7bf0828e9d293ad7122d3d4d`. La descarga cambiante hace fallar el preparador hasta revisar el nuevo paquete. Se carga descomprimido, sin alterar su código ni manifiesto, en **Chromium 141.0.7390.37 / Playwright 1.56.1**. No se redistribuyen el CRX, la extensión ni los perfiles.
+
+Esta carga de ensayo tiene un ID derivado de la ruta, distinto del de Chrome Web Store; la página de bienvenida muestra por ello una advertencia de ID no oficial. La evidencia acredita los bytes del paquete descargado y el funcionamiento del gestor real, **no una instalación desde la tienda**.
+
+Cada fase utiliza un perfil nuevo y separado, sin sesión Rover ni otros userscripts del usuario. El controlador habilita el permiso nativo **Allow User Scripts**, verifica la API real y, mediante la interfaz de Utilities, importa el bundle de prueba, confirma la instalación y comprueba su entrada habilitada en el dashboard. Espera los registros de arranque de página y contenido creados por el propio gestor antes de navegar. No crea registros de sustitución ni implementaciones ficticias de GM.
+
+El script de ensayo solo coincide con `http://127.0.0.1/rover.html*`; tiene permisos de conexión exclusivamente al fixture y al receptor IPv4 privado de control. Ambos perfiles ejecutaron exactamente el mismo bundle SHA-256 `26675c564e37390a671dbb0e909d17614d758db2a67cf1b5c404d5f144a638fb`. `GM_info` confirmó Tampermonkey 5.4.1, script 0.0.1 y `sandboxMode: raw`.
+
+### Controles y resultados
+
+Primero, sin aislamiento y sin llenar casillas, se demuestra que un POST de la página y otro de **GM_xmlhttpRequest real en background** llegan al receptor de control. Luego se inicia un proceso hijo mediante `sudo unshare --net`, que contiene Node, servidor local, Chromium y la extensión. Antes de cualquier llenado verifica un namespace distinto, única interfaz `lo` y cero rutas IPv4 externas. No se cambia el cortafuegos del host.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Control previo: POST de página / POST de GM | Ambos llegaron al receptor; GM respondió 200 |
+| Namespace aislado | Distinto del padre; solo `lo`; 0 rutas externas |
+| Mismo POST externo desde página / GM dentro del aislamiento | Fallaron con `TypeError` / `network-error` |
+| Solicitudes recibidas por el receptor durante el aislamiento | **0** |
+| GET de GM al servidor local dentro del aislamiento | Correcto; el gestor seguía operativo |
+| GM_setValue / GM_getValue / GM_deleteValue | Correctos en ambas fases |
+| Sorteos / campos | **10 / 50**, copia depurada de la sección 18 |
+| Escenarios funcionales mediante el script instalado | **120 correctos**, mismos doce casos por sorteo |
+| Eventos de llenado `input/change/blur` | **0 / 0 / 0** |
+| Clics de procesamiento / escrituras al servidor local | **0 / 0** |
+| Observación adicional antes de capturar contadores | **500 ms**, con aislamiento mantenido |
+
+Los módulos reales y las aserciones independientes son los mismos de la regresión anterior; los HTML de Lottery.net son fixtures locales. El resultado acredita que **no escaparon solicitudes al receptor** bajo el aislamiento comprobado. No cuenta todos los intentos internos de red de la extensión ni declara «cero intentos de background».
+
+### Correcciones y límites
+
+El primer selector de instalación confundía el botón de URL de Utilities con la confirmación. Se delimitó al diálogo del gestor. Además, en un perfil nuevo el permiso de Chrome y los registros de arranque del gestor no están listos al mismo tiempo: el informe muestra cero registros al principio y ambos registros antes de navegar. Esperar estos registros permitió superar el control previo con las API reales.
+
+Un intento que reutilizaba el perfil entre procesos no inició el script en la fase aislada; su causa no quedó determinada. El diseño final instala el bundle idéntico en dos perfiles nuevos y **no prueba persistencia de perfiles**. Tampoco valida Firefox con Tampermonkey, listeners originales de Rover, una sesión autenticada, todas las extensiones del usuario, AJAX real, AUTO o coordinación entre pestañas. La ausencia de eventos se mide durante los escenarios y la ventana indicada, sin promesas sobre tareas posteriores.
+
+El contenedor local no permitía namespaces ni el perfil persistente de Chromium; por eso esta prueba se ejecutó en el runner de CI autorizado. Reproducir desde `LotteryNet/` en un runner Linux con Chromium completo y autorización para crear namespaces:
+
+```sh
+npm install --no-audit --no-fund --no-save playwright@1.56.1
+npx playwright install --with-deps chromium
+python3 tests/browser/tampermonkey/prepare-extension.py
+node tests/browser/tampermonkey/run-isolated.mjs
+```
+
+**Evidencia:** [informe original de CI por fase y caso](qa/tampermonkey-isolated-2026-10-20.json). Artefacto de CI `12288427881`, ZIP SHA-256 `4956a8b692f7961d7c29e5a975c9885f5d0da1d62f18484f183992f79f218cd2`. El workflow publica solo JSON/PNG de diagnóstico, excluyendo perfiles y paquete de extensión.
+
+Referencias primarias: [permiso userScripts de Chrome](https://developer.chrome.com/docs/extensions/reference/api/userScripts), [extensiones en Playwright](https://playwright.dev/docs/chrome-extensions) y [GM_xmlhttpRequest de Tampermonkey](https://www.tampermonkey.net/documentation.php?q=GM_xmlhttpRequest).
+
+**Puerta pendiente:** integración autenticada y convivencia real en un entorno autorizado con bloqueo efectivo. Este ensayo no aprueba A19 en producción. `src/index.js` permanece **INACTIVO**; Fase 2 y AUTO no se declaran terminados.
 

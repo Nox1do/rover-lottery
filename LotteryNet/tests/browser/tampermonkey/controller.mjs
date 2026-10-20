@@ -1,6 +1,6 @@
 import {chromium} from 'playwright';
 import {createServer} from 'node:http';
-import {readFile, writeFile, readlink} from 'node:fs/promises';
+import {readFile, writeFile, readlink, mkdtemp} from 'node:fs/promises';
 import {networkInterfaces} from 'node:os';
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
@@ -138,7 +138,8 @@ try {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const origin = 'http://127.0.0.1:' + server.address().port;
   const extension = path.join(directory, 'extension');
-  context = await chromium.launchPersistentContext(path.join(directory, 'profile-' + phase), {
+  const profile = await mkdtemp(path.join(directory, 'profile-' + phase + '-'));
+  context = await chromium.launchPersistentContext(profile, {
     executablePath: config.executablePath, headless: true,
     args: ['--disable-extensions-except=' + extension, '--load-extension=' + extension]
   });

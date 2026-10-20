@@ -1,5 +1,13 @@
 # Changelog
 
+## Tampermonkey real en réplica aislada — 2026-10-20
+
+- Añadido ensayo con el paquete oficial Tampermonkey 5.4.1 fijado por hash y Chromium completo. Importación y habilitación mediante UI real, permisos nativos y espera del arranque del gestor; sin sustitutos de GM ni activación de producción.
+- Dos perfiles nuevos ejecutan un bundle idéntico: controles positivos de página/background antes del aislamiento y prueba bajo namespace de red con solo loopback. GM local y almacenamiento siguen operativos; ninguna solicitud llegó al receptor externo durante el aislamiento.
+- **120 escenarios correctos**, 10 sorteos/50 campos, cero eventos de llenado, clics de procesamiento y escrituras locales, incluida ventana de 500 ms. Se comparten los casos existentes sin cambiar `src/`.
+- [CI 39475193126](https://github.com/Nox1do/rover-lottery/actions/runs/39475193126): tres trabajos SUCCESS, **30/30 Node**, build inactivo y regresiones Chromium/Firefox. Informe original guardado en `docs/qa/tampermonkey-isolated-2026-10-20.json`.
+- Un ensayo de reutilización de perfil no inició el script; causa no determinada y persistencia excluida del alcance final. No valida Rover autenticado, Firefox con Tampermonkey ni todas las extensiones del usuario. Fase 2/A19 de producción siguen pendientes; entrada inactiva.
+
 ## Ensayo aislado ampliado a diez filas — 2026-10-20
 - Añadida una copia depurada de las diez filas del HTML del usuario, con cincuenta campos vacíos y procedencia SHA-256; sin resultados originales, historiales, IDs, acciones ni scripts de Rover.
 - Nuevo ensayo Playwright: doce escenarios por sorteo en Chromium y Firefox; fuente Lottery.net respondida desde fixtures, módulos reales de extracción, llenado, restauración e interfaz.
@@ -7,7 +15,7 @@
 - Verificados 240 escenarios en total, cero solicitudes de llenado, cero eventos sintéticos y cero clics de procesamiento. Mutaciones deliberadas de bypass y emisión de `input` detectadas en ambos motores y luego retiradas.
 - Corregida una carrera del ensayo detectada en revisión: observar 500 ms adicionales antes de capturar contadores evita cerrar con un POST diferido pendiente. El falso `PASS` anterior se reprodujo y la mutación diferida ahora falla en ambos navegadores; el límite temporal queda explícito.
 - Suite completa: 28/28 Node, build y sintaxis correctos; regresiones previas de DOM y convivencia manual correctas en ambos navegadores. Evidencia local guardada en `docs/qa/`.
-- La entrada de CI existente ejecutará también el ensayo ampliado; todavía no se atribuye una ejecución CI a estos cambios. No cambia `src/`, AUTO ni la distribución de producción. Tampermonkey y Rover autenticado siguen pendientes.
+- La ampliación pasó después en CI 39467286725. No cambia `src/`, AUTO ni la distribución de producción. En ese alcance, Tampermonkey y Rover autenticado seguían pendientes; el avance posterior con gestor real se documenta arriba.
 
 ## Línea de base pasiva parcial y Network — 2026-10-20
 - El usuario inició y detuvo dos ventanas de observación; el estado inactivo tras `stop()` es normal. Sin eventos elegibles registrados en los contadores remitidos.

@@ -46,4 +46,3 @@ export function verifyScenarios(output, cases) {
   assert.deepEqual(output.events, {input: 0, change: 0, blur: 0});
   assert.equal(output.processClicks, 0);
 }
-

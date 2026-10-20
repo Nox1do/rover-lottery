@@ -1,0 +1,1133 @@
+{
+  "investigacion": "Equivalencias Rover USA v0.6.5 -> Lottery.net",
+  "fechaCorte": "2026-10-19",
+  "versionFuente": "Rovs Loterías USA 0.6.5",
+  "resumen": {
+    "sorteos": 74,
+    "jurisdicciones": 35,
+    "estadosUS": 33,
+    "otras": [
+      "Distrito de Columbia",
+      "Puerto Rico"
+    ],
+    "sorteosConPagina": 72,
+    "sinPagina": 2,
+    "posicionesDeJuego": 135,
+    "posicionesConPagina": 131,
+    "paginasDeResultadosUnicas": 62
+  },
+  "alcance": "Investigación; no se han probado los extractores ni la automatización con Rover; no incorporar como funcional sin validación.",
+  "registros": [
+    {
+      "id": "tn-morning",
+      "nombreFilaRover": "TENNESSEE MORNING",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "TENNESSEE_API",
+      "estado": "tennessee",
+      "turnoEnLotteryNet": "Morning",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/tennessee/cash-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/tennessee/cash-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Wild Ball al extraer los dígitos principales.",
+        "Verificar días sin sorteo (p.ej. domingos) antes de activar AUTO."
+      ]
+    },
+    {
+      "id": "tx-morning",
+      "nombreFilaRover": "TEXAS MORNING",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "texas",
+      "turnoEnLotteryNet": "Morning",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/texas/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/texas/daily-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Fireball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "md-am",
+      "nombreFilaRover": "MARYLAND AM",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "maryland",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/maryland/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/maryland/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "ga-am",
+      "nombreFilaRover": "GEORGIA MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "GEORGIA_API",
+      "estado": "georgia",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/georgia/cash-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/georgia/cash-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "oh-am",
+      "nombreFilaRover": "OHIO MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "OHIO_API",
+      "estado": "ohio",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/ohio/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/ohio/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "nj-am",
+      "nombreFilaRover": "NEW JERSEY AM",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "new-jersey",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/new-jersey/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/new-jersey/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Fireball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "sc-am",
+      "nombreFilaRover": "SOUTH C MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "south-carolina",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/south-carolina/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/south-carolina/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "mi-am",
+      "nombreFilaRover": "MICHIGAN DAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "michigan",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/michigan/daily-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/michigan/daily-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "me-am",
+      "nombreFilaRover": "MAINE DAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "maine",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/maine/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/maine/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "ky-am",
+      "nombreFilaRover": "KENTUCKY MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "kentucky",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/kentucky/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/kentucky/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "in-am",
+      "nombreFilaRover": "INDIANA MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "INDIANA_API",
+      "estado": "indiana",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/indiana/daily-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/indiana/daily-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Super Ball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "ia-am",
+      "nombreFilaRover": "IOWA MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "iowa",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/iowa/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/iowa/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "pa-am",
+      "nombreFilaRover": "PENNSYLV AM",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "pennsylvania",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/pennsylvania/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/pennsylvania/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "tn-midday",
+      "nombreFilaRover": "TENNESSEE MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "TENNESSEE_API",
+      "estado": "tennessee",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/tennessee/cash-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/tennessee/cash-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Wild Ball al extraer los dígitos principales.",
+        "Verificar días sin sorteo (p.ej. domingos) antes de activar AUTO."
+      ]
+    },
+    {
+      "id": "tx-day",
+      "nombreFilaRover": "TEXAS DAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "texas",
+      "turnoEnLotteryNet": "Day",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/texas/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/texas/daily-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Fireball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "ri-am",
+      "nombreFilaRover": "RHODE ISLAND MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "rhode-island",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": false,
+      "requiere4": true,
+      "urlLotteryNet3": null,
+      "urlLotteryNet4": "https://www.lottery.net/rhode-island/the-numbers/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Sorteo de cuatro dígitos The Numbers; el original solo usa url4."
+      ]
+    },
+    {
+      "id": "il-am",
+      "nombreFilaRover": "ILLINOIS MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "ILLINOIS_APP",
+      "estado": "illinois",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/illinois/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/illinois/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "mo-am",
+      "nombreFilaRover": "MISSOURI MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "missouri",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/missouri/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/missouri/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "ma-am",
+      "nombreFilaRover": "MASSACHUSETTS MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "massachusetts",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": false,
+      "requiere4": true,
+      "urlLotteryNet3": null,
+      "urlLotteryNet4": "https://www.lottery.net/massachusetts/the-numbers-game/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Sorteo de cuatro dígitos The Numbers Game; el original solo usa url4."
+      ]
+    },
+    {
+      "id": "ar-am",
+      "nombreFilaRover": "ARKANSAS MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "arkansas",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/arkansas/cash-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/arkansas/cash-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Verificar días sin sorteo (p.ej. domingos) antes de activar AUTO."
+      ]
+    },
+    {
+      "id": "va-am",
+      "nombreFilaRover": "VIRGINIA DAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "virginia",
+      "turnoEnLotteryNet": "Day",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/virginia/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/virginia/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Fireball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "ks-am",
+      "nombreFilaRover": "KANSAS MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "kansas",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": false,
+      "urlLotteryNet3": "https://www.lottery.net/kansas/pick-3/numbers",
+      "urlLotteryNet4": null,
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "de-am",
+      "nombreFilaRover": "DELAWARE AM",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "delaware",
+      "turnoEnLotteryNet": "Day",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/delaware/play-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/delaware/play-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "ct-am",
+      "nombreFilaRover": "CONNECT AM",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "connecticut",
+      "turnoEnLotteryNet": "Day",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/connecticut/play-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/connecticut/play-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Wild Ball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "dc-am",
+      "nombreFilaRover": "WASHINGTON D.C MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "district-of-columbia",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/district-of-columbia/dc-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/district-of-columbia/dc-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "pr-am",
+      "nombreFilaRover": "PUERTO RICO AM",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "puerto-rico",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": null,
+      "urlLotteryNet4": null,
+      "estadoCorrespondencia": "sin_fuente_lotterynet",
+      "observaciones": [
+        "Sin equivalente identificable en el catálogo de Lottery.net; conservar como NO DISPONIBLE."
+      ]
+    },
+    {
+      "id": "wi-am",
+      "nombreFilaRover": "WISCONSIN MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "wisconsin",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/wisconsin/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/wisconsin/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "La etiqueta SEO de la página Pick 4 ha mostrado Megabucks, pero el contenido identifica Pick 4."
+      ]
+    },
+    {
+      "id": "nc-am",
+      "nombreFilaRover": "NORTH CAROLINA AM",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "north-carolina",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/north-carolina/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/north-carolina/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "nm-am",
+      "nombreFilaRover": "NEW MEXICO MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "new-mexico",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/new-mexico/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/new-mexico/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "LotteryUSA usa etiqueta «Plus»; Lottery.net presenta el juego principal como Pick 3 / Pick 4."
+      ]
+    },
+    {
+      "id": "ms-am",
+      "nombreFilaRover": "MISSISSIPPI MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "mississippi",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/mississippi/cash-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/mississippi/cash-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "co-am",
+      "nombreFilaRover": "COLORADO MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "colorado",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": false,
+      "urlLotteryNet3": "https://www.lottery.net/colorado/pick-3/numbers",
+      "urlLotteryNet4": null,
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "or-am",
+      "nombreFilaRover": "OREGON 1PM",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "oregon",
+      "turnoEnLotteryNet": "1 PM",
+      "requiere3": false,
+      "requiere4": true,
+      "urlLotteryNet3": null,
+      "urlLotteryNet4": "https://www.lottery.net/oregon/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "El sitio también ofrece 10 PM, pero no figura en el userscript original."
+      ]
+    },
+    {
+      "id": "ca-am",
+      "nombreFilaRover": "CALIFORNIA MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "california",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": false,
+      "urlLotteryNet3": "https://www.lottery.net/california/daily-3/numbers",
+      "urlLotteryNet4": null,
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Daily 4 no figura en el sorteo Midday del original."
+      ]
+    },
+    {
+      "id": "id-am",
+      "nombreFilaRover": "IDAHO MIDDAY",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "idaho",
+      "turnoEnLotteryNet": "Day",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/idaho/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/idaho/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar extra drawn number; investigate al extraer los dígitos principales.",
+        "El HTML observado presenta horas Day/Night intercambiadas en algunas filas; validar con horario oficial."
+      ]
+    },
+    {
+      "id": "fl-am",
+      "nombreFilaRover": "FLORIDA AM",
+      "categoria": "DIA",
+      "fuenteEnLotteryUSAv065": "FLORIDA_API",
+      "estado": "florida",
+      "turnoEnLotteryNet": "Midday",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/florida/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/florida/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Fireball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "me-pm",
+      "nombreFilaRover": "MAINE EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "maine",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/maine/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/maine/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "sc-pm",
+      "nombreFilaRover": "SOUTH C EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "south-carolina",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/south-carolina/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/south-carolina/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "ri-pm",
+      "nombreFilaRover": "RHODE ISLAND EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "rhode-island",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": false,
+      "requiere4": true,
+      "urlLotteryNet3": null,
+      "urlLotteryNet4": "https://www.lottery.net/rhode-island/the-numbers/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Sorteo de cuatro dígitos The Numbers; el original solo usa url4."
+      ]
+    },
+    {
+      "id": "pa-pm",
+      "nombreFilaRover": "PENNSYLV EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "pennsylvania",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/pennsylvania/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/pennsylvania/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "ga-pm",
+      "nombreFilaRover": "GEORGIA EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "GEORGIA_API",
+      "estado": "georgia",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/georgia/cash-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/georgia/cash-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "tx-pm",
+      "nombreFilaRover": "TEXAS-EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "texas",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/texas/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/texas/daily-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Fireball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "or-4pm",
+      "nombreFilaRover": "OREGON 4PM",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "oregon",
+      "turnoEnLotteryNet": "4 PM",
+      "requiere3": false,
+      "requiere4": true,
+      "urlLotteryNet3": null,
+      "urlLotteryNet4": "https://www.lottery.net/oregon/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "El sitio también ofrece 10 PM, pero no figura en el userscript original."
+      ]
+    },
+    {
+      "id": "tn-pm",
+      "nombreFilaRover": "TENNESSEE EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "TENNESSEE_API",
+      "estado": "tennessee",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/tennessee/cash-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/tennessee/cash-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Wild Ball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "oh-pm",
+      "nombreFilaRover": "OHIO EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "OHIO_API",
+      "estado": "ohio",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/ohio/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/ohio/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "mi-pm",
+      "nombreFilaRover": "MICHIGAN NIGHT",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "michigan",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/michigan/daily-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/michigan/daily-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "dc-pm",
+      "nombreFilaRover": "WASHINGTON D.C EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "district-of-columbia",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/district-of-columbia/dc-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/district-of-columbia/dc-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "md-pm",
+      "nombreFilaRover": "MARYLAND PM",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "maryland",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/maryland/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/maryland/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "de-pm",
+      "nombreFilaRover": "DELAWARE PM",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "delaware",
+      "turnoEnLotteryNet": "Night",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/delaware/play-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/delaware/play-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "ar-pm",
+      "nombreFilaRover": "ARKANSAS EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "arkansas",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/arkansas/cash-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/arkansas/cash-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "pr-pm",
+      "nombreFilaRover": "PUERTO RICO PM ",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "puerto-rico",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": null,
+      "urlLotteryNet4": null,
+      "estadoCorrespondencia": "sin_fuente_lotterynet",
+      "observaciones": [
+        "Sin equivalente identificable en el catálogo de Lottery.net; conservar como NO DISPONIBLE."
+      ]
+    },
+    {
+      "id": "ma-pm",
+      "nombreFilaRover": "MASSACHUSETTS EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "massachusetts",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": false,
+      "requiere4": true,
+      "urlLotteryNet3": null,
+      "urlLotteryNet4": "https://www.lottery.net/massachusetts/the-numbers-game/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Sorteo de cuatro dígitos The Numbers Game; el original solo usa url4."
+      ]
+    },
+    {
+      "id": "az-pm",
+      "nombreFilaRover": "ARIZONA",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "arizona",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": false,
+      "urlLotteryNet3": "https://www.lottery.net/arizona/pick-3/numbers",
+      "urlLotteryNet4": null,
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Lottery.net también ofrece Pick 4 y Midday; el original solo incluye Arizona Pick 3 Evening."
+      ]
+    },
+    {
+      "id": "co-pm",
+      "nombreFilaRover": "COLORADO EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "colorado",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": false,
+      "urlLotteryNet3": "https://www.lottery.net/colorado/pick-3/numbers",
+      "urlLotteryNet4": null,
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "ca-pm",
+      "nombreFilaRover": "CALIFORNIA EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "california",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/california/daily-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/california/daily-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "mo-pm",
+      "nombreFilaRover": "MISSOURI EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "missouri",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/missouri/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/missouri/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "id-pm",
+      "nombreFilaRover": "IDAHO NIGHT",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "idaho",
+      "turnoEnLotteryNet": "Night",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/idaho/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/idaho/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar extra drawn number; investigate al extraer los dígitos principales.",
+        "El HTML observado presenta horas Day/Night intercambiadas en algunas filas; validar con horario oficial."
+      ]
+    },
+    {
+      "id": "wi-pm",
+      "nombreFilaRover": "WISCONSIN EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "wisconsin",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/wisconsin/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/wisconsin/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "La etiqueta SEO de la página Pick 4 ha mostrado Megabucks, pero el contenido identifica Pick 4."
+      ]
+    },
+    {
+      "id": "or-7pm",
+      "nombreFilaRover": "OREGON 7PM",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "oregon",
+      "turnoEnLotteryNet": "7 PM",
+      "requiere3": false,
+      "requiere4": true,
+      "urlLotteryNet3": null,
+      "urlLotteryNet4": "https://www.lottery.net/oregon/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "El sitio también ofrece 10 PM, pero no figura en el userscript original."
+      ]
+    },
+    {
+      "id": "ks-pm",
+      "nombreFilaRover": "KANSAS EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "kansas",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": false,
+      "urlLotteryNet3": "https://www.lottery.net/kansas/pick-3/numbers",
+      "urlLotteryNet4": null,
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "il-pm",
+      "nombreFilaRover": "ILLINOIS EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "ILLINOIS_APP",
+      "estado": "illinois",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/illinois/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/illinois/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "ct-pm",
+      "nombreFilaRover": "CONNECT PM",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "connecticut",
+      "turnoEnLotteryNet": "Night",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/connecticut/play-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/connecticut/play-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Wild Ball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "ms-pm",
+      "nombreFilaRover": "MISSISSIPPI EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "mississippi",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/mississippi/cash-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/mississippi/cash-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "nj-pm",
+      "nombreFilaRover": "NEW JERSEY PM",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "new-jersey",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/new-jersey/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/new-jersey/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Fireball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "la-pm",
+      "nombreFilaRover": "LOUISIANA EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOUISIANA_API",
+      "estado": "louisiana",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/louisiana/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/louisiana/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "va-night",
+      "nombreFilaRover": "VIRGINIA NIGHT",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "virginia",
+      "turnoEnLotteryNet": "Night",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/virginia/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/virginia/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Fireball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "ky-pm",
+      "nombreFilaRover": "KENTUCKY EVENING",
+      "categoria": "NOCHE",      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "kentucky",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/kentucky/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/kentucky/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "ia-pm",
+      "nombreFilaRover": "IOWA EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "iowa",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/iowa/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/iowa/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "in-pm",
+      "nombreFilaRover": "INDIANA EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "INDIANA_API",
+      "estado": "indiana",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/indiana/daily-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/indiana/daily-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Super Ball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "tx-night",
+      "nombreFilaRover": "TEXAS NIGHT",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "texas",
+      "turnoEnLotteryNet": "Night",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/texas/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/texas/daily-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Fireball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "fl-pm",
+      "nombreFilaRover": "FLORIDA PM",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "FLORIDA_API",
+      "estado": "florida",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/florida/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/florida/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "Ignorar Fireball al extraer los dígitos principales."
+      ]
+    },
+    {
+      "id": "nc-pm",
+      "nombreFilaRover": "NORTH CAROLINA PM",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "north-carolina",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/north-carolina/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/north-carolina/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    },
+    {
+      "id": "nm-pm",
+      "nombreFilaRover": "NEW MEXICO EVENING",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "new-mexico",
+      "turnoEnLotteryNet": "Evening",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/new-mexico/pick-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/new-mexico/pick-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "LotteryUSA usa etiqueta «Plus»; Lottery.net presenta el juego principal como Pick 3 / Pick 4."
+      ]
+    },
+    {
+      "id": "dc-night",
+      "nombreFilaRover": "WASHINGTON D.C NIGHT",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "LOTTERYUSA",
+      "estado": "district-of-columbia",
+      "turnoEnLotteryNet": "Late Night",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/district-of-columbia/dc-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/district-of-columbia/dc-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": [
+        "En Lottery.net el turno se denomina Late Night."
+      ]
+    },
+    {
+      "id": "ga-night",
+      "nombreFilaRover": "GEORGIA NIGHT",
+      "categoria": "NOCHE",
+      "fuenteEnLotteryUSAv065": "GEORGIA_API",
+      "estado": "georgia",
+      "turnoEnLotteryNet": "Night",
+      "requiere3": true,
+      "requiere4": true,
+      "urlLotteryNet3": "https://www.lottery.net/georgia/cash-3/numbers",
+      "urlLotteryNet4": "https://www.lottery.net/georgia/cash-4/numbers",
+      "estadoCorrespondencia": "ruta_resultados_identificada_pendiente_validacion_automatizacion",
+      "observaciones": []
+    }
+  ]
+}

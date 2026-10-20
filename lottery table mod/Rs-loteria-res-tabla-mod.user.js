@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Rs-loteria-res-tabla-mod
 // @namespace    https://roversport.net/
-// @version      1.6.21
-// @description  Estilos UI, 500 filas por defecto, resaltado, filtro Sin procesar y sincronización del sidebar en el primer frame.
+// @version      1.6.22
+// @description  Estilos UI, 500 filas por defecto, resaltado, filtros Sin procesar y Procesados pendientes, y sincronización del sidebar en el primer frame.
 // @homepageURL  https://github.com/Nox1do/rover-lottery
 // @source       https://github.com/Nox1do/rover-lottery/blob/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
 // @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
@@ -22,7 +22,9 @@
   const HIGHLIGHT_CLASS = "rt-row-soft-red";
   const DEFAULT_PAGE_LENGTH = 500;
   const FILTER_ID = "rt-unprocessed-filter";
+  const PROCESSED_PENDING_FILTER_ID = "rt-processed-pending-filter";
   let showOnlyUnprocessed = false;
+  let showOnlyProcessedPending = false;
   let dataTablesFilterRegistered = false;
   const HIGHLIGHTED_LOTTERIES = new Set([
     "ARIZONA|AZ",
@@ -104,14 +106,15 @@
   text-shadow: none !important;
 }
 
-/* Filtro Sin procesar, colocado a la izquierda de Search. */
+/* Filtros de estado, colocados juntos a la izquierda de Search. */
 #tableResult_wrapper .dataTables_filter{
   display: flex !important;
   align-items: center !important;
   justify-content: flex-end !important;
   gap: 13px !important;
 }
-#tableResult_wrapper .rt-unprocessed-filter-label{
+#tableResult_wrapper .rt-unprocessed-filter-label,
+#tableResult_wrapper .rt-processed-pending-filter-label{
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
@@ -123,7 +126,8 @@
   cursor: pointer !important;
   user-select: none !important;
 }
-#tableResult_wrapper #${FILTER_ID}{
+#tableResult_wrapper #${FILTER_ID},
+#tableResult_wrapper #${PROCESSED_PENDING_FILTER_ID}{
   width: 17px !important;
   height: 17px !important;
   margin: 0 !important;
@@ -392,6 +396,27 @@
     return /status-no/i.test(procHtml) || /(?:^|>)\s*[x×✕]\s*(?:<|$)/i.test(procHtml);
   }
 
+  function rowIsProcessedPending(settings, rowData, dataIndex) {
+    const row = settings.aoData?.[dataIndex]?.nTr;
+    if (row) {
+      const status = row.querySelector("td:nth-child(10) .status-circle");
+      const pending = row.querySelector("td:nth-child(9) .badge-pend-has");
+      return Boolean(status && !status.classList.contains("status-no") && pending);
+    }
+
+    // Respaldo para filas cuyo <tr> todavía no se ha creado en DataTables.
+    const pendingData = rowData?.[8];
+    const procData = rowData?.[9];
+    const toMarkup = (value) => value instanceof Node
+      ? value.outerHTML || value.textContent || ""
+      : String(value ?? "");
+    const pendingHtml = toMarkup(pendingData);
+    const procHtml = toMarkup(procData);
+    return /\bbadge-pend-has\b/i.test(pendingHtml) &&
+      /\bstatus-circle\b/i.test(procHtml) &&
+      !/\bstatus-no\b/i.test(procHtml);
+  }
+
   function registerDataTablesFilter() {
     if (dataTablesFilterRegistered) return true;
 
@@ -400,8 +425,10 @@
     if (!Array.isArray(searchFilters)) return false;
 
     searchFilters.push((settings, rowData, dataIndex) => {
-      if (settings.nTable?.id !== "tableResult" || !showOnlyUnprocessed) return true;
-      return rowIsUnprocessed(settings, rowData, dataIndex);
+      if (settings.nTable?.id !== "tableResult") return true;
+      if (showOnlyUnprocessed) return rowIsUnprocessed(settings, rowData, dataIndex);
+      if (showOnlyProcessedPending) return rowIsProcessedPending(settings, rowData, dataIndex);
+      return true;
     });
     dataTablesFilterRegistered = true;
     return true;
@@ -524,38 +551,71 @@
     const dt = getDataTable();
     if (!dt) return;
     dt.draw(false);
-    scheduleStableLayoutAdjust("filtro Sin procesar");
+    scheduleStableLayoutAdjust("filtros de estado");
   }
 
-  function ensureUnprocessedFilter() {
-    registerDataTablesFilter();
-
-    const filterArea = document.querySelector("#tableResult_wrapper .dataTables_filter");
-    if (!filterArea || document.getElementById(FILTER_ID)) return false;
-
+  function createFilterControl(id, className, caption, checked, onChange) {
     const label = document.createElement("label");
-    label.className = "rt-unprocessed-filter-label";
-    label.htmlFor = FILTER_ID;
+    label.className = className;
+    label.htmlFor = id;
 
     const checkbox = document.createElement("input");
-    checkbox.id = FILTER_ID;
+    checkbox.id = id;
     checkbox.type = "checkbox";
-    checkbox.checked = showOnlyUnprocessed;
-    checkbox.setAttribute("aria-label", "Mostrar solamente filas sin procesar");
+    checkbox.checked = checked;
+    checkbox.setAttribute("aria-label", caption);
 
     const text = document.createElement("span");
-    text.textContent = "Sin procesar";
+    text.textContent = caption;
 
     label.append(checkbox, text);
-    filterArea.prepend(label);
+    checkbox.addEventListener("change", () => onChange(checkbox.checked));
+    return label;
+  }
 
-    checkbox.addEventListener("change", () => {
-      showOnlyUnprocessed = checkbox.checked;
-      registerDataTablesFilter();
-      redrawTable();
-    });
+  function setFilterMode(mode) {
+    // Modos excluyentes: un check activo desactiva el otro.
+    showOnlyUnprocessed = mode === "unprocessed";
+    showOnlyProcessedPending = mode === "processedPending";
 
-    return true;
+    const unprocessedCheckbox = document.getElementById(FILTER_ID);
+    const pendingCheckbox = document.getElementById(PROCESSED_PENDING_FILTER_ID);
+    if (unprocessedCheckbox) unprocessedCheckbox.checked = showOnlyUnprocessed;
+    if (pendingCheckbox) pendingCheckbox.checked = showOnlyProcessedPending;
+
+    registerDataTablesFilter();
+    redrawTable();
+  }
+
+  function ensureRowFilters() {
+    registerDataTablesFilter();
+    const filterArea = document.querySelector("#tableResult_wrapper .dataTables_filter");
+    if (!filterArea) return false;
+
+    let inserted = false;
+    let unprocessedCheckbox = document.getElementById(FILTER_ID);
+    if (!unprocessedCheckbox) {
+      const label = createFilterControl(
+        FILTER_ID, "rt-unprocessed-filter-label", "Sin procesar",
+        showOnlyUnprocessed, (checked) => setFilterMode(checked ? "unprocessed" : null)
+      );
+      filterArea.prepend(label);
+      unprocessedCheckbox = label.querySelector("input");
+      inserted = true;
+    }
+
+    if (!document.getElementById(PROCESSED_PENDING_FILTER_ID)) {
+      const label = createFilterControl(
+        PROCESSED_PENDING_FILTER_ID, "rt-processed-pending-filter-label",
+        "Procesados pendientes", showOnlyProcessedPending,
+        (checked) => setFilterMode(checked ? "processedPending" : null)
+      );
+      const previousLabel = unprocessedCheckbox?.closest("label");
+      if (previousLabel) previousLabel.after(label);
+      else filterArea.prepend(label);
+      inserted = true;
+    }
+    return inserted;
   }
 
   let syncRaf = 0;
@@ -585,7 +645,7 @@
     bindDataTableEvents();
 
     const lengthChanged = ensurePageLength500();
-    ensureUnprocessedFilter();
+    ensureRowFilters();
     highlightSelectedRows();
     ensureProcNoX();
 
@@ -699,5 +759,5 @@
   start();
   document.addEventListener("DOMContentLoaded", () => bindTableLifecycle(), { once: true });
 
-  console.log("[Rs tabla mod] v1.6.21 activo · sidebar sincronizado en primer frame");
+  console.log("[Rs tabla mod] v1.6.22 activo · filtros de estado · sidebar en primer frame");
 })();

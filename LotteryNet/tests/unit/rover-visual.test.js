@@ -1,7 +1,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {visibleRoverDate,findUniqueRoverRow} from '../../src/rover/rows.js';
+import {visibleRoverDate,parseRoverDate,findUniqueRoverRow} from '../../src/rover/rows.js';
 import {fillVisualInputs,planVisualFill} from '../../src/rover/fill-ui.js';
 import {createVisualCache,restoreVisibleValues} from '../../src/rover/restore.js';
 
@@ -62,4 +62,36 @@ test('caché visual conserva parciales sin cruzar fecha',()=>{
 test('identidad inequívoca obligatoria',()=>{
   const f=fixture();assert.equal(findUniqueRoverRow({root:f.root,draw,date:'2026-10-19'}).ok,true);
   assert.equal(findUniqueRoverRow({root:f.root,draw:{id:'x',roverLabel:'OHIO MIDDAY'},date:'2026-10-19'}).status,'SIN_FILA');
+});
+
+test('Rover: formatos documentados de fecha sin elegir el reloj de hoy',()=>{
+ const cases=[
+  ['2026-10-19','2026-10-19'],
+  ['2026/10/19','2026-10-19'],
+  ['10/19/2026','2026-10-19'],
+  ['10-19-2026','2026-10-19'],
+  ['19/10/2026','2026-10-19'],
+  ['02/03/2026','2026-02-03'],
+  ['2026-02-30',null],['31/02/2026',null],['',null],
+  ['today',null],['2026-10-19T05:00:00',null]
+ ];
+ for(const [raw,wanted] of cases)assert.equal(parseRoverDate(raw),wanted,raw);
+});
+test('fallar cerradamente ante fechas discrepantes; soportar #fecha_desde',()=>{
+ const a={value:'10/19/2026'},b={value:'2026-10-19'};
+ const values={
+  '#fecha':a,
+  'input[name="fecha"]':a,
+  '#fecha_desde':b
+ };
+ const root={querySelector:sel=>values[sel]??null};
+ assert.equal(visibleRoverDate(root),'2026-10-19');
+ b.value='2026-10-20';
+ assert.equal(visibleRoverDate(root),null);
+ a.value='';
+ assert.equal(visibleRoverDate(root),'2026-10-20');
+ delete values['#fecha'];delete values['input[name="fecha"]'];
+ assert.equal(visibleRoverDate(root),'2026-10-20');
+ b.value='not a date';
+ assert.equal(visibleRoverDate(root),null);
 });

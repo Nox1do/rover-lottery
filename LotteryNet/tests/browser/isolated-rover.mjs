@@ -13,6 +13,7 @@ const base=fileURLToPath(new URL('../../',import.meta.url));
 const fixtureRow=()=>[
  '<tr class="res_tr"><td style="display:none;">13:30:00</td><td><span><span class="loteria-nombre">FLORIDA AM</span><span class="loteria-abrev">FL-AM</span></span></td>',
  ...['primera','segunda','tercera','pick3','pick4'].map(k=>'<td><input type="text" name="'+k+'" loteria="FL-AM" value=""></td>'),
+ '<td><button type="button" data-process="1">Procesar</button></td>',
  '</tr>'
 ].join('');
 const documentHtml='<!doctype html><html><head><meta charset="utf-8"><title>Isolated Rover fixture</title></head><body>'+
@@ -27,11 +28,11 @@ const server=createServer(async(req,res)=>{
   res.end(documentHtml);
   return;
  }
- if(!(pathName.startsWith('/src/') || pathName==='/tests/browser/rover-dom-audit.user.js') || !pathName.endsWith('.js')){
+ if(!(pathName.startsWith('/src/') || pathName==='/tests/browser/rover-dom-audit.user.js' || pathName==='/tests/browser/rover-safety-audit.user.js') || !pathName.endsWith('.js')){
   res.statusCode=404;res.end('Not found');return;
  }
  const file=path.resolve(base,'.'+pathName);
- if(!(file.startsWith(path.join(base,'src')+path.sep) || file===path.join(base,'tests/browser/rover-dom-audit.user.js'))){
+ if(!(file.startsWith(path.join(base,'src')+path.sep) || file===path.join(base,'tests/browser/rover-dom-audit.user.js') || file===path.join(base,'tests/browser/rover-safety-audit.user.js'))){
   res.statusCode=403;res.end('Forbidden');return;
  }
  try{
@@ -52,6 +53,33 @@ try {
    });
    await page.goto('http://127.0.0.1:'+port+'/',{waitUntil:'load'});
    await page.addScriptTag({url:'http://127.0.0.1:'+port+'/tests/browser/rover-dom-audit.user.js'});
+   await page.addScriptTag({url:'http://127.0.0.1:'+port+'/tests/browser/rover-safety-audit.user.js'});
+   const safetyBefore=await page.evaluate(()=>{
+     const state={events:[],posts:0,processClicks:0,observerRefreshes:0};
+     window.__qaHostile=state;
+     for(const type of ['input','change','blur'])
+       document.addEventListener(type,event=>{
+         if(!event.target.matches?.('#tableResult input'))return;
+         state.events.push(type);
+         state.posts++;
+         fetch('/__inc/procesarResultados.php',{method:'POST',body:'qa=simulated'}).catch(()=>{});
+       },true);
+     document.querySelector('[data-process]').addEventListener('click',()=>state.processClicks++);
+     const observer=new MutationObserver(records=>{
+       for(const record of records)for(const node of record.addedNodes){
+         if(node.nodeType===1&&(node.matches?.('tr.res_tr')||node.querySelector?.('tr.res_tr')))
+           state.observerRefreshes++;
+       }
+     });
+     observer.observe(document.querySelector('#tableResult'),{childList:true,subtree:true});
+     const safety=window.__LOTTERYNET_SAFETY_QA__.snapshot();
+     window.__qaHostileObserver=observer;
+     return safety;
+   });
+   assert.equal(safetyBefore.details.find(x=>x.title==='FLORIDA AM').fields.length,5,engine);
+   assert.equal(safetyBefore.details.find(x=>x.title==='FLORIDA AM').fields.filter(x=>x.codeOk).length,5,engine);
+   assert.equal(safetyBefore.eventObserverActive,false,engine);
+   await page.evaluate(()=>window.__LOTTERYNET_SAFETY_QA__.observe());
    const auditBefore=await page.evaluate(()=>window.__LOTTERYNET_DOM_AUDIT__.snapshot());
    assert.equal(auditBefore.matchedRows,1,engine+' audit nested title');
    assert.equal(auditBefore.candidates[0].target,'FLORIDA AM',engine+' audit primary label');
@@ -111,6 +139,20 @@ try {
    assert.equal(result.completed,'Casillas completadas',engine);
    assert.equal(result.inlineCount,1,engine);
    assert.equal(result.firstCellChildrenBefore,1,engine);
+   const coexistence=await page.evaluate(async()=>{
+     await new Promise(resolve=>setTimeout(resolve,0)); // flush MutationObserver.
+     return {...window.__qaHostile,
+       safety:window.__LOTTERYNET_SAFETY_QA__.stop()};
+   });
+   assert.deepEqual(coexistence.events,[],engine+' no hostile event handlers invoked');
+   assert.equal(coexistence.posts,0,engine+' no processing calls triggered');
+   assert.equal(coexistence.processClicks,0,engine+' no process button clicks');
+   assert.equal(coexistence.safety.eventCounts.input,0,engine);
+   assert.equal(coexistence.safety.eventCounts.change,0,engine);
+   assert.equal(coexistence.safety.eventCounts.blur,0,engine);
+   // A row-cloning test runs below; disconnect here to keep unrelated
+   // mutations outside this case.
+   await page.evaluate(()=>window.__qaHostileObserver.disconnect());
    const auditAfter=await page.evaluate(()=>window.__LOTTERYNET_DOM_AUDIT__.snapshot());
    assert.equal(auditAfter.matchedRows,2,engine+' audit after cloning two matching rows');
    const probe=await page.evaluate(()=>{
@@ -138,7 +180,7 @@ try {
    assert.equal(result.events,0,engine);
    assert.equal(result.states,9,engine);
    assert.deepEqual(outgoing,[],engine);
-   console.log(engine+' isolated fixture PASS — nested names + read-only audit, no Rover writes, no input/change/blur events');
+   console.log(engine+' coexistence PASS — no event-driven POST, process clicks or synthetic events; passive observer OK');
   } finally {await browser.close();}
  }
 } finally {await new Promise(resolve=>server.close(resolve));}

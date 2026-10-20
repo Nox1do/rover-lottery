@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rs-loteria-res-tabla-mod
 // @namespace    https://roversport.net/
-// @version      1.6.22
+// @version      1.6.23
 // @description  Estilos UI, 500 filas por defecto, resaltado, filtros Sin procesar y Procesados pendientes, y sincronización del sidebar en el primer frame.
 // @homepageURL  https://github.com/Nox1do/rover-lottery
 // @source       https://github.com/Nox1do/rover-lottery/blob/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
@@ -610,9 +610,8 @@
         "Procesados pendientes", showOnlyProcessedPending,
         (checked) => setFilterMode(checked ? "processedPending" : null)
       );
-      const previousLabel = unprocessedCheckbox?.closest("label");
-      if (previousLabel) previousLabel.after(label);
-      else filterArea.prepend(label);
+      // Prepend mantiene el orden: Procesados pendientes / Sin procesar.
+      filterArea.prepend(label);
       inserted = true;
     }
     return inserted;

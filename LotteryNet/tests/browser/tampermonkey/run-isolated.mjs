@@ -25,7 +25,8 @@ const configPath = path.join(directory, 'config.json');
 const reportPath = path.join(directory, 'result.json');
 const report = {status: 'RUNNING', generatedAt: new Date().toISOString(),
   scope: 'Real Tampermonkey on sanitized local rows, no authenticated Rover',
-  limitations: ['Chromium only', 'No production session', 'No installed user scripts from user profile'],
+  limitations: ['Chromium only', 'No production session', 'No installed user scripts from user profile',
+    'Fresh separate profile for each phase; profile persistence is not tested'],
   outsideCanary};
 const run = args => new Promise((resolve, reject) => {
   const process = spawn(args[0], args.slice(1), {stdio: 'inherit'});
@@ -49,6 +50,7 @@ try {
     process.execPath, controller, 'isolated', configPath]);
   const isolated = JSON.parse(await readFile(path.join(directory, 'isolated.json')));
   assert.equal(isolated.status, 'PASS');
+  assert.equal(isolated.userscriptSha256, preflight.userscriptSha256, 'Different userscript bundles across phases');
   assert.equal(received.length, baseline, 'A request escaped the isolated namespace');
   Object.assign(report, {status: 'PASS', preflight, isolated,
     canaryRequestsDuringIsolation: received.length - baseline,

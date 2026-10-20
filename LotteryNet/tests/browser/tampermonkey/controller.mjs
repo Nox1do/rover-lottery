@@ -5,6 +5,7 @@ import {networkInterfaces} from 'node:os';
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {buildQaUserscript} from './build-qa.mjs';
 import {verifyScenarios} from '../helpers/assert-scenarios.mjs';
 
@@ -61,9 +62,11 @@ async function installThroughManager(context, extensionId, scriptPath) {
       if (await install.count() && await install.first().isVisible()) {
         await install.first().click();
         await options.getByText('Installed Userscripts', {exact: true}).click();
-        await options.getByText('LotteryNet — Tampermonkey isolated QA', {exact: true}).first().waitFor();
+        const entry = options.getByText('LotteryNet — Tampermonkey isolated QA', {exact: true}).first();
+        await entry.waitFor();
+        await entry.locator('xpath=ancestor::tr[1]').locator('.enabler_enabled').waitFor();
         console.log('Tampermonkey installation confirmed through manager UI');
-        return {method: 'Utilities file import and manager confirmation'};
+        return {method: 'Utilities file import and manager confirmation', dashboardEnabled: true};
       }
     }
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -115,6 +118,7 @@ try {
   const cases = JSON.parse(await readFile('tests/fixtures/lotterynet/cases.json'));
   const fixture = await readFile('tests/fixtures/rover/ten-draws-sanitized.html', 'utf8');
   const userscript = await buildQaUserscript(config.outsideCanary);
+  report.userscriptSha256 = createHash('sha256').update(userscript).digest('hex');
   const scriptPath = path.join(directory, 'LotteryNet-Tampermonkey-QA.user.js');
   await writeFile(scriptPath, userscript);
   const allowedFixtures = new Map(await Promise.all(cases.map(async item =>
@@ -134,7 +138,7 @@ try {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const origin = 'http://127.0.0.1:' + server.address().port;
   const extension = path.join(directory, 'extension');
-  context = await chromium.launchPersistentContext(path.join(directory, 'profile'), {
+  context = await chromium.launchPersistentContext(path.join(directory, 'profile-' + phase), {
     executablePath: config.executablePath, headless: true,
     args: ['--disable-extensions-except=' + extension, '--load-extension=' + extension]
   });
@@ -147,7 +151,7 @@ try {
   report.extensionId = extensionId;
   report.browser = context.browser()?.version();
   report.permissions = await ensureManagerPermission(context, extensionId);
-  if (phase === 'preflight') report.installation = await installThroughManager(context, extensionId, scriptPath);
+  report.installation = await installThroughManager(context, extensionId, scriptPath);
   report.bootstrap = await waitForManagerBootstrap(context, extensionId);
   page = await context.newPage();
   await page.goto(origin + '/rover.html?phase=' + phase);

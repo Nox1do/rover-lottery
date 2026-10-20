@@ -9,7 +9,7 @@
 
 | Comprobación | Resultado | Alcance de la evidencia |
 | --- | --- | --- |
-| Node.js 22, `npm test` | **21/21 OK, 0 fallos** | Suite completa incluida en el repositorio, con fechas Rover variantes |
+| Node.js 22, `npm test` | **22/22 OK, 0 fallos** | Suite completa actual, con fecha Rover, identidad del sorteo y estado inline |
 | `npm run build` | **OK** | Userscript compilado, pero entrada inactiva |
 | `node --check dist/LotteryNet-Rover.user.js` | **OK** | Sintaxis de artefacto |
 | Auditoría del punto de entrada compilado | **OK** | Sin activación de llenado ni AUTO |
@@ -29,7 +29,7 @@ Los cinco campos y ceros iniciales, idempotencia, transiciones de mensajes «Con
 
 ## 2. Puertas pendientes obligatorias para Rover/Tampermonkey real
 
-- [x] Ejecutar `npm test` completo (21 pruebas), `npm run build` y revisión de sintaxis en GitHub Actions.
+- [x] Ejecutar `npm test` completo (22 pruebas), `npm run build` y revisión de sintaxis en GitHub Actions.
 - [x] Ejecutar regresión del DOM simulado con Playwright Chromium y Firefox.
 - [ ] Confirmar `.loteria-abrev`, códigos `loteria` e inputs en **cada una de las diez filas del Rover real**.
 - [ ] Validar `#fecha`, Search, cambios de vista, AJAX y fila inexistente en una sesión Rover autenticada.
@@ -58,7 +58,7 @@ LotteryNet ahora valida explícitamente esos formatos sin inferir el día actual
 
 **Bloqueo confirmado:** el navegador Opera del usuario respondió «Browser not connected» al intentar recuperar pestañas. No fue posible observar el DOM autenticado ni auditar los manejadores reales de `input/change` y la pestaña Network. La prueba final real permanece **PENDIENTE** y la entrada de producción permanece **INACTIVA**.
 
-**Ejecución de referencia con 21/21 Node + Playwright exitosos:** [GitHub Actions 39434128974](https://github.com/Nox1do/rover-lottery/actions/runs/39434128974).
+**Ejecución de referencia previa con 21/21 Node + Playwright:** [GitHub Actions 39434128974](https://github.com/Nox1do/rover-lottery/actions/runs/39434128974).
 
 ## 5. Inspección autenticada mediante Opera (2026-10-20)
 
@@ -112,4 +112,4 @@ El usuario seleccionó `10/19/2026` y ejecutó Search. Se inspeccionó directame
 
 ### Pruebas
 
-La actualización introduce regresiones unitarias y Playwright con **nombre principal + distintivo de código**. El resultado definitivo debe citar una ejecución GitHub Actions posterior a estos cambios. Las ejecuciones intermedias pueden fallar mientras se ajustan fixtures; no declararlas representativas de una versión final.
+La actualización introduce regresiones unitarias y Playwright con **nombre principal + distintivo de código**. Se detectó y corrigió que el indicador de estado añadido a la primera celda debía excluirse de la identidad del sorteo. **Regresión completa superada: 22/22 tests Node, 16 verificaciones en Chromium y 16 en Firefox (DOM simulado), cero eventos sintéticos/POST**, en [GitHub Actions 39438170804](https://github.com/Nox1do/rover-lottery/actions/runs/39438170804). **No confirma los selectores DOM reales ni seguridad con los demás userscripts de Rover.**

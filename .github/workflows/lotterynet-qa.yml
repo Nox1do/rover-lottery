@@ -71,3 +71,5 @@ jobs:
         run: npx playwright install --with-deps chromium firefox
       - name: Validate mock Rover UI with two browsers
         run: node tests/browser/isolated-rover.mjs
+      - name: Verify manual LotteryUSA overlap without processing
+        run: node tests/browser/manual-usa-overlap.mjs

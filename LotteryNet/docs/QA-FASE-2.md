@@ -238,7 +238,8 @@ Nuevo archivo **`tests/browser/rover-safety-audit.user.js`** (`v0.1.0`), indepen
 - [x] Revisar en el código fuente conocido la presencia de procesamiento explícito y diferencias entre scripts.
 - [x] Preparar detector pasivo sin lectura de valores y regresión de conviviencia con manejadores hostiles simulados.
 - [ ] Revisar `print()` del detector pasivo en Rover autenticado y comprobar que los manejadores locales no procesen tras actividades de LotteryNet.
-- [ ] Probar convivencia de entradas cuando LotteryUSA se utiliza **manualmente**, preservando la regla LotteryNet de no sobrescribir valores distintos.
+- [x] Probar convivencia **simulada** cuando LotteryUSA se utiliza manualmente (Chromium y Firefox): bloqueo de sobrescrituras por LotteryNet, casos parciales y restauración.
+- [ ] Probar la misma convivencia con los userscripts realmente instalados en un entorno real aislado, sin permitir procesamiento.
 - [ ] Auditar DevTools Network con **Preserve log**, incluyendo `__inc/procesarResultados.php`, método, hora e iniciador, sin compartir cabeceras, cookies ni cuerpos de petición.
 - [x] Confirmar alcance separado de Virtual Lotteries: cero códigos compartidos en los scripts revisados; no atribuir sus POST a LotteryNet sin evidencia de causalidad.
 - [ ] Antes de una prueba real de llenado, asegurar aislamiento/entorno permitido y confirmación de **cero procesamiento accidental**, con evidencia de cambios reales de UI y registro de Network.
@@ -263,3 +264,37 @@ Nuevo archivo **`tests/browser/rover-safety-audit.user.js`** (`v0.1.0`), indepen
 
 **Límites:** esta matriz procede de los archivos versionados y del modo de uso confirmado por el usuario. No equivale a inspeccionar todas las extensiones instaladas en el navegador. Un POST de Virtual Lotteries para sus propios sorteos puede aparecer en DevTools Network; la auditoría debe filtrar **código, fecha e iniciador** y distinguirlo de cualquier operación atribuible a LotteryNet. La validación de que LotteryNet nunca envía ni induce procesamiento sigue siendo obligatoria antes de activarlo.
 
+## 15. Convivencia manual LotteryUSA: regresión aislada completa (2026-10-20)
+
+**Aclaración operativa:** LotteryUSA v0.6.5 consulta y rellena únicamente al pulsar uno de sus botones; Virtual Lotteries trabaja con códigos de sorteos distintos de los diez de LotteryNet. No se alteró ninguno de los dos userscripts.
+
+### Evidencia ejecutada
+
+El nuevo test [\`tests/browser/manual-usa-overlap.mjs\`](../tests/browser/manual-usa-overlap.mjs) funciona en un servidor de pruebas **exclusivamente local (127.0.0.1)**, con una réplica **sintética y sin resultados reales** de las filas de Rover. Para que el comportamiento de eventos sea fiel, carga **solo la función \`triggerInput\` extraída literalmente** del código versionado de \`Rovs-Loterias-USA-v0.6.5.user.js\`, pero no ejecuta sus API, su función de consulta, su script completo ni ninguna solicitud a Rover.
+
+| Caso | Comportamiento comprobado |
+| --- | --- |
+| Sin pulsar LotteryUSA | LotteryNet llena; el botón manual de LotteryUSA no es activado y sus contadores permanecen en cero |
+| Pulsar LotteryUSA primero, valores distintos | LotteryNet devuelve \`CONFLICTO\`, no sobrescribe ninguna de las cinco casillas |
+| Pulsar LotteryUSA primero, valores iguales | LotteryNet devuelve \`COINCIDENTE\`, cero escrituras |
+| LotteryUSA solo llenó Pick 3 | LotteryNet preserva ambos campos del 3 y completa exclusivamente tres campos del 4 |
+| LotteryNet primero, luego clic en LotteryUSA | El código legado de LotteryUSA **puede sobrescribir**; la siguiente pasada de LotteryNet devuelve \`CONFLICTO\` y **no deshace** el cambio manual |
+| Rover reconstruye tabla tras Search | El caché de LotteryNet no restaura encima de valores diferentes introducidos por otro script |
+| Fecha visible equivocada | Ningún campo se modifica |
+| Carrera concurrente dentro de una escritura | Prueba unitaria simula que otro script cambia un campo durante el setter; LotteryNet aborta y restaura solo valores propios, conservando el nuevo valor manual |
+
+Se verifican asimismo: cero POST/PUT/PATCH/DELETE provocados por LotteryNet en el fixture, cero clics al botón Procesar, ningún cambio en filas derivadas Mariage Pale o ajenas, y no emisión de eventos \`input/change/blur\` por LotteryNet. Los eventos de \`triggerInput\` sí se observan tras pulsar **el botón manual simulado**, tal como hace el script legado.
+
+**GitHub Actions:** [ejecución de regresión y pruebas unitarias](https://github.com/Nox1do/rover-lottery/actions/runs/39455803575) — **26/26 Node**, jobs de Node y navegador completados con éxito; Chromium y Firefox validaron ambos conjuntos de casos.
+
+**Límite:** esta batería demuestra la lógica de conflicto y la ausencia de procesamiento atribuible a LotteryNet en un entorno aislado. **No es una prueba de Tampermonkey ni del Rover autenticado con sus listeners reales.** Tampoco evita que el usuario presione manualmente LotteryUSA y este último sustituya valores: eso está fuera del control de LotteryNet.
+
+### Gates que continúan abiertos
+
+- [x] Convivencia manual con LotteryUSA simulada en Chromium y Firefox, incluidos conflictos, parciales y secuencias de ejecución.
+- [x] Comportamiento ante escritura concurrente simulado en Node.
+- [ ] Ejecutar \`__LOTTERYNET_SAFETY_QA__.print()\` en Rover autenticado para reconocer listeners **inline** y por propiedad del DOM (no detecta todos los listeners).
+- [ ] Abrir DevTools Network con **Preserve log** y distinguir las solicitudes propias de Virtual Lotteries por iniciador y lotería; evitar compartir cuerpos, cookies o cabeceras.
+- [ ] Validar efectivamente el llenado con los otros scripts en un entorno real **aislado y autorizado**, demostrando que LotteryNet no inicia ni induce procesamiento.
+
+**Decisión:** el punto de entrada \`src/index.js\` sigue inactivo; sin botón ni AUTO funcional hasta completar los controles pertinentes.

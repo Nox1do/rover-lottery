@@ -44,8 +44,9 @@ El comando `build` generará `dist/LotteryNet-Rover.user.js` y `dist/LotteryNet-
 - `src/parsers/`: parser común y variantes Fireball/Wild Ball/Super Ball.
 - `src/rover/`: identidad de fila, **escritura visual solamente**, restauración.
 - `src/ui/`: indicador de fila implementado; botón manual y AUTO aún no activados.
-- `tests/unit/`: suite ejecutada (21/21, Node 22).
-- `tests/browser/isolated-rover.mjs`: regresión de DOM simulado y convivencia adversaria con Chromium y Firefox.
+- `tests/unit/`: suite ejecutada (26/26, Node 22).
+- `tests/browser/isolated-rover.mjs`: regresión DOM y eventos adversarios en Chromium/Firefox.
+- `tests/browser/manual-usa-overlap.mjs`: convivencia manual con LotteryUSA v0.6.5; usa solo su función real `triggerInput` dentro de un fixture local, sin API externas.
 - `tests/browser/rover-safety-audit.user.js`: diagnóstico pasivo de manejadores inline y eventos en Rover real; no altera resultados.
 - `.github/workflows/lotterynet-qa.yml`: CI para pruebas, compilación y auditoría de entrada inactiva.
 - Pruebas en Rover real y Tampermonkey siguen **pendientes**.
@@ -53,11 +54,11 @@ El comando `build` generará `dist/LotteryNet-Rover.user.js` y `dist/LotteryNet-
 
 ## Pruebas registradas
 
-[GitHub Actions — ejecución aprobada, 2026-10-20](https://github.com/Nox1do/rover-lottery/actions/runs/39431580644): 21 pruebas Node aprobadas, compilación correcta y 16 aserciones Playwright por navegador (Chromium y Firefox), **solo sobre un fixture local**. Se mantiene explícitamente pendiente la validación del Rover autenticado con Tampermonkey y sus userscripts existentes.
+[GitHub Actions — pruebas completas 2026-10-20](https://github.com/Nox1do/rover-lottery/actions/runs/39455803575): **26 pruebas Node correctas**, compilación y entrada inactiva verificadas, pruebas Playwright en Chromium/Firefox que cubren DOM, receptores de eventos adversarios y uso **manual** de LotteryUSA con su función real `triggerInput` sobre HTML local sintético. La identidad de diez filas se verificó antes en Rover autenticado mediante el diagnóstico DOM v0.4.0. Aún faltan pruebas de Network y coexistencia real antes de habilitar escritura.
 
 **Compatibilidad de fechas:** `src/rover/rows.js` valida distintas representaciones documentadas por el script LotteryUSA y rechaza controles contradictorios, sin asumir la fecha actual.
 
-**Diagnóstico opcional de Rover:** `tests/browser/rover-dom-audit.user.js` (solo lectura; sin envío de datos ni cambios de inputs). Requiere una sesión Rover autenticada para ofrecer evidencia, todavía no disponible desde el navegador conectado.
+**Diagnóstico opcional de Rover:** `tests/browser/rover-dom-audit.user.js` (solo lectura; sin envío de datos ni cambios de inputs). Ya se ejecutó en Rover autenticado: 10/10 sorteos y cinco atributos `loteria` confirmados para el 19/10/2026.
 
 **Prueba de convivencia:** [docs/QA-FASE-2.md](docs/QA-FASE-2.md) documenta la ruta independiente de POST de Virtual Lotteries y la separación entre pruebas simuladas y captura real de Network. El diagnóstico pasivo `__LOTTERYNET_SAFETY_QA__.print()` no demuestra por sí solo ausencia de procesamiento.
 

@@ -347,6 +347,8 @@ Se documentará la alternativa aprobada en `docs/UI-SPEC.md`, incluyendo iconos,
 
 #### 2.7 — Pruebas y criterios de aceptación
 
+**Convivencia manual simulada completada (2026-10-20):** los siete escenarios de LotteryUSA v0.6.5 por botón y el caso de carrera concurrente pasaron en CI con Chromium/Firefox + Node (26/26); sin sobrescribir valores diferentes desde LotteryNet y sin POST provocado en el fixture local. No equivale a la auditoría de Tampermonkey/Network real: las puertas de Fase 2 y Fase 4 permanecen abiertas. [Evidencia QA](docs/QA-FASE-2.md#15-convivencia-manual-lotteryusa-regresión-aislada-completa-2026-10-20).
+
 - [ ] Verificar que todos los estados muestran iconos y mensajes correctos.
 - [ ] Verificar que BUSCANDO y CARGANDO no permanecen activos después de finalizar.
 - [ ] Confirmar que COMPLETADO no implica procesamiento en Rover.

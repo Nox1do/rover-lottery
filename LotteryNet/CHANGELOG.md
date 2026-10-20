@@ -1,5 +1,13 @@
 # Changelog
 
+## Regresión de convivencia manual LotteryUSA — 2026-10-20
+- Añadido `tests/browser/manual-usa-overlap.mjs`: prueba aislada Chromium/Firefox del disparo manual mediante la función `triggerInput` original de LotteryUSA v0.6.5, sin API ni Rover real.
+- Verificado que LotteryNet respeta valores manuales diferentes, es idempotente con iguales, completa parciales y se abstiene de restaurar sobre cambios tras Search; el botón de LotteryUSA puede sobrescribir y LotteryNet no lo deshace.
+- Prueba Node adicional ante cambio concurrente durante setter: detención y conservación del valor manual.
+- Workflow ampliado con la nueva prueba; **26/26 Node** y ambos navegadores correctos [GitHub Actions 39455803575](https://github.com/Nox1do/rover-lottery/actions/runs/39455803575).
+- Pendiente auditoría pasiva de DOM/Network con la combinación de userscripts de Rover real; `src/index.js` sigue inactivo, sin procesamiento.
+
+
 ## Separación de alcance y modo manual — 2026-10-20
 - El usuario confirmó: Virtual Lotteries v2 Auto trabaja con sorteos ajenos a LotteryNet; LotteryUSA consulta y llena solo mediante clic manual.
 - Verificado en fuentes versionadas: Virtual Lotteries usa otros códigos (ninguno de los diez FL/LA/OH/TN/IN); el POST de ese proyecto no constituye por sí solo un riesgo de procesamiento de LotteryNet.

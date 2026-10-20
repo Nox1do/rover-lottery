@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 const base=fileURLToPath(new URL('../../',import.meta.url));
 const fixtureRow=()=>[
- '<tr class="res_tr"><td><span class="loteria-abrev">FLORIDA AM</span></td>',
+ '<tr class="res_tr"><td>FLORIDA AM <span class="loteria-abrev">FL-AM</span></td>',
  ...['primera','segunda','tercera','pick3','pick4'].map(k=>'<td><input type="text" name="'+k+'" loteria="111" value=""></td>'),
  '</tr>'
 ].join('');
@@ -70,6 +70,7 @@ try {
     mountInlineStatus({root:document,draw,date,state:'COMPLETADO'});
     const inlineCount=document.querySelectorAll('[data-lnr-inline="fl-am"]').length;
     const completed=updated.textContent;
+    const firstCellChildrenBefore=document.querySelectorAll('tr.res_tr:first-child > td:first-child .lnr-inline-state').length;
     const existing=document.querySelector('input[name="tercera"]');
     existing.value='91';
     const conflicted=fillVisualInputs({root:document,draw,date,p3:'407',p4:'0832'});
@@ -91,7 +92,7 @@ try {
     const duplicate=fillVisualInputs({root:document,draw,date,p3:'407',p4:'0832'});
     return {
      firstOk:a.ok,written:a.written,first,second:second.status,
-     initialText,spinner,inlineCount,completed,conflict:conflicted.status,conflictValues,
+     initialText,spinner,inlineCount,completed,firstCellChildrenBefore,conflict:conflicted.status,conflictValues,
      stored,restored:restored.status,restoredValues,wrongDate:wrongDate.status,
      duplicate:duplicate.status,events,
      states:Object.keys(UI_STATES).length
@@ -105,6 +106,7 @@ try {
    assert.equal(result.spinner,true,engine);
    assert.equal(result.completed,'Casillas completadas',engine);
    assert.equal(result.inlineCount,1,engine);
+   assert.equal(result.firstCellChildrenBefore,1,engine);
    assert.equal(result.conflict,'CONFLICTO',engine);
    assert.deepEqual(result.conflictValues,['07','08','91','407','0832'],engine);
    assert.equal(result.stored,true,engine);

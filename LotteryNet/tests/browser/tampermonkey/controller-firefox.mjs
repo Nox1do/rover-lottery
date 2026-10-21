@@ -77,6 +77,10 @@ async function installUserscript(origin, scriptPath) {
 }
 
 try {
+  assert(config.expectedProcessUid > 0, 'Firefox requires an unprivileged runner');
+  assert.equal(process.getuid(), config.expectedProcessUid, 'Firefox runner UID changed');
+  assert.equal(process.getgid(), config.expectedProcessGid, 'Firefox runner GID changed');
+  report.runnerIdentity = {uid: process.getuid(), gid: process.getgid(), originalUserPreserved: true};
   if (phase === 'isolated') {
     assert.notEqual(await readlink('/proc/self/ns/net'), config.parentNetworkNamespace, 'Network namespace did not change');
     const interfaces = Object.keys(networkInterfaces());

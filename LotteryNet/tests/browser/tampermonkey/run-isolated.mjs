@@ -40,6 +40,7 @@ try {
   const executablePath = target.executablePath || (await import('playwright')).chromium.executablePath();
   const config = {...target, directory, outsideCanary, executablePath,
     expectedBrowserVersion: process.env.FIREFOX_EXPECTED_VERSION,
+    expectedProcessUid: process.getuid(), expectedProcessGid: process.getgid(),
     parentNetworkNamespace: await readlink('/proc/self/ns/net')};
   await writeFile(configPath, JSON.stringify(config));
   const controller = path.resolve('tests/browser/tampermonkey', target.controller);
@@ -49,9 +50,15 @@ try {
   assert(received.some(item => item.method === 'POST' && item.path === '/gm-preflight'));
   assert(received.some(item => item.method === 'POST' && item.path === '/page-preflight'));
   const baseline = received.length;
+  const isolatedProcess = [process.execPath, controller, 'isolated', configPath];
+  if (target.browser === 'firefox') {
+    assert(process.getuid() > 0, 'Firefox QA requires an unprivileged runner');
+    // Keep the new network namespace but return to the original desktop user.
+    isolatedProcess.unshift('sudo', '-n', '-u', '#' + process.getuid(), '-g', '#' + process.getgid(), '--');
+  }
   await run(['sudo', '-n', 'unshare', '--net', '--', 'sh', '-c',
     'set -eu; ip link set lo up; exec "$@"', 'lotterynet-qa',
-    process.execPath, controller, 'isolated', configPath]);
+    ...isolatedProcess]);
   const isolated = JSON.parse(await readFile(path.join(directory, 'isolated.json')));
   assert.equal(isolated.status, 'PASS');
   assert.equal(isolated.userscriptSha256, preflight.userscriptSha256, 'Different userscript bundles across phases');

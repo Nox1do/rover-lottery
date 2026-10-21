@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Rs-loteria-res-tabla-mod
 // @namespace    https://roversport.net/
-// @version      1.6.23
-// @description  Estilos UI, 500 filas por defecto, resaltado, filtros Sin procesar y Procesados pendientes, y sincronización del sidebar en el primer frame.
+// @version      1.6.24
+// @description  Estilos UI, 500 filas, resaltados rojo y azul, filtros por estado y sincronización del sidebar.
 // @homepageURL  https://github.com/Nox1do/rover-lottery
 // @source       https://github.com/Nox1do/rover-lottery/blob/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
 // @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
@@ -20,6 +20,7 @@
 
   const STYLE_ID = "rt-lottery-style-native-v6-6";
   const HIGHLIGHT_CLASS = "rt-row-soft-red";
+  const BLUE_HIGHLIGHT_CLASS = "rt-row-soft-blue";
   const DEFAULT_PAGE_LENGTH = 500;
   const FILTER_ID = "rt-unprocessed-filter";
   const PROCESSED_PENDING_FILTER_ID = "rt-processed-pending-filter";
@@ -31,6 +32,9 @@
     "CALIFORNIA EVE|CA-EVEN",
     "TEXAS NIGHT|TX-NIGHT",
     "GEORGIA NIGHT|GE-NT"
+  ]);
+  const BLUE_HIGHLIGHTED_LOTTERIES = new Set([
+    "WASHINGTON NIGHT|WST-NG"
   ]);
 
   function normalize(value) {
@@ -79,6 +83,9 @@
   --rt-highlight-red: #fde8e8;
   --rt-highlight-red-hover: #f9d6d6;
   --rt-highlight-red-edge: #e99a9a;
+  --rt-highlight-blue: #e8f2ff;
+  --rt-highlight-blue-hover: #d9eaff;
+  --rt-highlight-blue-edge: #8bb6e8;
 }
 
 #tableResult_wrapper .dataTables_length,
@@ -153,6 +160,17 @@
 }
 #tableResult tbody tr.${HIGHLIGHT_CLASS} > td:first-child{
   box-shadow: inset 4px 0 0 var(--rt-highlight-red-edge) !important;
+}
+
+/* Washington Night: azul suave, independiente del grupo rojo. */
+#tableResult tbody tr.${BLUE_HIGHLIGHT_CLASS} > td{
+  background-color: var(--rt-highlight-blue) !important;
+}
+#tableResult tbody tr.${BLUE_HIGHLIGHT_CLASS}:hover > td{
+  background-color: var(--rt-highlight-blue-hover) !important;
+}
+#tableResult tbody tr.${BLUE_HIGHLIGHT_CLASS} > td:first-child{
+  box-shadow: inset 4px 0 0 var(--rt-highlight-blue-edge) !important;
 }
 
 #tableResult tbody td.dataTables_empty{
@@ -301,8 +319,9 @@
       const abbreviation = normalize(row.querySelector("td:nth-child(2) .loteria-abrev")?.textContent)
         .replace(/^\[|\]$/g, "")
         .trim();
-      const shouldHighlight = HIGHLIGHTED_LOTTERIES.has(`${name}|${abbreviation}`);
-      row.classList.toggle(HIGHLIGHT_CLASS, shouldHighlight);
+      const lotteryKey = `${name}|${abbreviation}`;
+      row.classList.toggle(HIGHLIGHT_CLASS, HIGHLIGHTED_LOTTERIES.has(lotteryKey));
+      row.classList.toggle(BLUE_HIGHLIGHT_CLASS, BLUE_HIGHLIGHTED_LOTTERIES.has(lotteryKey));
     });
   }
 
@@ -758,5 +777,5 @@
   start();
   document.addEventListener("DOMContentLoaded", () => bindTableLifecycle(), { once: true });
 
-  console.log("[Rs tabla mod] v1.6.22 activo · filtros de estado · sidebar en primer frame");
+  console.log("[Rs tabla mod] v1.6.24 activo · resaltado azul WST-NG · filtros de estado");
 })();

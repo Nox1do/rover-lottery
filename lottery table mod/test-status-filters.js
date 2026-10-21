@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const source = fs.readFileSync('Rs-loteria-res-tabla-mod.user.js','utf8');
-assert.match(source, /^\/\/ @version\s+1\.6\.23$/m);
+assert.match(source, /^\/\/ @version\s+1\.6\.24$/m);
 assert.ok(source.includes('rt-processed-pending-filter-label'));
 assert.ok(source.includes('ensureRowFilters()'));
 const pendingFilterBlock = source.slice(

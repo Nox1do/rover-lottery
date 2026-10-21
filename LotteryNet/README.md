@@ -44,16 +44,19 @@ El comando `build` generará `dist/LotteryNet-Rover.user.js` y `dist/LotteryNet-
 - `src/parsers/`: parser común y variantes Fireball/Wild Ball/Super Ball.
 - `src/rover/`: identidad de fila, **escritura visual solamente**, restauración.
 - `src/ui/`: indicador de fila implementado; botón manual y AUTO aún no activados.
-- `tests/unit/`: suite actual ejecutada (28/28, Node 24 local; CI configurado con Node 22).
+- `tests/unit/`: suite actual ejecutada (34/34, Node 24 local y Node 22 en CI).
 - `tests/browser/isolated-rover.mjs`: regresión DOM y eventos adversarios en Chromium/Firefox.
 - `tests/browser/manual-usa-overlap.mjs`: convivencia manual con LotteryUSA v0.6.5; usa solo su función real `triggerInput` dentro de un fixture local, sin API externas.
 - `tests/browser/rover-safety-audit.user.js`: diagnóstico pasivo de manejadores inline y eventos en Rover real; no altera resultados.
 - `tests/browser/network-blocked-rover.mjs`: 120 escenarios por navegador sobre diez filas capturadas y depuradas, con controles positivos de bloqueo. Informe local y límites en [QA, sección 18](docs/QA-FASE-2.md#18-ensayo-aislado-con-diez-filas-capturadas-y-bloqueo-verificado--20102026).
 - `.github/workflows/lotterynet-qa.yml`: CI para pruebas, compilación y auditoría de entrada inactiva.
-- Pruebas en Rover real y Tampermonkey siguen **pendientes**.
+- `tests/browser/tampermonkey/controller-firefox.mjs`: instalación nativa del complemento firmado y UI de Tampermonkey en Firefox; 120 casos con aislamiento de red. [QA, sección 20](docs/QA-FASE-2.md#20-firefox-real-con-tampermonkey-de-mozilla-add-ons--20102026).
+- Tampermonkey real validado en réplicas locales de Chromium y Firefox. Integración autenticada con Rover y convivencia real siguen **pendientes**.
 - `scripts/`: construcción del userscript y metadatos.
 
 ## Pruebas registradas
+
+[CI 39521594551](https://github.com/Nox1do/rover-lottery/actions/runs/39521594551): cuatro trabajos correctos, 34/34 Node, compilación inactiva, regresiones Chromium/Firefox y 120 escenarios con cada gestor real. Firefox 158.0.1 utiliza Tampermonkey 5.5.0 de Mozilla Add-ons; Chromium 141 utiliza el paquete 5.4.1. Los controles verifican GM real y ausencia de solicitudes escapadas al receptor bajo un namespace solo loopback. Ambos ensayos usan copias locales y perfiles nuevos, no la sesión de producción del usuario.
 
 [GitHub Actions — pruebas completas 2026-10-20](https://github.com/Nox1do/rover-lottery/actions/runs/39455803575): **26 pruebas Node correctas**, compilación y entrada inactiva verificadas, pruebas Playwright en Chromium/Firefox que cubren DOM, receptores de eventos adversarios y uso **manual** de LotteryUSA con su función real `triggerInput` sobre HTML local sintético. La identidad de diez filas se verificó antes en Rover autenticado mediante el diagnóstico DOM v0.4.0. Aún faltan pruebas de Network y coexistencia real antes de habilitar escritura.
 

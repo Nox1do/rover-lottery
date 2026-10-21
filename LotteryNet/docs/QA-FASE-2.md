@@ -3,7 +3,7 @@
 **Fecha:** 2026-10-20. **Estado:** módulo inactivo, NO APTO PARA PRODUCCIÓN.  
 **Diseño:** «En fila», iconos lineales, nueve estados y mensajes aprobados.
 
-**Último avance:** Tampermonkey real en Chromium y réplica local con aislamiento del sistema, validado en la sección 19. Rover autenticado y convivencia con todas las extensiones del usuario siguen pendientes.
+**Último avance:** Tampermonkey real sobre réplicas locales con aislamiento del sistema: Chromium en la sección 19 y **Firefox en la sección 20**. Rover autenticado y convivencia con todas las extensiones del usuario siguen pendientes.
 
 ## 1. Evidencia verificada
 
@@ -11,7 +11,7 @@
 
 | Comprobación | Resultado | Alcance de la evidencia |
 | --- | --- | --- |
-| Node.js 22, `npm test` | **22/22 OK, 0 fallos** | Suite completa actual, con fecha Rover, identidad del sorteo y estado inline |
+| Node.js 22, `npm test` | **22/22 OK, 0 fallos** | Suite de esa ejecución, con fecha Rover, identidad del sorteo y estado inline |
 | `npm run build` | **OK** | Userscript compilado, pero entrada inactiva |
 | `node --check dist/LotteryNet-Rover.user.js` | **OK** | Sintaxis de artefacto |
 | Auditoría del punto de entrada compilado | **OK** | Sin activación de llenado ni AUTO |
@@ -460,4 +460,68 @@ node tests/browser/tampermonkey/run-isolated.mjs
 Referencias primarias: [permiso userScripts de Chrome](https://developer.chrome.com/docs/extensions/reference/api/userScripts), [extensiones en Playwright](https://playwright.dev/docs/chrome-extensions) y [GM_xmlhttpRequest de Tampermonkey](https://www.tampermonkey.net/documentation.php?q=GM_xmlhttpRequest).
 
 **Puerta pendiente:** integración autenticada y convivencia real en un entorno autorizado con bloqueo efectivo. Este ensayo no aprueba A19 en producción. `src/index.js` permanece **INACTIVO**; Fase 2 y AUTO no se declaran terminados.
+
+## 20. Firefox real con Tampermonkey de Mozilla Add-ons — 20/10/2026
+
+**Resultado:** [CI 39521594551](https://github.com/Nox1do/rover-lottery/actions/runs/39521594551), commit `6e891c985e0e36e1cdd0135032d088ef5c581d4e`: **cuatro trabajos SUCCESS**. Pasaron 34/34 Node, build y auditoría de entrada inactiva, regresiones anteriores y ensayos con Tampermonkey real en ambos navegadores. La adaptación a Firefox fue aprobada por el usuario porque es su navegador habitual.
+
+### Plataforma y gestor comprobados
+
+| Plataforma del ensayo | Gestor real | Manifest | Resultado |
+| --- | --- | --- | --- |
+| Firefox **158.0.1**, Selenium **4.51.0**, geckodriver **0.37.1** | Tampermonkey **5.5.0**, Mozilla Add-ons | V2 | **120/120** |
+| Chromium **141.0.7390.37**, Playwright **1.56.1** | Tampermonkey **5.4.1**, paquete estable descomprimido | V3 | **120/120**, ensayo independiente |
+
+Las distribuciones del gestor difieren; el resultado de Chromium no se usa como sustituto de Firefox. La prueba nueva ejecuta Firefox estable original en un runner Linux, no el Firefox modificado que distribuye Playwright ni la instalación Windows del usuario.
+
+El XPI original de [Tampermonkey 5.5.0 en Mozilla Add-ons](https://addons.mozilla.org/firefox/downloads/file/4797143/tampermonkey-5.5.0.xpi), publicado por Jan Biniok (`derjanb`), queda fijado a SHA-256 `190031c78dbc5696114835601f2c8e6b855ad1e134df5df278f8fc158c065908`. Se verifica el manifiesto y GUID `firefox@tampermonkey.net`. Firefox lo instala mediante la API nativa de geckodriver como complemento no temporal; su AddonManager confirma **firma válida, estado activo y versión 5.5.0**. No se modifica ni recompone el paquete y no se deshabilita su comprobación de firma.
+
+Geckodriver crea un perfil nuevo por fase. La opción documentada `--allow-system-access` se usa exclusivamente para leer esos metadatos y el UUID interno de la extensión en el perfil de pruebas; después se restaura el contexto de contenido. No se utiliza para ejecutar ni sustituir código GM o para llenar casillas. El userscript se importa y confirma mediante la UI real de Utilities, y el dashboard acredita que está habilitado. El bundle conserva su coincidencia exclusiva con la página local `http://127.0.0.1/rover.html*`.
+
+### Controles y evidencia
+
+Se reutilizan el mismo builder, los módulos reales, los doce casos por sorteo, los fixtures y las aserciones independientes de las secciones 18–19. El bundle ejecutado en ambas fases de Firefox tiene SHA-256 idéntico `0119be4a90947f2f56b897e7869e0b52aa8eb2e9886d9c391e135e64849ef60a`. `GM_info` confirma Tampermonkey 5.5.0, script 0.0.1, `sandboxMode: raw` y las API GM declaradas.
+
+| Comprobación | Firefox + Tampermonkey real |
+| --- | --- |
+| Preflight: POST de página y POST de GM al receptor externo | Ambos recibidos; GM respondió 200 |
+| Almacenamiento GM: escribir / leer / borrar | Correcto en ambas fases |
+| Namespace de la fase aislada | Distinto del padre; solo `lo`; **0 rutas IPv4 externas** |
+| Identidad del proceso en ambas fases | UID/GID **1001/1001**, usuario original no privilegiado |
+| POST externo de página / GM bajo aislamiento | Ambos fallaron; el receptor recibió **0 solicitudes** durante la fase |
+| GET de GM al fixture local bajo aislamiento | Correcto; el gestor seguía operativo |
+| Sorteos / campos / escenarios | **10 / 50 / 120 correctos** |
+| Eventos `input/change/blur` de llenado | **0 / 0 / 0** |
+| Clics de procesamiento / escrituras al servidor local | **0 / 0** |
+| Observación adicional antes de comprobar contadores | **500 ms**, con aislamiento mantenido |
+
+El control positivo previo impide confundir una extensión inoperante con un bloqueo efectivo. El control local en la fase aislada demuestra que las llamadas GM funcionan mientras su salida externa falla. Se mide lo que llegó al receptor, sin afirmar que se cuentan todos los intentos internos de red de Firefox o de la extensión.
+
+### Incidencias reproducidas y corregidas
+
+Selenium intentó abrir el dashboard mientras el diálogo de importación todavía interceptaba el clic. El controlador ahora espera mediante una lectura de hit testing que el elemento quede descubierto y realiza un clic nativo; no fuerza el clic ni elimina el diálogo.
+
+Después, el preflight pasó pero Firefox no arrancó bajo `sudo unshare`: su registro indicó que rechazaba ejecutarse como root en la sesión cuyo `XDG_RUNTIME_DIR` pertenecía a `runner`. Tras crear el namespace y levantar `lo`, el proceso vuelve mediante `sudo -u/-g` al UID/GID originales **dentro del mismo namespace**. El controlador comprueba ambas identidades antes de iniciar Firefox y conserva sus opciones de seguridad predeterminadas. La prueba corregida superó el mismo caso de arranque y los 120 escenarios.
+
+### Reproducción y límites
+
+Con Firefox y geckodriver oficiales en rutas absolutas y permiso para crear el namespace en un runner Linux no privilegiado, desde `LotteryNet/`:
+
+```sh
+npm install --no-audit --no-fund --no-save selenium-webdriver@4.51.0
+python3 tests/browser/tampermonkey/prepare-firefox-extension.py
+LOTTERYNET_QA_MANAGER_BROWSER=firefox \
+FIREFOX_PATH=/ruta/absoluta/firefox \
+GECKODRIVER_PATH=/ruta/absoluta/geckodriver \
+FIREFOX_EXPECTED_VERSION=158.0.1 \
+node tests/browser/tampermonkey/run-isolated.mjs
+```
+
+La selección Firefox exige sus ejecutables y su controlador propios; una configuración incompleta o un nombre de navegador desconocido falla, sin sustituirse por Chromium. El workflow descarga Firefox 158.0.1 y geckodriver 0.37.1 antes del aislamiento. Publica únicamente JSON/PNG y excluye perfiles, XPI y bundle instalado.
+
+**Informe original:** [firefox-tampermonkey-isolated-2026-10-20.json](qa/firefox-tampermonkey-isolated-2026-10-20.json), copiado sin modificar desde el artefacto `12310879522`. ZIP SHA-256 `8b40c2e141c1355ddea589874b180456cae2b84aebfe062daf68c63863c4ef48`. Los timestamps del informe están en UTC; la ejecución corresponde al 20/10 en la zona del cliente.
+
+Referencias primarias: [Selenium Firefox Driver](https://www.selenium.dev/selenium/docs/api/javascript/module-selenium-webdriver_firefox-Driver.html), [geckodriver — flags](https://firefox-source-docs.mozilla.org/testing/geckodriver/Flags.html), [Tampermonkey en AMO](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/).
+
+**Alcance pendiente:** esta evidencia cubre Firefox y Tampermonkey reales sobre una copia local, en Linux y sin sesión autenticada ni los demás userscripts del usuario. No valida Windows, su perfil instalado, listeners/AJAX reales de Rover, persistencia entre reinicios, AUTO ni multitab. Producción continúa inactiva; Fase 2/A19 en Rover autenticado y convivencia real siguen pendientes.
 

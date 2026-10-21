@@ -1,9 +1,12 @@
 # Changelog
 
-## Ensayo Firefox + Tampermonkey — en curso
+## Firefox real + Tampermonkey, réplica aislada — 2026-10-20
 
-- Aprobada la adaptación de la batería aislada al navegador habitual del usuario: Firefox real, Tampermonkey de Mozilla Add-ons y automatización Selenium/geckodriver.
-- Se conservarán los 120 casos, controles positivos de página y GM, namespace sin salida externa y dos perfiles nuevos. La validación Firefox con gestor real permanece pendiente hasta obtener evidencia; no se cambia `src/` ni se activa producción.
+- Ejecutada la adaptación aprobada: **Firefox 158.0.1**, **Tampermonkey 5.5.0** original de Mozilla Add-ons (hash fijado y firma/estado activo comprobados por Firefox), Selenium 4.51.0 y geckodriver 0.37.1.
+- **120/120 casos correctos**, controles positivos de página y GM, almacenamiento real y GET local operativos dentro del aislamiento. Namespace distinto, solo `lo`, cero rutas externas y cero solicitudes recibidas por el receptor externo durante la fase aislada. Cero eventos de llenado, clics de procesamiento y escrituras locales; ventana adicional de 500 ms.
+- Corregida la espera del diálogo de importación y preservado el usuario no privilegiado después de crear el namespace: Firefox rechazaba arrancar como root en la sesión del runner. Se comprueban UID/GID originales; no se desactivan opciones de seguridad del navegador.
+- [CI 39521594551](https://github.com/Nox1do/rover-lottery/actions/runs/39521594551): **cuatro trabajos SUCCESS**, 34/34 Node, build inactivo, regresiones anteriores y ambos gestores reales. Informe original en `docs/qa/firefox-tampermonkey-isolated-2026-10-20.json` y metodología en QA sección 20.
+- El ensayo es sobre copia local en Linux, sin sesión Rover ni los otros scripts del usuario. La validación autenticada y convivencia real siguen pendientes; `src/` no cambia y producción permanece inactiva.
 
 ## Tampermonkey real en réplica aislada — 2026-10-20
 

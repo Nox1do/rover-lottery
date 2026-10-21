@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterías USA
 // @namespace    http://tampermonkey.net/
-// @version      0.6.6
+// @version      0.6.7
 // @description  Proveedores móviles y LotteryUSA separados, con controlador y transporte comunes
 // @author       noeg
 // @match        https://www.roversport.net/adm/es/lottery.php*
@@ -10,6 +10,7 @@
 // @match        https://roversport.lol/adm/es/lottery.php*
 // @run-at       document-end
 // @grant        GM_xmlhttpRequest
+// @grant        GM_info
 // @connect      lotteryusa.com
 // @connect      mobile-fla.lotteryservices.com
 // @connect      lalotmobapi.intralot.us
@@ -479,6 +480,7 @@
         .gm-tab-btn.active { background: white; color: #007bff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .gm-bar.mode-night .gm-tab-btn.active { color: #d35400; }
         .gm-search-input { width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; }
+        .gm-version { margin-top: 8px; font-size: 12px; font-weight: 700; color: #c45b62; }
         .gm-grid-horizontal { flex-grow: 1; display: grid; grid-template-rows: repeat(2, 1fr); grid-auto-flow: column; grid-auto-columns: 180px; gap: 10px; padding: 15px 15px 10px 15px; overflow-x: auto; overflow-y: hidden; }
         .gm-loto-btn { background: white; border: 1px solid #dee2e6; border-radius: 6px; padding: 0 12px; height: 38px; min-width: 170px; display: none; align-items: center; justify-content: space-between; font-size: 13px; color: #495057; cursor: pointer; transition: all 0.15s; }
         .gm-loto-btn.visible-cat { display: flex; }
@@ -509,6 +511,12 @@
         tabs.appendChild(tabDia); tabs.appendChild(tabNoche); leftPanel.appendChild(tabs);
 
         const searchInput = document.createElement('input'); searchInput.className = 'gm-search-input'; searchInput.placeholder = '🔍 Filtrar...'; leftPanel.appendChild(searchInput);
+        const installedVersion = typeof GM_info !== 'undefined' ? GM_info.script?.version : null;
+        if (installedVersion) {
+            const versionLabel = document.createElement('strong'); versionLabel.className = 'gm-version';
+            versionLabel.textContent = `v${installedVersion}`; versionLabel.title = 'Versión instalada';
+            leftPanel.appendChild(versionLabel);
+        }
         bar.appendChild(leftPanel);
         const grid = document.createElement('div'); grid.className = 'gm-grid-horizontal';
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterías USA
 // @namespace    http://tampermonkey.net/
-// @version      0.6.6
+// @version      0.6.7
 // @description  Proveedores móviles y LotteryUSA separados, con controlador y transporte comunes
 // @author       noeg
 // @match        https://www.roversport.net/adm/es/lottery.php*
@@ -10,6 +10,7 @@
 // @match        https://roversport.lol/adm/es/lottery.php*
 // @run-at       document-end
 // @grant        GM_xmlhttpRequest
+// @grant        GM_info
 // @connect      lotteryusa.com
 // @connect      mobile-fla.lotteryservices.com
 // @connect      lalotmobapi.intralot.us

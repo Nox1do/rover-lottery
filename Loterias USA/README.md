@@ -2,7 +2,9 @@
 
 [Instalar o actualizar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA/Rovs-Loterias-USA.user.js)
 
-Versión actual: **0.6.6**. Añade Washington estado, solo Pick 3 desde LotteryUSA, en Noche después de Iowa Evening. Incluye Illinois Midday y Evening desde la fuente oficial de su app, además de las APIs móviles de Florida, Louisiana, Ohio, Tennessee, Indiana y Georgia.
+Versión actual: **0.6.7**. Muestra la versión instalada debajo del buscador, en negrita y rojo suave. Incluye Washington estado, solo Pick 3 desde LotteryUSA, en Noche después de Iowa Evening; Illinois desde la fuente oficial de su app; y las APIs móviles de Florida, Louisiana, Ohio, Tennessee, Indiana y Georgia.
+
+La etiqueta de versión usa `GM_info.script.version` de Tampermonkey, por lo que se actualiza con la versión instalada sin mantener otro número fijo en la interfaz.
 
 Washington corresponde a la fila **WASHINGTON NIGHT**, código corto **WST-NG**. Consulta [Pick 3 de Washington](https://www.lotteryusa.com/washington/daily/), con la [portada de Washington](https://www.lotteryusa.com/washington/) como respaldo. Llena únicamente Pick 3 y su terminación; deja intactos los campos de Pick 4 y las filas de Washington D.C.
 
@@ -19,7 +21,7 @@ Desde 0.6.3 el nombre estable es `Rovs Loterías USA`, sin versión. El número 
 ## Publicar una nueva versión
 
 1. Modifica el script y verifica los cambios.
-2. Desde el repositorio, ejecuta `python "Loterias USA/tools/release.py" "Loterias USA/Rovs-Loterias-USA.user.js" 0.6.7`, sustituyendo el número por la siguiente versión.
+2. Desde el repositorio, ejecuta `python "Loterias USA/tools/release.py" "Loterias USA/Rovs-Loterias-USA.user.js" 0.6.8`, sustituyendo el número por la siguiente versión.
 3. Actualiza este README y el historial de cambios.
 4. Ejecuta `node "Loterias USA/tools/check-release.cjs"`.
 5. Haz commit de los archivos generados y publica en `main`. Tampermonkey detectará el incremento de versión.
@@ -28,6 +30,7 @@ El generador exige una versión superior a la publicada, conserva la identidad d
 
 ## Historial
 
+- **0.6.7 (2026-10-21):** Muestra automáticamente la versión instalada debajo del buscador, en negrita y rojo suave, usando `GM_info.script.version`.
 - **0.6.6 (2026-10-21):** Añade WASHINGTON NIGHT / WST-NG en Noche, inmediatamente después de Iowa Evening. Usa LotteryUSA para Pick 3 únicamente y conserva el resto de las fuentes. Añade seis pruebas de orden/categoría, llenado, ceros iniciales, fecha pendiente, respaldo y error HTTP.
 - **0.6.5 (2026-10-19):** Illinois Midday y Evening pasan de LotteryUSA a la fuente oficial de la app. Filtra por fecha y sorteo, conserva ceros iniciales, excluye Fireball y rechaza páginas de otro juego/fecha o resultados contradictorios. Añade 27 pruebas de Illinois; las 24 pruebas de Georgia siguen pasando.
 - **0.6.4 (2026-10-08):** Georgia Midday, Evening y Night pasan a la API móvil oficial de Cash 3 y Cash 4. Selección por nombre de sorteo y fecha de Georgia, ceros iniciales y consulta de historial paginado. Añade 24 pruebas reproducibles de Georgia con respuestas públicas de la API.

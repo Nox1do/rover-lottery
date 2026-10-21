@@ -111,7 +111,7 @@ try {
   const options = new firefox.Options().setBinary(config.executablePath).addArguments('-headless')
     .setPreference('intl.locale.requested', 'en-US');
   const service = new firefox.ServiceBuilder(config.geckodriverPath).addArguments('--allow-system-access')
-    .loggingTo(path.join(directory, phase + '-geckodriver.log'));
+    .setStdio('inherit');
   driver = await new Builder().forBrowser('firefox').setFirefoxOptions(options).setFirefoxService(service).build();
   await driver.manage().setTimeouts({pageLoad: 25000, script: 15000});
   const capabilities = await driver.getCapabilities();
@@ -157,7 +157,6 @@ try {
   report.status = 'FAIL'; report.error = error.message;
   console.error('FIREFOX QA FAILURE', error.stack);
   console.log('LOCAL REQUESTS', JSON.stringify(received));
-  console.log('GECKODRIVER DIAGNOSTIC', (await readFile(path.join(directory, phase + '-geckodriver.log'), 'utf8').catch(() => '')).slice(-10000));
   if (driver) {
     for (const handle of await driver.getAllWindowHandles().catch(() => [])) {
       await driver.switchTo().window(handle).catch(() => {});

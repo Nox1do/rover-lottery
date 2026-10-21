@@ -391,6 +391,8 @@ La fase se considerará completada únicamente cuando:
 
 ### Fase 4 — Validación en navegador real
 
+**Adaptación aprobada (20/10/2026):** ejecutar la misma batería local y aislada mediante Firefox estable y Tampermonkey original de Mozilla Add-ons, usando Selenium/geckodriver para su instalación y UI. Conservar controles de página y GM, aislamiento efectivo, 120 casos e informes por fase. No confundir este ensayo pendiente con integración autenticada; mantener la entrada de producción inactiva.
+
 - [ ] Firefox + Tampermonkey: casos manuales, automáticos, Search, fecha, errores y multitab.
 - [ ] Chrome/Chromium + Tampermonkey: los mismos casos.
 - [ ] Probar con usuarioscripts coexistentes según el escenario real del usuario.

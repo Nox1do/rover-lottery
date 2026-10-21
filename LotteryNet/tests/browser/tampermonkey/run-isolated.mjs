@@ -1,5 +1,5 @@
 /** The parent owns a canary outside the test network namespace. */
-import {chromium} from 'playwright';
+import {resolveManagerTarget} from './manager-target.mjs';
 import {createServer} from 'node:http';
 import {networkInterfaces} from 'node:os';
 import {readFile, writeFile, mkdir, readlink} from 'node:fs/promises';
@@ -7,7 +7,8 @@ import {spawn} from 'node:child_process';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 
-const directory = path.resolve('test-results/tampermonkey');
+const target = resolveManagerTarget(process.env.LOTTERYNET_QA_MANAGER_BROWSER || 'chromium', process.env);
+const directory = path.resolve('test-results', target.directory);
 await mkdir(directory, {recursive: true});
 const received = [];
 const address = Object.values(networkInterfaces()).flat()
@@ -25,7 +26,8 @@ const configPath = path.join(directory, 'config.json');
 const reportPath = path.join(directory, 'result.json');
 const report = {status: 'RUNNING', generatedAt: new Date().toISOString(),
   scope: 'Real Tampermonkey on sanitized local rows, no authenticated Rover',
-  limitations: ['Chromium only', 'No production session', 'No installed user scripts from user profile',
+  browser: target.browser,
+  limitations: [target.browser + ' only', 'No production session', 'No installed user scripts from user profile',
     'Fresh separate profile for each phase; profile persistence is not tested'],
   outsideCanary};
 const run = args => new Promise((resolve, reject) => {
@@ -35,10 +37,12 @@ const run = args => new Promise((resolve, reject) => {
 });
 try {
   assert.equal((await fetch(outsideCanary + '/server-control')).status, 200);
-  const config = {directory, outsideCanary,
-    executablePath: chromium.executablePath(), parentNetworkNamespace: await readlink('/proc/self/ns/net')};
+  const executablePath = target.executablePath || (await import('playwright')).chromium.executablePath();
+  const config = {...target, directory, outsideCanary, executablePath,
+    expectedBrowserVersion: process.env.FIREFOX_EXPECTED_VERSION,
+    parentNetworkNamespace: await readlink('/proc/self/ns/net')};
   await writeFile(configPath, JSON.stringify(config));
-  const controller = path.resolve('tests/browser/tampermonkey/controller.mjs');
+  const controller = path.resolve('tests/browser/tampermonkey', target.controller);
   await run([process.execPath, controller, 'preflight', configPath]);
   const preflight = JSON.parse(await readFile(path.join(directory, 'preflight.json')));
   assert.equal(preflight.status, 'PASS');
@@ -55,7 +59,7 @@ try {
   Object.assign(report, {status: 'PASS', preflight, isolated,
     canaryRequestsDuringIsolation: received.length - baseline,
     extension: JSON.parse(await readFile(path.join(directory, 'extension-provenance.json')))});
-  console.log('Tampermonkey isolated QA PASS — real manager, 120 cases, page/GM egress blocked');
+  console.log(target.browser + ' Tampermonkey isolated QA PASS — real manager, 120 cases, page/GM egress blocked');
 } catch (error) {
   report.status = 'FAIL'; report.error = error.message; throw error;
 } finally {

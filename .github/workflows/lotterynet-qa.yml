@@ -104,3 +104,46 @@ jobs:
             LotteryNet/test-results/tampermonkey/*.json
             LotteryNet/test-results/tampermonkey/*.png
           if-no-files-found: ignore
+
+  tampermonkey-firefox:
+    name: Firefox official Tampermonkey QA
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: LotteryNet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Firefox test framework
+        run: npm install --no-audit --no-fund --no-save selenium-webdriver@4.51.0
+      - name: Install official Firefox
+        id: firefox
+        uses: browser-actions/setup-firefox@v1
+        with:
+          firefox-version: '158.0.1'
+      - name: Install Mozilla geckodriver
+        uses: browser-actions/setup-geckodriver@latest
+        with:
+          geckodriver-version: '0.37.1'
+          token: ${{ github.token }}
+      - name: Verify original AMO Tampermonkey package
+        run: python3 tests/browser/tampermonkey/prepare-firefox-extension.py
+      - name: Validate Firefox manager and network namespace
+        env:
+          LOTTERYNET_QA_MANAGER_BROWSER: firefox
+          FIREFOX_PATH: ${{ steps.firefox.outputs.firefox-path }}
+          FIREFOX_EXPECTED_VERSION: '158.0.1'
+        run: GECKODRIVER_PATH="$(command -v geckodriver)" node tests/browser/tampermonkey/run-isolated.mjs
+      - name: Save Firefox QA diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lotterynet-firefox-tampermonkey-qa
+          path: |
+            LotteryNet/test-results/tampermonkey-firefox/*.json
+            LotteryNet/test-results/tampermonkey-firefox/*.png
+          if-no-files-found: ignore

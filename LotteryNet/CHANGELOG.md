@@ -1,5 +1,10 @@
 # Changelog
 
+## Ensayo Firefox + Tampermonkey — en curso
+
+- Aprobada la adaptación de la batería aislada al navegador habitual del usuario: Firefox real, Tampermonkey de Mozilla Add-ons y automatización Selenium/geckodriver.
+- Se conservarán los 120 casos, controles positivos de página y GM, namespace sin salida externa y dos perfiles nuevos. La validación Firefox con gestor real permanece pendiente hasta obtener evidencia; no se cambia `src/` ni se activa producción.
+
 ## Tampermonkey real en réplica aislada — 2026-10-20
 
 - Añadido ensayo con el paquete oficial Tampermonkey 5.4.1 fijado por hash y Chromium completo. Importación y habilitación mediante UI real, permisos nativos y espera del arranque del gestor; sin sustitutos de GM ni activación de producción.

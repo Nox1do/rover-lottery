@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterías USA
 // @namespace    http://tampermonkey.net/
-// @version      0.6.5
+// @version      0.6.6
 // @description  Proveedores móviles y LotteryUSA separados, con controlador y transporte comunes
 // @author       noeg
 // @match        https://www.roversport.net/adm/es/lottery.php*
@@ -417,6 +417,13 @@
           fuente: "LOTTERYUSA",
           url3: "https://www.lotteryusa.com/iowa/pick-3/",
           url4: "https://www.lotteryusa.com/iowa/pick-4/",
+          categoria: "NOCHE" },
+
+        // Washington estado: fila WASHINGTON NIGHT, código corto WST-NG.
+        { id: "wa-night", nombreMenu: "🇺🇸 Washington Night", nombreFila: "WASHINGTON NIGHT",
+          fuente: "LOTTERYUSA",
+          url3: "https://www.lotteryusa.com/washington/daily/",
+          url4: null,
           categoria: "NOCHE" },
 
         { id: "in-pm", nombreMenu: "🇺🇸 Indiana Evening", nombreFila: "INDIANA EVENING",

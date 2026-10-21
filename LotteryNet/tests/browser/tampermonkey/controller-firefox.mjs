@@ -61,7 +61,16 @@ async function installUserscript(origin, scriptPath) {
   }, 20000, 'Real manager confirmation was not available');
   assert(confirmationClicked);
   await driver.switchTo().window(optionsHandle);
-  await driver.findElement(By.xpath("//*[normalize-space(text())='Installed Userscripts']")).click();
+  const dashboard = By.xpath("//*[normalize-space(text())='Installed Userscripts']");
+  await driver.wait(async () => {
+    const element = await driver.findElement(dashboard);
+    return driver.executeScript(function(target) {
+      const box = target.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      return !!hit && (hit === target || target.contains(hit));
+    }, element);
+  }, 20000, 'Import overlay still covers the dashboard');
+  await driver.findElement(dashboard).click();
   const enabled = By.xpath("//tr[.//*[normalize-space(text())='LotteryNet — Tampermonkey isolated QA']]//*[contains(concat(' ',normalize-space(@class),' '),' enabler_enabled ')]");
   await driver.wait(until.elementLocated(enabled), 20000);
   return {method: 'Utilities file import and manager confirmation', dashboardEnabled: true};

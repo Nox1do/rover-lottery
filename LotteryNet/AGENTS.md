@@ -9,7 +9,7 @@
 - **Prohibido procesar, guardar, confirmar o publicar** resultados en Rover; no invocar endpoints de procesamiento ni pulsar Save/Process; no introducir un procesamiento encubierto mediante eventos.
 - Ante fecha incorrecta, turno equivocado, fila ambigua, resultado parcial no elegible, datos mal formados o conflicto con valor existente, **no sobrescribir**.
 - No afirmar que el resultado está almacenado en el servidor cuando solo está rellenado en el navegador.
-- Alcance: exactamente 5 estados, 10 sorteos, juegos de 3 y 4 dígitos indicados en el plan.
+- Alcance objetivo autorizado el 2026-10-21: exactamente los 72 sorteos de `docs/ALCANCE-72-SORTEOS.md`; Florida y New York quedan en Mango/Rover. Los módulos/pruebas históricos de diez sorteos no acreditan esta ampliación.
 
 ## Flujo para cada cambio
 1. Leer plan, README y módulos afectados.

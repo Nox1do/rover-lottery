@@ -7,16 +7,13 @@ Proyecto **independiente** en el monorrepositorio [rover-lottery](https://github
 ## Objetivo aprobado
 Extraer los resultados de [Lottery.net](https://www.lottery.net/) y llenar **solo los inputs visibles** de Rover, mediante AUTO y botón manual. **Nunca** enviar ni confirmar resultados al backend de Rover.
 
-### Sorteos previstos
-| Estado | Turnos | Juegos |
-| --- | --- | --- |
-| Florida | Midday, Evening | Pick 3 / Pick 4 |
-| Louisiana | Evening | Pick 3 / Pick 4 |
-| Ohio | Midday, Evening | Pick 3 / Pick 4 |
-| Tennessee | Morning, Midday, Evening | Cash 3 / Cash 4 |
-| Indiana | Midday, Evening | Daily 3 / Daily 4 |
+### Alcance objetivo aprobado el 21/10/2026
 
-**Total:** 10 sorteos; hasta 20 resultados de juego por día.
+**72 sorteos:** catálogo completo del userscript Rovs Loterías USA v0.6.4 del respaldo, excluyendo Florida AM/PM. **Florida y New York quedan en Mango/Rover.** Loterías RD será Plan B manual mediante sus botones.
+
+[Listado de los 72 sorteos y procedencia](docs/ALCANCE-72-SORTEOS.md). Lottery.net sigue siendo la única fuente de este proyecto. La cobertura de sus páginas y juegos para el nuevo catálogo está pendiente de investigación e implementación.
+
+Los módulos y ensayos actuales corresponden al alcance histórico de diez sorteos; sus resultados no validan los 72. La entrada de producción sigue inactiva.
 
 ## Documentos obligatorios
 - [PLAN-LotteryNet-Rover.md](./PLAN-LotteryNet-Rover.md): fuente de verdad del alcance, fases, riesgos y aceptación.
@@ -67,6 +64,6 @@ El comando `build` generará `dist/LotteryNet-Rover.user.js` y `dist/LotteryNet-
 **Prueba de convivencia:** [docs/QA-FASE-2.md](docs/QA-FASE-2.md) documenta la ruta independiente de POST de Virtual Lotteries y la separación entre pruebas simuladas y captura real de Network. El diagnóstico pasivo `__LOTTERYNET_SAFETY_QA__.print()` no demuestra por sí solo ausencia de procesamiento.
 
 ## Puertas de desarrollo
-Antes de implementar el llenado, validar las 10 páginas de juegos 3/4 en Lottery.net, su HTML, el DOM de Rover tras Search y la seguridad de los eventos `input/change` cuando otros userscripts están instalados. No elegir valores definitivos de cadence AUTO o política multihost sin pruebas/aprobación.
+Antes de implementar la nueva cobertura, validar las páginas y juegos elegibles de los 72 sorteos objetivo en Lottery.net, su HTML, el DOM de Rover tras Search y la seguridad de los eventos `input/change` cuando otros userscripts están instalados. No elegir valores definitivos de cadence AUTO o política multihost sin pruebas/aprobación.
 
 Documentación: [Tampermonkey](https://www.tampermonkey.net/documentation.php), [esbuild](https://esbuild.github.io/api/), [Node.js Test Runner](https://nodejs.org/api/test.html).

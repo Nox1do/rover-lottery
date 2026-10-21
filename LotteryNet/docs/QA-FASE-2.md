@@ -1,5 +1,7 @@
 # QA de Fase 2 — Ejecutada, pendiente integración Rover real
 
+> **Cambio de alcance autorizado el 21/10/2026:** el objetivo actual es de [72 sorteos](ALCANCE-72-SORTEOS.md), excluyendo Florida y New York (Mango). La evidencia de este documento corresponde al catálogo histórico de diez sorteos y no valida la ampliación ni la convivencia con los ocho scripts del respaldo.
+
 **Fecha:** 2026-10-20. **Estado:** módulo inactivo, NO APTO PARA PRODUCCIÓN.  
 **Diseño:** «En fila», iconos lineales, nueve estados y mensajes aprobados.
 

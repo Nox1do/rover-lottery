@@ -1,5 +1,13 @@
 # Changelog
 
+## Alcance aprobado: 72 sorteos; Florida y New York en Mango — 2026-10-21
+
+- El usuario solicita el catálogo completo de Rovs Loterías USA y reserva Florida AM/PM y New York a Mango/Rover. Loterías RD queda como Plan B manual mediante sus botones.
+- Inventario contrastado con el userscript 0.6.4 del respaldo: 74 entradas, dos de Florida excluidas y ninguna de New York; objetivo de LotteryNet: 72 sorteos. Listado trazable en `docs/ALCANCE-72-SORTEOS.md`.
+- Se actualizan el plan, README y reglas de alcance. La implementación y evidencia anteriores siguen cubriendo el catálogo histórico de diez sorteos; este cambio documental no acredita soporte ni pruebas para 72.
+- Verificación documental: 72 IDs únicos y exclusión de Florida/New York comprobadas; `git diff --check` limpio. Suite histórica 34/34, build inactivo y sintaxis correctos; no se ejecutó un ensayo nuevo de 72 sorteos.
+- Pendientes: verificar las páginas y juegos de Lottery.net para el nuevo catálogo y adaptar los ensayos de convivencia. Producción continúa inactiva.
+
 ## Firefox real + Tampermonkey, réplica aislada — 2026-10-20
 
 - Ejecutada la adaptación aprobada: **Firefox 158.0.1**, **Tampermonkey 5.5.0** original de Mozilla Add-ons (hash fijado y firma/estado activo comprobados por Firefox), Selenium 4.51.0 y geckodriver 0.37.1.

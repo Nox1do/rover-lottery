@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const source = fs.readFileSync('Rs-loteria-res-tabla-mod.user.js', 'utf8');
-assert.match(source, /^\/\/ @version\s+1\.6\.25$/m);
+assert.match(source, /^\/\/ @version\s+1\.6\.26$/m);
 new Function(source);
 
 function section(start, end) {

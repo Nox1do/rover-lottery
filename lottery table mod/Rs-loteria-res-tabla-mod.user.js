@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Rs-loteria-res-tabla-mod
 // @namespace    https://roversport.net/
-// @version      1.6.25
-// @description  Estilos UI, 500 filas, resaltados rojo y azul, filtros por estado y sincronización del sidebar.
+// @version      1.6.26
+// @description  Estilos y filtros de loterías, sidebar Firefox sin recálculos adicionales.
 // @homepageURL  https://github.com/Nox1do/rover-lottery
 // @source       https://github.com/Nox1do/rover-lottery/blob/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
 // @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
@@ -22,6 +22,7 @@
   const HIGHLIGHT_CLASS = "rt-row-soft-red";
   const BLUE_HIGHLIGHT_CLASS = "rt-row-soft-blue";
   const DEFAULT_PAGE_LENGTH = 500;
+  const IS_FIREFOX = typeof navigator !== "undefined" && /Firefox\/\d+/i.test(navigator.userAgent);
   const FILTER_ID = "rt-unprocessed-filter";
   const PROCESSED_PENDING_FILTER_ID = "rt-processed-pending-filter";
   let showOnlyUnprocessed = false;
@@ -465,10 +466,18 @@
   let pendingLayoutReason = "layout";
   let lastAdjustedWidth = null;
   let lastAdjustedTable = null;
-  const perf = { rowPasses: 0, rowsProcessed: 0, mutationBatches: 0, adjustments: 0, adjustmentsSkipped: 0 };
+  const perf = {
+    rowPasses: 0, rowsProcessed: 0, mutationBatches: 0,
+    adjustments: 0, adjustmentsSkipped: 0, sidebarFastPaths: 0,
+    resizeObserverEnabled: false
+  };
   window.__RT_LOTTERY_PERF__ = Object.freeze({
     status: () => ({...perf}),
-    reset: () => { for (const key of Object.keys(perf)) perf[key] = 0; }
+    reset: () => {
+      for (const key of Object.keys(perf)) {
+        if (key !== "resizeObserverEnabled") perf[key] = 0;
+      }
+    }
   });
 
   function cancelScheduledAdjust() {
@@ -526,9 +535,25 @@
     });
   }
 
+  function requiresScrollColumnAlignment(wrapper = observedWrapper) {
+    // Sin scrolling de DataTables, el encabezado y las celdas son la misma tabla.
+    return Boolean(wrapper?.querySelector(
+      ".dataTables_scroll, .dataTables_scrollHead, .dataTables_scrollBody"
+    ));
+  }
+
+  function useNativeFirefoxTableLayout() {
+    return IS_FIREFOX && !requiresScrollColumnAlignment();
+  }
+
   function prepareSidebarToggleAdjust() {
-    // Evitar columns.adjust() durante el primer frame de la transición.
     cancelScheduledAdjust();
+    if (useNativeFirefoxTableLayout()) {
+      // Firefox: no forzar el layout de centenares de filas durante el toggle.
+      cancelStableLayoutTimers();
+      perf.sidebarFastPaths++;
+      return;
+    }
     scheduleStableLayoutAdjust("sidebar · ancho estable");
   }
 
@@ -757,6 +782,7 @@
     lastWrapperWidth = null;
     lastAdjustedTable = null;
     lastAdjustedWidth = null;
+    perf.resizeObserverEnabled = false;
     if (observedTable && window.jQuery) {
       try { window.jQuery(observedTable).off(".rtLotteryMod"); } catch (_) {}
     }
@@ -765,7 +791,10 @@
     observedWrapper = wrapper;
     tableObserver = new MutationObserver(onTableMutations);
     tableObserver.observe(wrapper, { childList: true, subtree: true });
-    if (typeof ResizeObserver === "function") {
+    // Firefox + tabla sin scrolling: evitar observación durante la animación.
+    if (typeof ResizeObserver === "function" &&
+        (!IS_FIREFOX || requiresScrollColumnAlignment(wrapper))) {
+      perf.resizeObserverEnabled = true;
       wrapperResizeObserver = new ResizeObserver((entries) => {
         const entry = entries[entries.length - 1];
         const width = Number(entry?.contentRect?.width || wrapper.getBoundingClientRect().width || 0);
@@ -816,7 +845,9 @@
     }, true);
 
     window.addEventListener("resize", () => {
-      scheduleStableLayoutAdjust("window resize");
+      if (!useNativeFirefoxTableLayout()) {
+        scheduleStableLayoutAdjust("window resize");
+      }
     }, { passive: true });
 
     document.addEventListener("visibilitychange", () => {
@@ -827,5 +858,5 @@
   start();
   document.addEventListener("DOMContentLoaded", () => bindTableLifecycle(), { once: true });
 
-  console.log("[Rs tabla mod] v1.6.25 activo · optimización incremental de DOM y columnas");
+  console.log("[Rs tabla mod] v1.6.26 activo · fast-path sidebar Firefox sin reflow adicional");
 })();

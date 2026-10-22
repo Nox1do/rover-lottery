@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const source = fs.readFileSync('Rs-loteria-res-tabla-mod.user.js', 'utf8');
 
-assert.match(source, /^\/\/ @version\s+1\.6\.25$/m);
+assert.match(source, /^\/\/ @version\s+1\.6\.26$/m);
 assert.match(source, /const BLUE_HIGHLIGHT_CLASS = "rt-row-soft-blue"/);
 assert.match(source, /"WASHINGTON NIGHT\|WST-NG"/);
 assert.match(source, /--rt-highlight-blue: #e8f2ff;/);

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rs-loteria-res-tabla-mod
 // @namespace    https://roversport.net/
-// @version      1.6.24
+// @version      1.6.25
 // @description  Estilos UI, 500 filas, resaltados rojo y azul, filtros por estado y sincronización del sidebar.
 // @homepageURL  https://github.com/Nox1do/rover-lottery
 // @source       https://github.com/Nox1do/rover-lottery/blob/main/lottery%20table%20mod/Rs-loteria-res-tabla-mod.user.js
@@ -313,23 +313,25 @@
     (document.head || document.documentElement).appendChild(style);
   }
 
-  function highlightSelectedRows() {
-    document.querySelectorAll("#tableResult tbody tr").forEach((row) => {
+  function highlightSelectedRows(rows = document.querySelectorAll("#tableResult tbody tr")) {
+    rows.forEach((row) => {
       const name = normalize(row.querySelector("td:nth-child(2) .loteria-nombre")?.textContent);
       const abbreviation = normalize(row.querySelector("td:nth-child(2) .loteria-abrev")?.textContent)
         .replace(/^\[|\]$/g, "")
         .trim();
       const lotteryKey = `${name}|${abbreviation}`;
-      row.classList.toggle(HIGHLIGHT_CLASS, HIGHLIGHTED_LOTTERIES.has(lotteryKey));
-      row.classList.toggle(BLUE_HIGHLIGHT_CLASS, BLUE_HIGHLIGHTED_LOTTERIES.has(lotteryKey));
+      const red = HIGHLIGHTED_LOTTERIES.has(lotteryKey);
+      const blue = BLUE_HIGHLIGHTED_LOTTERIES.has(lotteryKey);
+      if (row.classList.contains(HIGHLIGHT_CLASS) !== red) row.classList.toggle(HIGHLIGHT_CLASS, red);
+      if (row.classList.contains(BLUE_HIGHLIGHT_CLASS) !== blue) row.classList.toggle(BLUE_HIGHLIGHT_CLASS, blue);
     });
   }
 
-  function ensureProcNoX() {
-    document.querySelectorAll("#tableResult .status-circle.status-no").forEach((el) => {
-      if (el.querySelector(".rt-x")) return;
-      const txt = (el.textContent || "").trim();
-      if (/[x×✕]/i.test(txt)) return;
+  function ensureProcNoX(rows = document.querySelectorAll("#tableResult tbody tr")) {
+    rows.forEach((row) => {
+      const el = row.querySelector("td:nth-child(10) .status-circle.status-no");
+      if (!el || el.querySelector(".rt-x")) return;
+      if (/[x×✕]/i.test((el.textContent || "").trim())) return;
       const span = document.createElement("span");
       span.className = "rt-x";
       span.textContent = "×";
@@ -351,7 +353,7 @@
     const select = document.querySelector(
       '#tableResult_wrapper .dataTables_length select, select[name="tableResult_length"]'
     );
-    if (!select) return false;
+    if (!select || select.dataset.rtPageLength500 === "1") return false;
 
     if (select.dataset.rtPageLengthOption !== "1") {
       let option500 = Array.from(select.options).find(
@@ -455,15 +457,19 @@
 
   const LAYOUT_SETTLE_MS = 180;
   const LAYOUT_MAX_WAIT_MS = 900;
-  const SIDEBAR_SUPPRESS_MS = 260;
 
   let adjustRaf1 = 0;
   let adjustRaf2 = 0;
   let layoutSettleTimer = 0;
   let layoutMaxTimer = 0;
   let pendingLayoutReason = "layout";
-  let sidebarAdjustRaf = 0;
-  let sidebarSuppressUntil = 0;
+  let lastAdjustedWidth = null;
+  let lastAdjustedTable = null;
+  const perf = { rowPasses: 0, rowsProcessed: 0, mutationBatches: 0, adjustments: 0, adjustmentsSkipped: 0 };
+  window.__RT_LOTTERY_PERF__ = Object.freeze({
+    status: () => ({...perf}),
+    reset: () => { for (const key of Object.keys(perf)) perf[key] = 0; }
+  });
 
   function cancelScheduledAdjust() {
     if (adjustRaf1) cancelAnimationFrame(adjustRaf1);
@@ -480,6 +486,14 @@
   }
 
   function applyDataTableColumnAdjust(reason = "layout") {
+    if (!observedWrapper || !observedTable) return false;
+    const width = observedWrapper.getBoundingClientRect().width;
+    if (!Number.isFinite(width) || width <= 0) return false;
+    if (lastAdjustedTable === observedTable && lastAdjustedWidth !== null &&
+        Math.abs(lastAdjustedWidth - width) < 0.5) {
+      perf.adjustmentsSkipped++;
+      return false;
+    }
     const dt = getDataTable();
     if (!dt) return false;
 
@@ -488,6 +502,9 @@
       if (dt.responsive && typeof dt.responsive.recalc === "function") {
         dt.responsive.recalc();
       }
+      lastAdjustedWidth = width;
+      lastAdjustedTable = observedTable;
+      perf.adjustments++;
       return true;
     } catch (error) {
       console.warn("[Rs tabla mod] columns.adjust falló:", reason, error);
@@ -509,38 +526,14 @@
     });
   }
 
-  function sidebarAdjustSuppressed() {
-    return typeof performance !== "undefined" &&
-      performance.now() < sidebarSuppressUntil;
-  }
-
   function prepareSidebarToggleAdjust() {
-    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-    sidebarSuppressUntil = now + SIDEBAR_SUPPRESS_MS;
-
-    cancelStableLayoutTimers();
+    // Evitar columns.adjust() durante el primer frame de la transición.
     cancelScheduledAdjust();
-
-    if (sidebarAdjustRaf) cancelAnimationFrame(sidebarAdjustRaf);
-
-    // Este listener corre en captura. custom.js cambia body.content-wrapper
-    // después, en bubble. El rAF se ejecuta con la clase ya cambiada y antes
-    // del siguiente paint: no existe una segunda corrección visible 180 ms después.
-    sidebarAdjustRaf = requestAnimationFrame(() => {
-      sidebarAdjustRaf = 0;
-      applyDataTableColumnAdjust("sidebar toggle · first frame");
-    });
-  }
-
-  function flushStableLayoutAdjust() {
-    cancelStableLayoutTimers();
-    if (sidebarAdjustSuppressed()) return;
-    runDataTableColumnAdjust(pendingLayoutReason);
+    scheduleStableLayoutAdjust("sidebar · ancho estable");
   }
 
   function scheduleStableLayoutAdjust(reason = "layout") {
     pendingLayoutReason = reason;
-    if (sidebarAdjustSuppressed()) return;
 
     if (layoutSettleTimer) clearTimeout(layoutSettleTimer);
     layoutSettleTimer = setTimeout(() => {
@@ -637,39 +630,60 @@
   }
 
   let syncRaf = 0;
+  let refreshRaf = 0;
+  let needsFullRefresh = false;
+  const dirtyRows = new Set();
   let observedWrapper = null;
   let observedTable = null;
+  let eventsBoundTable = null;
   let tableObserver = null;
   let wrapperResizeObserver = null;
   let lastWrapperWidth = null;
 
+  function scheduleRowRefresh(rows = null) {
+    if (!rows) { needsFullRefresh = true; dirtyRows.clear(); }
+    else if (!needsFullRefresh) for (const row of rows) dirtyRows.add(row);
+    if (refreshRaf) return;
+    refreshRaf = requestAnimationFrame(() => {
+      refreshRaf = 0;
+      const items = needsFullRefresh
+        ? document.querySelectorAll("#tableResult tbody tr")
+        : [...dirtyRows].filter(row => row.isConnected !== false && row.closest?.("#tableResult") === observedTable);
+      needsFullRefresh = false;
+      dirtyRows.clear();
+      perf.rowPasses++;
+      perf.rowsProcessed += items.length;
+      highlightSelectedRows(items);
+      ensureProcNoX(items);
+    });
+  }
+
   function bindDataTableEvents() {
-    if (!observedTable) return false;
+    if (!observedTable || observedTable === eventsBoundTable) return Boolean(eventsBoundTable);
     const $ = window.jQuery;
     if (!$?.fn?.dataTable) return false;
-
-    // Namespace propio: nunca quitamos handlers de Rover u otros scripts.
-    // Importante: NO escuchar column-sizing.dt/responsive-resize.dt para llamar
-    // otra vez a columns.adjust(), porque eso crea feedback de dimensionado.
     $(observedTable)
       .off(".rtLotteryMod")
-      .on("draw.dt.rtLotteryMod", () => scheduleSync("draw.dt"));
-
+      .on("draw.dt.rtLotteryMod", () => {
+        scheduleRowRefresh();
+        const select = observedWrapper?.querySelector('.dataTables_length select, select[name="tableResult_length"]');
+        if (select?.dataset.rtPageLength500 !== "1" ||
+            !document.getElementById(FILTER_ID) ||
+            !document.getElementById(PROCESSED_PENDING_FILTER_ID)) scheduleSync("controles draw");
+      });
+    eventsBoundTable = observedTable;
     return true;
   }
 
   function syncTable(reason = "sync") {
     if (!document.getElementById(STYLE_ID)) ensureStyle();
     bindDataTableEvents();
-
     const lengthChanged = ensurePageLength500();
-    ensureRowFilters();
-    highlightSelectedRows();
-    ensureProcNoX();
-
-    // Si page.len() hizo draw, draw.dt volverá a sincronizar. Esperamos a que
-    // el ancho del contenedor quede estable antes de recalcular columnas.
-    scheduleStableLayoutAdjust(lengthChanged ? "page length 500" : reason);
+    const filtersInserted = ensureRowFilters();
+    scheduleRowRefresh();
+    if (reason === "nueva tabla" || lengthChanged || filtersInserted) {
+      scheduleStableLayoutAdjust(lengthChanged ? "page length 500" : reason);
+    }
   }
 
   function scheduleSync(reason = "mutation") {
@@ -680,68 +694,104 @@
     });
   }
 
+  function onTableMutations(mutations) {
+    perf.mutationBatches++;
+    const rows = new Set();
+    let full = false;
+    let controls = false;
+    for (const mutation of mutations) {
+      const target = mutation.target;
+      if (target.closest?.("#tableResult") === observedTable) {
+        const tr = target.closest?.("tr");
+        if (tr) {
+          // Ignorar los "×" insertados por el propio userscript.
+          if ([...mutation.addedNodes, ...mutation.removedNodes].some(
+            node => node.nodeType !== 1 || !node.classList?.contains("rt-x")
+          )) rows.add(tr);
+        } else {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType !== 1) continue;
+            if (node.matches?.("tr")) rows.add(node);
+            else if (node.matches?.("tbody, table") || node.querySelector?.("tr")) full = true;
+          }
+        }
+      } else if (target === observedWrapper ||
+                 target.closest?.("#tableResult_wrapper .dataTables_filter")) {
+        controls = true;
+      }
+    }
+    if (full) scheduleRowRefresh();
+    else if (rows.size) scheduleRowRefresh(rows);
+    if (controls && (!document.getElementById(FILTER_ID) ||
+                     !document.getElementById(PROCESSED_PENDING_FILTER_ID))) {
+      scheduleSync("controles reemplazados");
+    }
+    if (!eventsBoundTable && getDataTable()) scheduleSync("datatable listo");
+  }
+
   function bindTableLifecycle() {
     const table = document.querySelector("#tableResult");
     const wrapper = document.querySelector("#tableResult_wrapper");
-    if (!table || !wrapper) return false;
-
+    if (!table || !wrapper) {
+      if (observedTable && !observedTable.isConnected) {
+        tableObserver?.disconnect();
+        wrapperResizeObserver?.disconnect();
+        observedTable = null;
+        observedWrapper = null;
+        eventsBoundTable = null;
+      }
+      return false;
+    }
     if (table === observedTable && wrapper === observedWrapper) {
-      scheduleSync("lifecycle existente");
+      if (!eventsBoundTable && getDataTable()) scheduleSync("datatable listo");
       return true;
     }
-
     tableObserver?.disconnect();
     wrapperResizeObserver?.disconnect();
-    wrapperResizeObserver = null;
+    cancelStableLayoutTimers();
+    cancelScheduledAdjust();
+    if (refreshRaf) cancelAnimationFrame(refreshRaf);
+    refreshRaf = 0;
+    needsFullRefresh = false;
+    dirtyRows.clear();
     lastWrapperWidth = null;
-
+    lastAdjustedTable = null;
+    lastAdjustedWidth = null;
     if (observedTable && window.jQuery) {
       try { window.jQuery(observedTable).off(".rtLotteryMod"); } catch (_) {}
     }
-
+    eventsBoundTable = null;
     observedTable = table;
     observedWrapper = wrapper;
-
-    // A diferencia de v1.6.18, no observamos documentElement completo para
-    // ejecutar toda la rutina ante cualquier mutación de la página. Solo este
-    // wrapper puede disparar sincronización de la tabla.
-    tableObserver = new MutationObserver(() => scheduleSync("mutación tableResult"));
+    tableObserver = new MutationObserver(onTableMutations);
     tableObserver.observe(wrapper, { childList: true, subtree: true });
-
     if (typeof ResizeObserver === "function") {
       wrapperResizeObserver = new ResizeObserver((entries) => {
         const entry = entries[entries.length - 1];
         const width = Number(entry?.contentRect?.width || wrapper.getBoundingClientRect().width || 0);
         if (!Number.isFinite(width) || width <= 0) return;
-
         if (lastWrapperWidth !== null && Math.abs(width - lastWrapperWidth) < 0.5) return;
         lastWrapperWidth = width;
-
-        // ResizeObserver sigue cubriendo resize real de ventana y otros cambios.
-        // Durante el toggle conocido del sidebar queda suprimido: ese caso ya se
-        // sincroniza en el primer frame mediante prepareSidebarToggleAdjust().
         scheduleStableLayoutAdjust("ancho wrapper estable");
       });
       wrapperResizeObserver.observe(wrapper);
     }
-
     scheduleSync("nueva tabla");
     return true;
   }
 
   function nodeContainsTableShell(node) {
     if (!node || node.nodeType !== 1) return false;
-    return Boolean(
-      node.matches?.("#tableResult, #tableResult_wrapper") ||
-      node.querySelector?.("#tableResult, #tableResult_wrapper")
-    );
+    if (node.matches?.("#tableResult, #tableResult_wrapper")) return true;
+    if (node.closest?.("#tableResult_wrapper") || !node.firstElementChild) return false;
+    return Boolean(node.querySelector?.("#tableResult, #tableResult_wrapper"));
   }
 
   // Observer de lifecycle: permanece global porque Rover reemplaza el bloque por
   // AJAX, pero solo reacciona cuando entra/sale la tabla. No ejecuta estilos,
   // page length ni filtros ante mutaciones irrelevantes de otros userscripts.
   const shellObserver = new MutationObserver((mutations) => {
-    const currentGone = observedTable && !document.documentElement.contains(observedTable);
+    const currentGone = observedTable && !observedTable.isConnected;
     const shellChanged = mutations.some((mutation) =>
       [...mutation.addedNodes, ...mutation.removedNodes].some(nodeContainsTableShell)
     );
@@ -777,5 +827,5 @@
   start();
   document.addEventListener("DOMContentLoaded", () => bindTableLifecycle(), { once: true });
 
-  console.log("[Rs tabla mod] v1.6.24 activo · resaltado azul WST-NG · filtros de estado");
+  console.log("[Rs tabla mod] v1.6.25 activo · optimización incremental de DOM y columnas");
 })();

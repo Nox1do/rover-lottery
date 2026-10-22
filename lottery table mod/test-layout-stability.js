@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('Rs-loteria-res-tabla-mod.user.js', 'utf8');
 
-assert.match(source, /^\/\/ @version\s+1\.6\.25$/m);
+assert.match(source, /^\/\/ @version\s+1\.6\.26$/m);
 assert.ok(source.includes('const LAYOUT_SETTLE_MS = 180;'));
 assert.ok(source.includes('const LAYOUT_MAX_WAIT_MS = 900;'));
 assert.ok(source.includes('new ResizeObserver((entries) => {'));
@@ -12,6 +12,7 @@ assert.ok(source.includes('scheduleStableLayoutAdjust("window resize")'));
 assert.ok(source.includes('lastAdjustedWidth !== null'));
 assert.ok(source.includes('function prepareSidebarToggleAdjust()'));
 assert.ok(source.includes('scheduleStableLayoutAdjust("sidebar · ancho estable")'));
+assert.ok(source.includes('function useNativeFirefoxTableLayout()'));
 assert.ok(source.includes('event.target?.closest?.(".open-close")'));
 assert.ok(source.includes('}, true);'));
 assert.ok(source.includes('-webkit-transition: none !important;'));

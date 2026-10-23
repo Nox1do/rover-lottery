@@ -1,0 +1,44 @@
+[
+  {
+    "engine": "chromium",
+    "mutation": "network-bypass",
+    "exitCode": 1,
+    "detected": true,
+    "reason": "A blocked HTTP probe reached the local receiver\n\n3 !== 2\n"
+  },
+  {
+    "engine": "firefox",
+    "mutation": "network-bypass",
+    "exitCode": 1,
+    "detected": true,
+    "reason": "A blocked HTTP probe reached the local receiver\n\n4 !== 3\n"
+  },
+  {
+    "engine": "chromium",
+    "mutation": "synthetic-input-event",
+    "exitCode": 1,
+    "detected": true,
+    "reason": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    blur: 0,\n    change: 0,\n+   input: 300\n-   input: 0\n  }\n"
+  },
+  {
+    "engine": "firefox",
+    "mutation": "synthetic-input-event",
+    "exitCode": 1,
+    "detected": true,
+    "reason": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    blur: 0,\n    change: 0,\n+   input: 300\n-   input: 0\n  }\n"
+  },
+  {
+    "engine": "chromium",
+    "mutation": "deferred-post",
+    "exitCode": 1,
+    "detected": true,
+    "reason": "Filling attempted a prohibited request\n\n312 !== 12\n"
+  },
+  {
+    "engine": "firefox",
+    "mutation": "deferred-post",
+    "exitCode": 1,
+    "detected": true,
+    "reason": "Filling attempted a prohibited request\n\n312 !== 12\n"
+  }
+]

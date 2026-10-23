@@ -44,7 +44,8 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const {port}=server.address();
 try {
  for(const [engine,browserType] of [['Chromium',chromium],['Firefox',firefox]]){
-  const browser=await browserType.launch({headless:true});
+  const executablePath=process.env['LOTTERYNET_QA_'+engine.toUpperCase()+'_PATH'];
+  const browser=await browserType.launch({headless:true,...(executablePath&&{executablePath})});
   try{
    const page=await browser.newPage();
    const outgoing=[];
@@ -184,3 +185,7 @@ try {
   } finally {await browser.close();}
  }
 } finally {await new Promise(resolve=>server.close(resolve));}
+
+// Extend the existing CI entry with the ten captured, sanitized rows and a
+// positively tested network boundary. Still no real Rover login/extension.
+await import('./network-blocked-rover.mjs');

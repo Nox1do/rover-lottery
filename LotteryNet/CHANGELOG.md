@@ -1,5 +1,38 @@
 # Changelog
 
+## Alcance aprobado: 72 sorteos; Florida y New York en Mango — 2026-10-21
+
+- El usuario solicita el catálogo completo de Rovs Loterías USA y reserva Florida AM/PM y New York a Mango/Rover. Loterías RD queda como Plan B manual mediante sus botones.
+- Inventario contrastado con el userscript 0.6.4 del respaldo: 74 entradas, dos de Florida excluidas y ninguna de New York; objetivo de LotteryNet: 72 sorteos. Listado trazable en `docs/ALCANCE-72-SORTEOS.md`.
+- Se actualizan el plan, README y reglas de alcance. La implementación y evidencia anteriores siguen cubriendo el catálogo histórico de diez sorteos; este cambio documental no acredita soporte ni pruebas para 72.
+- Verificación documental: 72 IDs únicos y exclusión de Florida/New York comprobadas; `git diff --check` limpio. Suite histórica 34/34, build inactivo y sintaxis correctos; no se ejecutó un ensayo nuevo de 72 sorteos.
+- Pendientes: verificar las páginas y juegos de Lottery.net para el nuevo catálogo y adaptar los ensayos de convivencia. Producción continúa inactiva.
+
+## Firefox real + Tampermonkey, réplica aislada — 2026-10-20
+
+- Ejecutada la adaptación aprobada: **Firefox 158.0.1**, **Tampermonkey 5.5.0** original de Mozilla Add-ons (hash fijado y firma/estado activo comprobados por Firefox), Selenium 4.51.0 y geckodriver 0.37.1.
+- **120/120 casos correctos**, controles positivos de página y GM, almacenamiento real y GET local operativos dentro del aislamiento. Namespace distinto, solo `lo`, cero rutas externas y cero solicitudes recibidas por el receptor externo durante la fase aislada. Cero eventos de llenado, clics de procesamiento y escrituras locales; ventana adicional de 500 ms.
+- Corregida la espera del diálogo de importación y preservado el usuario no privilegiado después de crear el namespace: Firefox rechazaba arrancar como root en la sesión del runner. Se comprueban UID/GID originales; no se desactivan opciones de seguridad del navegador.
+- [CI 39521594551](https://github.com/Nox1do/rover-lottery/actions/runs/39521594551): **cuatro trabajos SUCCESS**, 34/34 Node, build inactivo, regresiones anteriores y ambos gestores reales. Informe original en `docs/qa/firefox-tampermonkey-isolated-2026-10-20.json` y metodología en QA sección 20.
+- El ensayo es sobre copia local en Linux, sin sesión Rover ni los otros scripts del usuario. La validación autenticada y convivencia real siguen pendientes; `src/` no cambia y producción permanece inactiva.
+
+## Tampermonkey real en réplica aislada — 2026-10-20
+
+- Añadido ensayo con el paquete oficial Tampermonkey 5.4.1 fijado por hash y Chromium completo. Importación y habilitación mediante UI real, permisos nativos y espera del arranque del gestor; sin sustitutos de GM ni activación de producción.
+- Dos perfiles nuevos ejecutan un bundle idéntico: controles positivos de página/background antes del aislamiento y prueba bajo namespace de red con solo loopback. GM local y almacenamiento siguen operativos; ninguna solicitud llegó al receptor externo durante el aislamiento.
+- **120 escenarios correctos**, 10 sorteos/50 campos, cero eventos de llenado, clics de procesamiento y escrituras locales, incluida ventana de 500 ms. Se comparten los casos existentes sin cambiar `src/`.
+- [CI 39475193126](https://github.com/Nox1do/rover-lottery/actions/runs/39475193126): tres trabajos SUCCESS, **30/30 Node**, build inactivo y regresiones Chromium/Firefox. Informe original guardado en `docs/qa/tampermonkey-isolated-2026-10-20.json`.
+- Un ensayo de reutilización de perfil no inició el script; causa no determinada y persistencia excluida del alcance final. No valida Rover autenticado, Firefox con Tampermonkey ni todas las extensiones del usuario. Fase 2/A19 de producción siguen pendientes; entrada inactiva.
+
+## Ensayo aislado ampliado a diez filas — 2026-10-20
+- Añadida una copia depurada de las diez filas del HTML del usuario, con cincuenta campos vacíos y procedencia SHA-256; sin resultados originales, historiales, IDs, acciones ni scripts de Rover.
+- Nuevo ensayo Playwright: doce escenarios por sorteo en Chromium y Firefox; fuente Lottery.net respondida desde fixtures, módulos reales de extracción, llenado, restauración e interfaz.
+- Bloqueo por contexto para HTTP y WebSocket, Service Workers deshabilitados y doce conexiones de control bloqueadas por navegador. Servidor local receptor verificado antes de activar el bloqueo.
+- Verificados 240 escenarios en total, cero solicitudes de llenado, cero eventos sintéticos y cero clics de procesamiento. Mutaciones deliberadas de bypass y emisión de `input` detectadas en ambos motores y luego retiradas.
+- Corregida una carrera del ensayo detectada en revisión: observar 500 ms adicionales antes de capturar contadores evita cerrar con un POST diferido pendiente. El falso `PASS` anterior se reprodujo y la mutación diferida ahora falla en ambos navegadores; el límite temporal queda explícito.
+- Suite completa: 28/28 Node, build y sintaxis correctos; regresiones previas de DOM y convivencia manual correctas en ambos navegadores. Evidencia local guardada en `docs/qa/`.
+- La ampliación pasó después en CI 39467286725. No cambia `src/`, AUTO ni la distribución de producción. En ese alcance, Tampermonkey y Rover autenticado seguían pendientes; el avance posterior con gestor real se documenta arriba.
+
 ## Línea de base pasiva parcial y Network — 2026-10-20
 - El usuario inició y detuvo dos ventanas de observación; el estado inactivo tras `stop()` es normal. Sin eventos elegibles registrados en los contadores remitidos.
 - Cobertura de la vista: 39 filas, con OHIO MIDDAY y TENNESSEE MORNING presentes (cinco campos cada uno); no extrapolar a los diez sorteos.

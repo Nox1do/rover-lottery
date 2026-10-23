@@ -4,6 +4,7 @@
 
 - `isolated-rover.mjs`: DOM sintético de Rover, llenado visual, restauración, detección de conflictos, listeners simulados con POST adversario, cero eventos de LotteryNet y cero procesamiento.
 - `manual-usa-overlap.mjs`: convivencia con LotteryUSA manual. Extrae y ejecuta **solo** la función original `triggerInput` de la versión 0.6.5 dentro de `127.0.0.1`. Reproduce clic manual, conflictos, idempotencia, parciales, orden de ejecución, restauración tras Search y fecha errónea.
+- `network-blocked-rover.mjs`: diez filas depuradas del HTML aportado; doce escenarios por sorteo en Chromium y Firefox. Sirve respuestas de archivos locales y aborta otras solicitudes HTTP y WebSocket del contexto. Prueba primero un POST de control sin bloqueo y doce conexiones con bloqueo, antes de llenar. No usa extensiones ni la sesión del usuario.
 - `rover-dom-audit.user.js` (v0.4.0): auditoría exclusivamente estructural. Confirmó **10/10** sorteos en Rover autenticado el 20/10/2026.
 - `rover-safety-audit.user.js` (v0.1.0): auditoría de presencia de manejadores inline/propiedades y contador **pasivo** de eventos, sin leer valores, generar eventos ni emitir solicitudes.
 
@@ -12,12 +13,22 @@
 Se necesita Node.js, Playwright, Chromium y Firefox. En `LotteryNet`:
 
 ```bash
+npm install --no-audit --no-fund
+npm install --no-save playwright
+npx playwright install chromium firefox
 npm test
 node tests/browser/isolated-rover.mjs
 node tests/browser/manual-usa-overlap.mjs
+npm run test:browser:blocked
 ```
 
-La misma secuencia de navegador se ejecuta por GitHub Actions en [LotteryNet QA](https://github.com/Nox1do/rover-lottery/actions/runs/39455803575). Es una **prueba aislada** y no usa la sesión autenticada de Rover.
+`isolated-rover.mjs` también ejecuta el nuevo ensayo al terminar, por lo que el entry existente de CI incluye ambos. El último comando permite ejecutar solo el ensayo ampliado. No se ha registrado todavía una ejecución CI de esta ampliación; véase la evidencia local en [QA, sección 18](../../docs/QA-FASE-2.md#18-ensayo-aislado-con-diez-filas-capturadas-y-bloqueo-verificado--20102026).
+
+El informe JSON se escribe en `test-results/network-blocked-rover.json`; un fallo devuelve código distinto de cero y `status: FAIL`. El bloqueo se mantiene durante el llenado y una ventana adicional de observación de 500 ms; los contadores finales de red, eventos y clics cubren esa ventana, sin prometer ausencia de tareas programadas para después. Opciones de QA: `LOTTERYNET_QA_ENGINES=chromium` o `firefox` para seleccionar motor; `LOTTERYNET_QA_CHROMIUM_PATH` / `LOTTERYNET_QA_FIREFOX_PATH` para un ejecutable compatible; `LOTTERYNET_QA_REPORT` para otra ruta de informe. Sin estas variables se ejecutan los dos navegadores instalados por Playwright. En este contenedor Firefox requirió `MOZ_DISABLE_CONTENT_SANDBOX=1` por un fallo de creación del namespace de su sandbox interno; no se añade esta variable al código ni a CI.
+
+**Límite del bloqueo:** cubre solicitudes de las páginas del contexto de prueba, con Service Workers bloqueados y sin extensiones instaladas. No es un cortafuegos del sistema ni prueba que se bloqueen solicitudes del proceso de fondo de Tampermonkey. Las URLs de Lottery.net conocidas se responden con fixtures; no se consultan resultados en vivo. No reutilizar el mecanismo como protección de una sesión Rover real sin validar ese alcance.
+
+Las regresiones anteriores de DOM y convivencia manual se ejecutaron por GitHub Actions en [LotteryNet QA](https://github.com/Nox1do/rover-lottery/actions/runs/39455803575). Esa ejecución no contiene la ampliación a diez filas de este cambio. Son **pruebas aisladas** y no usan la sesión autenticada de Rover.
 
 ## Auditoría pasiva en Rover real — siguiente paso
 

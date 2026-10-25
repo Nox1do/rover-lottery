@@ -11,8 +11,8 @@ const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 let browser, server, origin;
 
-async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = false } = {}) {
-  const page = await browser.newPage({ ...(viewport ? { viewport } : {}), hasTouch });
+async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = false, deviceScaleFactor = 1 } = {}) {
+  const page = await browser.newPage({ ...(viewport ? { viewport } : {}), hasTouch, deviceScaleFactor });
   page.setDefaultTimeout(5000);
   page.setDefaultNavigationTimeout(10000);
   page.on('pageerror', error => console.error('FIXTURE PAGE ERROR', error.message));
@@ -85,7 +85,7 @@ test('Tamaño: compacto inicial, borde superior y Compactar', async () => {
   const r = await setup(); try {
     const initial = await panelBox(r.page);
     assert.ok(initial.height <= 190, 'La barra debe abrir compacta');
-    assert.ok(initial.width <= 960, 'La barra no ocupa todo el escritorio');
+    assert.ok(initial.x <= 1 && initial.width >= 1279, 'La barra ocupa toda la ventana de izquierda a derecha');
     const visibleCount = () => r.page.locator('[data-lottery-id]:not([hidden])').evaluateAll(nodes => nodes.filter(n => {
       const b = n.getBoundingClientRect(), g = n.parentElement.getBoundingClientRect(); return b.top >= g.top && b.bottom <= g.bottom;
     }).length);
@@ -99,8 +99,9 @@ test('Tamaño: compacto inicial, borde superior y Compactar', async () => {
 });
 test('Tamaño: bordes, esquinas, teclado y límites de pantalla', async () => {
   const r = await setup(); try {
-    await dragEdge(r.page, 'w', 180, 0); assert.ok((await panelBox(r.page)).width <= 785);
-    await dragEdge(r.page, 'nw', -100, -150); assert.ok((await panelBox(r.page)).height >= 325);
+    const initial = await panelBox(r.page);
+    await dragEdge(r.page, 'w', 180, 0); assert.ok((await panelBox(r.page)).width <= initial.width - 175);
+    await dragEdge(r.page, 'nw', -100, -150); assert.ok((await panelBox(r.page)).height >= initial.height + 145);
     const before = await panelBox(r.page);
     await r.page.locator('[data-resize="n"]').focus(); await r.page.keyboard.press('ArrowDown');
     assert.ok((await panelBox(r.page)).height < before.height);
@@ -114,6 +115,29 @@ test('Tamaño: bordes, esquinas, teclado y límites de pantalla', async () => {
     await r.page.locator('#rlur-toggle').click();
     await r.page.waitForFunction(() => getComputedStyle(document.querySelector('#rlur-bar')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
     assertInside(await panelBox(r.page), 320, 380);
+  } finally { await r.close(); }
+});
+for (const [label, viewport, scale, minFont] of [
+  ['1080p', { width: 1920, height: 1080 }, 1, 14],
+  ['4K al 100%', { width: 3840, height: 2160 }, 1, 18],
+  ['4K al 200%', { width: 1920, height: 1080 }, 2, 14]
+]) test(`Ancho completo y tipografía: ${label}`, async () => {
+  const r = await setup({ viewport, deviceScaleFactor: scale }); try {
+    const box = await panelBox(r.page);
+    assert.ok(box.x <= 1 && Math.abs(box.width - viewport.width) <= 1);
+    assert.ok(box.height <= 200, 'Conservar altura compacta');
+    const typography = await r.page.locator('[data-lottery-id="ga-am"]').evaluate(el => {
+      const s = getComputedStyle(el); return { font: parseFloat(s.fontSize), weight: Number(s.fontWeight), lineHeight: parseFloat(s.lineHeight) };
+    });
+    assert.ok(typography.font >= minFont, JSON.stringify(typography));
+    assert.ok(typography.weight >= 500 && typography.lineHeight >= typography.font * 1.3);
+    const grid = await r.page.locator('.rlur-grid').boundingBox();
+    const controls = await r.page.locator('.rlur-controls').boundingBox();
+    assert.ok(controls.x + controls.width <= grid.x + 1, 'Controles a la izquierda como la referencia');
+    await r.page.getByRole('button', { name: 'Volver al tamaño compacto' }).click();
+    assert.ok(Math.abs((await panelBox(r.page)).width - viewport.width) <= 1);
+    await r.page.screenshot({ path: path.join(root, 'test-results', `barra-${label.replaceAll(' ', '-')}.png`), scale: 'css' });
+    await r.page.locator('#rlur-bar').screenshot({ path: path.join(root, 'test-results', `panel-${label.replaceAll(' ', '-')}.png`), scale: 'css' });
   } finally { await r.close(); }
 });
 test('Móvil: compacto, controles táctiles, cuadrícula y ajuste con el dedo', async () => {

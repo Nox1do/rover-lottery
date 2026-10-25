@@ -31,3 +31,11 @@ Petición: ajustar desde bordes, más alta o compacta, móvil y compacta por def
 - [x] Reorganizar `src/ui.js`: cabecera adaptable, cuadrícula con scroll vertical, ocho bordes/esquinas, botón Compactar y controles táctiles. Ajustar al cambiar orientación, sin persistir tamaños grandes entre recargas.
 - [x] Ejecutar la suite completa y revisar capturas. Incrementar a 0.0.2 conservando identidad e históricos.
 - Publicar y contrastar los archivos raw con los probados.
+
+## 0.0.3 — Ancho completo y tipografía
+
+Referencia: captura del usuario de la barra anterior. Barra compacta de extremo a extremo; controles a la izquierda en escritorio y botones a la derecha; conservar tamaño ajustable y disposición móvil. Tipografía del sistema 14–18 px según ancho CSS disponible, peso 500 y altura de línea 1.4. Respetar escalado del sistema y zoom; no multiplicar tamaños por devicePixelRatio.
+
+1. Añadir pruebas Firefox de ancho completo a 1080p, 4K 100% y 4K con escala 200%, más reajuste de las pruebas existentes.
+2. Cambiar solo interfaz/medidas: ancho completo inicial y al Compactar; organización lateral en escritorio, tamaño fluido de texto y controles.
+3. Ejecutar suite completa y revisar capturas. Publicar 0.0.3 con los mismos enlaces e identidad; conservar históricos.

@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.0.3 — 2026-10-25
+
+- Tamaño compacto inicial de ancho completo, de izquierda a derecha; Compactar también restaura ese ancho.
+- Controles laterales en escritorio, siguiendo la referencia de la interfaz anterior; mantiene la disposición móvil y los bordes ajustables.
+- Tipografía del sistema de 14–18 px, peso 500 y altura de línea 1.4 para mejorar lectura en 4K.
+- Botones y filas adaptados al tamaño del texto; respeta el escalado del sistema sin duplicar el factor de densidad.
+- Pruebas Firefox adicionales a 1080p, 4K y densidad 2, con capturas para revisión visual.
+
 ## 0.0.2 — 2026-10-25
 
 - Barra compacta por defecto; ajuste de ancho y alto desde los cuatro bordes y esquinas con ratón o dedo.

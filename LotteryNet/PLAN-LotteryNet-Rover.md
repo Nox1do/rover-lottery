@@ -1,7 +1,7 @@
 # PLAN MAESTRO — Lottery.net → Rover
 
-> **Documento rector del proyecto** · Versión del plan: **1.1.0** · Fecha: **2026-10-19**  
-> **Estado:** Fase 1 con extractores iniciales; Fase 2 con motor de llenado visual e indicadores lineales implementados como módulos **inactivos**. Integración y pruebas de navegador pendientes.  
+> **Documento rector del proyecto** · Versión del plan: **1.2.0** · Fecha: **2026-10-21**
+> **Estado:** catálogo objetivo ampliado a **72 sorteos** por decisión del usuario. Los módulos y pruebas previos cubren el alcance histórico de diez sorteos y siguen **inactivos**. Nueva cobertura e integración pendientes.
 > **Fuente de datos exclusiva:** https://www.lottery.net/  
 > **Plataforma:** Tampermonkey sobre Rover (`/adm/es/lottery.php`).
 
@@ -52,7 +52,7 @@ Debe ofrecer **dos vías de ejecución** que comparten el mismo motor de consult
 
 ## 2. Independencia de LotteryUSA y Virtual Lotteries — OBLIGATORIO
 
-**Compatibilidad documentada (2026-10-20):** en los scripts revisados, Virtual Lotteries v2 Auto tiene **cero códigos de sorteo comunes** con LotteryNet; su ruta de procesamiento de otras loterías no es por sí misma una interferencia de LotteryNet. Rovs Loterías USA v0.6.5 **sí comparte los diez sorteos**, pero solo consulta/llena al pulsar sus botones; no existe una competencia automática programada por ese script. La validación de convivencia se limitará a seguridad de los cambios de LotteryNet, listeners de página y posibles conflictos cuando el usuario active manualmente LotteryUSA. No alterar los otros scripts.
+**Convivencia y alcance actualizados por el usuario (2026-10-21):** LotteryNet toma los **72 sorteos** del catálogo completo de Rovs Loterías USA v0.6.4 excluyendo Florida AM/PM. Florida y New York quedan exclusivamente en Mango/Rover; tampoco se incorporan las loterías dominicanas, King Lottery o Anguilla gestionadas por Mango. Loterías RD es Plan B **manual por botones**, aunque contemple algunos sorteos coincidentes. Mantener bloqueo de valores distintos y probar la secuencia manual de respaldo. Virtual Lotteries v2 Auto v3.2.7 conserva códigos disjuntos respecto de este catálogo. La convivencia con los ocho scripts del respaldo aún requiere ensayo; no alterar los otros scripts.
 
 - LotteryUSA se utilizó **solo como ejemplo e inventario** de sorteos/casillas, y como referencia de mapeo con Rover.
 - `Virtual Lotteries v2 Auto v3.2.7` se utilizó **solo como referencia** de seguimiento automático, llenado, restauración de campos y coordinación entre pestañas.
@@ -63,26 +63,15 @@ Debe ofrecer **dos vías de ejecución** que comparten el mismo motor de consult
 
 ---
 
-## 3. Alcance exacto de estados, turnos y juegos — OBLIGATORIO
+## 3. Alcance exacto de sorteos y juegos — OBLIGATORIO
 
-Se toman los turnos y juegos del archivo de referencia **Rovs Loterías USA v0.6.5** (subido por el usuario). 
+**Cambio autorizado el 2026-10-21:** el alcance objetivo deja de ser cinco estados/diez sorteos y pasa al catálogo completo del userscript **Rovs Loterías USA v0.6.4** aportado por el usuario, con **Florida AM/PM excluidas**. **New York también queda excluida** expresamente y no figura en el catálogo de referencia. Ambos estados quedan en Mango/Rover.
 
-| ID lógico | Estado | Turno | Etiqueta Rover de referencia | Juegos |
-|---|---|---|---|---|
-| `fl-am` | Florida | Midday | `FLORIDA AM` | Pick 3 y Pick 4 |
-| `fl-pm` | Florida | Evening | `FLORIDA PM` | Pick 3 y Pick 4 |
-| `la-pm` | Louisiana | Evening | `LOUISIANA EVENING` | Pick 3 y Pick 4 |
-| `oh-am` | Ohio | Midday | `OHIO MIDDAY` | Pick 3 y Pick 4 |
-| `oh-pm` | Ohio | Evening | `OHIO EVENING` | Pick 3 y Pick 4 |
-| `tn-morning` | Tennessee | Morning | `TENNESSEE MORNING` | Cash 3 y Cash 4 |
-| `tn-midday` | Tennessee | Midday | `TENNESSEE MIDDAY` | Cash 3 y Cash 4 |
-| `tn-pm` | Tennessee | Evening | `TENNESSEE EVENING` | Cash 3 y Cash 4 |
-| `in-am` | Indiana | Midday | `INDIANA MIDDAY` | Daily 3 y Daily 4 |
-| `in-pm` | Indiana | Evening | `INDIANA EVENING` | Daily 3 y Daily 4 |
+**Total: 72 sorteos objetivo**, derivados de 74 entradas originales menos dos de Florida. Sus IDs, turnos, nombres Rover y juegos de referencia se enumeran en [docs/ALCANCE-72-SORTEOS.md](docs/ALCANCE-72-SORTEOS.md). Esa tabla forma parte del alcance obligatorio. No añadir sorteos fuera de ella sin autorización.
 
-**Total:** 5 estados, 10 sorteos y hasta 20 resultados de juego por día, sujeto a que los sorteos se hayan celebrado y los datos estén publicados.
+La única fuente externa de LotteryNet sigue siendo **Lottery.net**; no adoptar los proveedores móviles ni LotteryUSA del script usado como inventario. Verificar por separado las páginas, juegos disponibles, fechas, turnos, bolas adicionales e identidad Rover para cada sorteo del nuevo catálogo. No inventar un juego 4 cuando el inventario solo tenga juego 3 ni viceversa.
 
-**No agregar** Texas, Illinois, Georgia ni otros estados por aparecer en los scripts de referencia.
+**Transición:** la implementación y evidencia previas corresponden a los diez sorteos históricos (incluyendo Florida), no a los 72 nuevos. Se conservan como evidencia de ese alcance anterior; no prueban la nueva cobertura. La entrada sigue inactiva y Florida debe quedar excluida antes de activar una futura versión funcional.
 
 ### Identidad y fecha del sorteo
 
@@ -236,8 +225,8 @@ Referencias oficiales: [Documentación de Tampermonkey](https://www.tampermonkey
 
 - [ ] Leer este plan, revisar los dos userscripts de referencia y confirmar que no se importará su lógica de procesamiento.
 - [ ] Consultar documentación actual de Tampermonkey y de las herramientas de pruebas que se elijan.
-- [ ] Verificar las **10 páginas** de Lottery.net (3 y 4 para cada estado), sus turnos, HTML real y comportamiento ante sorteos aún pendientes.
-- [ ] Verificar en Rover la identidad inequívoca de las diez filas y el nombre/orden de los cinco inputs, tanto con tabla inicial como después de Search.
+- [ ] Verificar las páginas de Lottery.net correspondientes a los **72 sorteos objetivo** y a los juegos de referencia elegibles, sus turnos, HTML real y comportamiento ante sorteos aún pendientes.
+- [ ] Verificar en Rover la identidad inequívoca de las 72 filas objetivo y el nombre/orden de los cinco inputs, tanto con tabla inicial como después de Search.
 - [ ] Confirmar condiciones de coexistencia con scripts que actualmente pueden escribir en la misma tabla.
 - [ ] Resolver las decisiones abiertas que afectan seguridad o funcionamiento.
 
@@ -347,6 +336,10 @@ Se documentará la alternativa aprobada en `docs/UI-SPEC.md`, incluyendo iconos,
 
 #### 2.7 — Pruebas y criterios de aceptación
 
+**Ensayo aislado ampliado (20/10/2026):** diez filas depuradas del HTML aportado, cincuenta campos vacíos y doce escenarios por sorteo. Ejecución local correcta en Chromium 153 y Firefox 153 (240 escenarios en total), con doce conexiones de control bloqueadas por navegador y mutaciones que demuestran detección de un envío permitido o un evento `input`. El llenado no intentó solicitudes ni produjo eventos o clics de procesamiento en este contexto sin extensiones. No equivale a Tampermonkey/Rover autenticado ni aprueba A19 en esa sesión; `src/index.js` permanece inactivo. [QA, sección 18](docs/QA-FASE-2.md#18-ensayo-aislado-con-diez-filas-capturadas-y-bloqueo-verificado--20102026).
+
+**Gestor real sobre réplica local (20/10/2026):** ensayo autorizado con Tampermonkey 5.4.1 original, cargado descomprimido en Chromium 141, e instalación del mismo bundle mediante UI en dos perfiles nuevos. Controles positivos de página y GM en background, seguidos de namespace sin salida externa; GM local operativo, cero solicitudes recibidas por el receptor durante el aislamiento y 120 escenarios correctos. CI 39475193126: tres trabajos SUCCESS y 30/30 Node. No valida persistencia de perfil, Rover autenticado, Firefox con Tampermonkey ni convivencia con todos los scripts del usuario. Mantener Fase 2/A19 reales pendientes, entrada inactiva y AUTO sin activar. [QA, sección 19](docs/QA-FASE-2.md#19-tampermonkey-real-y-aislamiento-de-red-del-sistema--20102026).
+
 **Seguimiento de la línea de base (20/10/2026):** el usuario activó y detuvo el observador en dos ventanas; sin eventos elegibles registrados. La vista tenía 39 filas y solo dos sorteos del proyecto presentes (OHIO MIDDAY y TENNESSEE MORNING, cinco campos cada uno). Confirmó que no observó solicitudes filtradas por `procesarResultados.php`. No consta duración ni captura de Network; LotteryNet seguía inactivo. Esta evidencia parcial no aprueba A19 ni sustituye el ensayo controlado de llenado con aislamiento de red. Detalles y próximo ensayo: [QA, sección 17](docs/QA-FASE-2.md#17-observación-pasiva-activa-y-network-de-base--20102026).
 
 **Auditoría pasiva de manejadores reales (20/10/2026):** `rover-safety-audit.user.js` v0.1.0 confirmó en Rover autenticado las 10 identidades, 50 inputs, 50 atributos `loteria` y **0 manejadores inline/propiedades**. El observador estaba **inactivo** (`eventObserverActive=false`), por lo que los contadores de eventos no equivalen a prueba dinámica. Mantener las puertas de Network, listeners delegados y llenado real abiertas. Véase [docs/QA-FASE-2.md](docs/QA-FASE-2.md#16-diagnóstico-pasivo-en-sesión-rover-autenticada--20102026).
@@ -387,6 +380,8 @@ La fase se considerará completada únicamente cuando:
 
 ### Fase 4 — Validación en navegador real
 
+**Adaptación Firefox aprobada y verificada en réplica (20/10/2026):** Firefox 158.0.1 + Tampermonkey 5.5.0 original de Mozilla Add-ons, Selenium 4.51.0/geckodriver 0.37.1. CI 39521594551: cuatro trabajos SUCCESS, 34/34 Node y 120/120 escenarios mediante el gestor Firefox real. Controles positivos de página y GM antes del aislamiento; dentro del namespace solo loopback, GM local operativo y cero solicitudes al receptor externo. Se conserva el usuario no privilegiado del runner. [QA, sección 20](docs/QA-FASE-2.md#20-firefox-real-con-tampermonkey-de-mozilla-add-ons--20102026). Este ensayo local en Linux no es la integración autenticada ni la convivencia con los scripts del usuario; mantener la entrada de producción inactiva y las puertas reales pendientes.
+
 - [ ] Firefox + Tampermonkey: casos manuales, automáticos, Search, fecha, errores y multitab.
 - [ ] Chrome/Chromium + Tampermonkey: los mismos casos.
 - [ ] Probar con usuarioscripts coexistentes según el escenario real del usuario.
@@ -411,7 +406,7 @@ La fase se considerará completada únicamente cuando:
 
 | ID | Escenario | Comportamiento requerido |
 |---|---|---|
-| A01 | Diez sorteos configurados | Exactamente los estados, turnos y juegos aprobados |
+| A01 | Catálogo objetivo de 72 sorteos | Exactamente los IDs, turnos y juegos aprobados; excluir Florida y New York |
 | A02 | Resultado 3 válido | Inputs 0 y 3 correctos; preservar ceros iniciales |
 | A03 | Resultado 4 válido | Inputs 1, 2 y 4 correctos; preservar ceros iniciales |
 | A04 | Dos juegos publicados | Los cinco inputs correctos, en fila inequívoca |
@@ -441,7 +436,7 @@ La fase se considerará completada únicamente cuando:
 1. **Destino GitHub — RESUELTO:** `Nox1do/rover-lottery/LotteryNet/` en `main`, autorizado expresamente por el usuario.
 2. **Cadencia automática:** intervalos, ventana antes/después del sorteo, límites y reintentos.
 3. **Política de correcciones publicadas posteriormente** cuando las casillas ya estén llenas; por defecto, **no sobrescribir**.
-4. **Convivencia operativa:** Virtual Lotteries usa otras loterías (códigos disjuntos); LotteryUSA comparte los diez sorteos pero su llenado se dispara manualmente. Mantener bloqueo de valores diferentes en LotteryNet y verificar la secuencia manual de LotteryUSA, así como efectos eventuales de listeners en Rover. No exigir modificar Virtual Lotteries ni atribuirle un conflicto sin evidencia.
+4. **Convivencia operativa — reparto RESUELTO el 2026-10-21:** Florida y New York quedan en Mango; LotteryNet cubre los 72 sorteos del catálogo autorizado. Loterías RD es Plan B manual y LotteryUSA también actúa por botones. Mantener bloqueo de valores diferentes, probar las secuencias manuales y los listeners de Rover, y no modificar los otros scripts. La verificación dinámica sigue pendiente.
 5. **Selección de líder multihost** si están abiertas simultáneamente `.net` y `.lol`.
 6. **Ubicación del botón y panel** en la interfaz real de Rover.
 

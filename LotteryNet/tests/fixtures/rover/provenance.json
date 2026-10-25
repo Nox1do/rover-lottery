@@ -1,0 +1,10 @@
+{
+  "source": "verResultados2(1).php",
+  "sourceSha256": "b27411ad2e1819ecd09ecfc06fc382d39225f660041d93c7cfb629e41071d699",
+  "capturedFileReceived": "2026-10-20",
+  "fixtureDateControl": "2026-10-19",
+  "dateControlIsTestWrapper": true,
+  "rows": 10,
+  "fields": 50,
+  "sanitization": "Selected exact approved labels; preserved structural tr/td/span/div/input elements and whitelisted classes, field names, loteria codes and hidden-cell style. Removed other attributes, original values, text, IDs, histories, actions and scripts. Date control and document wrapper added for tests. Not a live authenticated page."
+}

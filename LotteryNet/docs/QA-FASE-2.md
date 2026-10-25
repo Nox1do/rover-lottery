@@ -1,7 +1,11 @@
 # QA de Fase 2 — Ejecutada, pendiente integración Rover real
 
+> **Cambio de alcance autorizado el 21/10/2026:** el objetivo actual es de [72 sorteos](ALCANCE-72-SORTEOS.md), excluyendo Florida y New York (Mango). La evidencia de este documento corresponde al catálogo histórico de diez sorteos y no valida la ampliación ni la convivencia con los ocho scripts del respaldo.
+
 **Fecha:** 2026-10-20. **Estado:** módulo inactivo, NO APTO PARA PRODUCCIÓN.  
 **Diseño:** «En fila», iconos lineales, nueve estados y mensajes aprobados.
+
+**Último avance:** Tampermonkey real sobre réplicas locales con aislamiento del sistema: Chromium en la sección 19 y **Firefox en la sección 20**. Rover autenticado y convivencia con todas las extensiones del usuario siguen pendientes.
 
 ## 1. Evidencia verificada
 
@@ -9,7 +13,7 @@
 
 | Comprobación | Resultado | Alcance de la evidencia |
 | --- | --- | --- |
-| Node.js 22, `npm test` | **22/22 OK, 0 fallos** | Suite completa actual, con fecha Rover, identidad del sorteo y estado inline |
+| Node.js 22, `npm test` | **22/22 OK, 0 fallos** | Suite de esa ejecución, con fecha Rover, identidad del sorteo y estado inline |
 | `npm run build` | **OK** | Userscript compilado, pero entrada inactiva |
 | `node --check dist/LotteryNet-Rover.user.js` | **OK** | Sintaxis de artefacto |
 | Auditoría del punto de entrada compilado | **OK** | Sin activación de llenado ni AUTO |
@@ -353,4 +357,173 @@ La siguiente evidencia útil es un **llenado controlado**, con bloqueo efectivo 
 El ensayo deberá registrar las filas realmente cubiertas, fecha y turno, conservación de valores existentes, cambios de UI, eventos y solicitudes intentadas, diferenciando las solicitudes bloqueadas de las efectivamente enviadas. Después deberá comprobar restauración tras Search y convivencia manual, y conservar los límites de la prueba. Las regresiones locales ya ejecutadas siguen siendo simulaciones, no este ensayo autenticado con Tampermonkey.
 
 **Limitación de ejecución:** el conector de Opera disponible permite leer la interfaz, pero no ejecutar consola ni controlar Network o Tampermonkey. No se ha demostrado un mecanismo de bloqueo de red en esa sesión. Por tanto, el ensayo controlado no se ejecutó y `src/index.js` permanece **INACTIVO**; no se ha completado la Fase 2 ni activado AUTO.
+
+## 18. Ensayo aislado con diez filas capturadas y bloqueo verificado — 20/10/2026
+
+**Diseño aprobado por el usuario:** ampliar las pruebas existentes con las diez filas del HTML aportado, depuradas de datos e historiales; comprobar el bloqueo antes de llenar; respuestas locales y módulos reales; registrar intentos bloqueados y eventos. No activar la entrada de producción.
+
+### Alcance y procedencia
+
+`tests/fixtures/rover/ten-draws-sanitized.html` conserva la estructura seleccionada de diez filas únicas de `verResultados2(1).php` y cincuenta inputs vacíos. Se retiraron resultados, horas, historiales, IDs, atributos ajenos al localizador, acciones y scripts. El envoltorio de documento y la fecha seleccionada 19/10/2026 son del ensayo. La procedencia y el SHA-256 quedan en `tests/fixtures/rover/provenance.json`.
+
+Los módulos de `src/` se ejecutan sin modificar. El HTML de los diez juegos de Lottery.net se responde con los fixtures ya versionados del 19/10/2026; el parser real identifica fecha, turno y dígitos antes de llenar. Los valores con ceros adicionales del escenario `leading-zeros` son datos sintéticos de prueba, no resultados oficiales.
+
+### Bloqueo y controles
+
+Antes de crear la página, el contexto de Playwright bloquea Service Workers e instala rutas HTTP/WebSocket. Solo los GET de recursos conocidos reciben respuestas estáticas; otras solicitudes se abortan y los sockets se cierran sin conectar con un servidor. Los registros conservan método, origen y path, sin cabeceras ni cuerpos.
+
+1. Cada navegador demuestra primero que un POST sin protección llega al servidor receptor de `127.0.0.1`.
+2. Bajo protección se intentan GET, POST, PUT, PATCH y DELETE a una ruta de proceso **del servidor local de prueba**, XHR, otro POST receptor, GET a un dominio reservado `.invalid`, beacon, formulario, popup y WebSocket: **doce intentos bloqueados**. Ninguno llega al receptor durante esta fase.
+3. Se vuelve a cargar la tabla limpia y se mide el llenado aparte, manteniendo el bloqueo durante una ventana adicional de 500 ms antes de capturar los contadores finales de eventos/clics y comprobar Network. Los intentos deliberados anteriores no se atribuyen a LotteryNet. No se afirma ausencia de tareas diferidas para después de esa ventana.
+4. Para evitar falsos positivos de políticas de acceso a redes privadas, la tabla y el receptor usan el mismo origen local. Un bypass deliberado debe llegar al receptor y hacer fallar el ensayo.
+
+### Resultados locales
+
+| Comprobación | Chromium 153.0.8010.0 | Firefox 153.0 |
+| --- | --- | --- |
+| Sorteos / campos cubiertos | 10 / 50 | 10 / 50 |
+| Escenarios funcionales | 120 correctos | 120 correctos |
+| Conexiones deliberadas bloqueadas | 12 | 12 |
+| Solicitudes intentadas durante llenado | 0 | 0 |
+| Solicitudes que llegaron al receptor durante fases protegidas | 0 | 0 |
+| Eventos `input/change/blur` de llenado | 0 / 0 / 0 | 0 / 0 / 0 |
+| Clics de procesamiento | 0 | 0 |
+| Bypass deliberado del bloqueo | Detectado; prueba falla | Detectado; prueba falla |
+| Emisión deliberada de `input` durante escritura | Detectada; prueba falla | Detectada; prueba falla |
+| POST diferido con `setTimeout(..., 0)` | Detectado; prueba falla | Detectado; prueba falla |
+
+Cada sorteo pasa los doce casos: llenado completo, idempotencia, solo juego 3, solo juego 4, ceros iniciales, conflicto previo, fecha cambiada, reconstrucción tipo Search/restauración, conflicto al restaurar, código `loteria` alterado, fila duplicada y fila ausente. El caso completo comprueba además mensajes de UI y ausencia de cambios en los otros nueve sorteos.
+
+**Regresión:** `npm test` (28/28), `npm run build`, sintaxis del bundle, suite previa de DOM y suite de convivencia manual LotteryUSA, correctas. La entrada existente `isolated-rover.mjs` ejecuta también el ensayo nuevo; `npm run test:browser:blocked` lo ejecuta por separado. Posteriormente se verificó esta ampliación en [GitHub Actions 39467286725](https://github.com/Nox1do/rover-lottery/actions/runs/39467286725), con ambos trabajos correctos.
+
+**Entorno:** Node 24.19.0 y Playwright 1.62.1. Chromium usa un ejecutable alternativo de `@sparticuz/chromium`; Firefox usa la descarga de Playwright. La descarga estándar de Chromium devolvió ZIP truncado. Firefox inicialmente falló al crear el namespace de su sandbox interno (`uid_map: EPERM`); la ejecución local correcta utilizó `MOZ_DISABLE_CONTENT_SANDBOX=1`. Son condiciones locales documentadas, no modificaciones de producción ni supuestos sobre el navegador del usuario.
+
+**Evidencia:** [informe por navegador y caso](qa/network-blocked-2026-10-20.json) y [controles de mutación](qa/network-blocked-mutations-2026-10-20.json). Las mutaciones se retiraron antes de la ejecución final correcta; `src/` no tiene cambios.
+
+**Corrección durante revisión:** antes de añadir la ventana final, una mutación que lanzaba POST en una tarea diferida produjo un falso `PASS`. Se reprodujo ese fallo, se añadió observación antes de serializar contadores y la misma mutación pasó a fallar en ambos motores por intento de solicitud. Se mantuvo el bloqueo durante toda la medición; la corrección afecta solo al ensayo.
+
+### Límites y siguiente puerta
+
+El ensayo utiliza procesos reales de Chromium y Firefox con una **copia depurada**, sin sesión autenticada, manejadores originales de Rover ni Tampermonkey. Los listeners hostiles y botones centinela son sintéticos; la convivencia manual previa utiliza solo la función `triggerInput` extraída de LotteryUSA. La reconstrucción de Search se reproduce reemplazando filas, sin llamar al AJAX de Rover.
+
+El bloqueo cubre las páginas del contexto de prueba, no es un cortafuegos del sistema y no demuestra bloqueo del proceso de fondo de una extensión. La prueba real con Tampermonkey, otros userscripts instalados y Network autenticado sigue pendiente. No volver a pedir la misma observación pasiva como sustituto de esa prueba. **Fase 2/A19 reales no se declaran completos y `src/index.js` sigue INACTIVO.**
+
+## 19. Tampermonkey real y aislamiento de red del sistema — 20/10/2026
+
+**Resultado:** [GitHub Actions 39475193126](https://github.com/Nox1do/rover-lottery/actions/runs/39475193126), commit `ff4991c1d37b8a72a20aa50a25cead0c6b5b450b`: los tres trabajos terminaron **SUCCESS**. Incluye **30/30 pruebas Node**, build y auditoría de entrada inactiva, las regresiones Chromium/Firefox anteriores y el ensayo nuevo con gestor real. No se modificó `src/` ni se activó el userscript de producción.
+
+### Gestor, instalación y procedencia
+
+Se descargó por HTTPS el paquete estable de [Tampermonkey](https://www.tampermonkey.net/crx/tampermonkey_stable.crx), versión **5.4.1**, Manifest V3, fijando su SHA-256 a `a124e3189ecc0981ce79ef182dd3897a75fe22fc7bf0828e9d293ad7122d3d4d`. La descarga cambiante hace fallar el preparador hasta revisar el nuevo paquete. Se carga descomprimido, sin alterar su código ni manifiesto, en **Chromium 141.0.7390.37 / Playwright 1.56.1**. No se redistribuyen el CRX, la extensión ni los perfiles.
+
+Esta carga de ensayo tiene un ID derivado de la ruta, distinto del de Chrome Web Store; la página de bienvenida muestra por ello una advertencia de ID no oficial. La evidencia acredita los bytes del paquete descargado y el funcionamiento del gestor real, **no una instalación desde la tienda**.
+
+Cada fase utiliza un perfil nuevo y separado, sin sesión Rover ni otros userscripts del usuario. El controlador habilita el permiso nativo **Allow User Scripts**, verifica la API real y, mediante la interfaz de Utilities, importa el bundle de prueba, confirma la instalación y comprueba su entrada habilitada en el dashboard. Espera los registros de arranque de página y contenido creados por el propio gestor antes de navegar. No crea registros de sustitución ni implementaciones ficticias de GM.
+
+El script de ensayo solo coincide con `http://127.0.0.1/rover.html*`; tiene permisos de conexión exclusivamente al fixture y al receptor IPv4 privado de control. Ambos perfiles ejecutaron exactamente el mismo bundle SHA-256 `26675c564e37390a671dbb0e909d17614d758db2a67cf1b5c404d5f144a638fb`. `GM_info` confirmó Tampermonkey 5.4.1, script 0.0.1 y `sandboxMode: raw`.
+
+### Controles y resultados
+
+Primero, sin aislamiento y sin llenar casillas, se demuestra que un POST de la página y otro de **GM_xmlhttpRequest real en background** llegan al receptor de control. Luego se inicia un proceso hijo mediante `sudo unshare --net`, que contiene Node, servidor local, Chromium y la extensión. Antes de cualquier llenado verifica un namespace distinto, única interfaz `lo` y cero rutas IPv4 externas. No se cambia el cortafuegos del host.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Control previo: POST de página / POST de GM | Ambos llegaron al receptor; GM respondió 200 |
+| Namespace aislado | Distinto del padre; solo `lo`; 0 rutas externas |
+| Mismo POST externo desde página / GM dentro del aislamiento | Fallaron con `TypeError` / `network-error` |
+| Solicitudes recibidas por el receptor durante el aislamiento | **0** |
+| GET de GM al servidor local dentro del aislamiento | Correcto; el gestor seguía operativo |
+| GM_setValue / GM_getValue / GM_deleteValue | Correctos en ambas fases |
+| Sorteos / campos | **10 / 50**, copia depurada de la sección 18 |
+| Escenarios funcionales mediante el script instalado | **120 correctos**, mismos doce casos por sorteo |
+| Eventos de llenado `input/change/blur` | **0 / 0 / 0** |
+| Clics de procesamiento / escrituras al servidor local | **0 / 0** |
+| Observación adicional antes de capturar contadores | **500 ms**, con aislamiento mantenido |
+
+Los módulos reales y las aserciones independientes son los mismos de la regresión anterior; los HTML de Lottery.net son fixtures locales. El resultado acredita que **no escaparon solicitudes al receptor** bajo el aislamiento comprobado. No cuenta todos los intentos internos de red de la extensión ni declara «cero intentos de background».
+
+### Correcciones y límites
+
+El primer selector de instalación confundía el botón de URL de Utilities con la confirmación. Se delimitó al diálogo del gestor. Además, en un perfil nuevo el permiso de Chrome y los registros de arranque del gestor no están listos al mismo tiempo: el informe muestra cero registros al principio y ambos registros antes de navegar. Esperar estos registros permitió superar el control previo con las API reales.
+
+Un intento que reutilizaba el perfil entre procesos no inició el script en la fase aislada; su causa no quedó determinada. El diseño final instala el bundle idéntico en dos perfiles nuevos y **no prueba persistencia de perfiles**. Tampoco valida Firefox con Tampermonkey, listeners originales de Rover, una sesión autenticada, todas las extensiones del usuario, AJAX real, AUTO o coordinación entre pestañas. La ausencia de eventos se mide durante los escenarios y la ventana indicada, sin promesas sobre tareas posteriores.
+
+El contenedor local no permitía namespaces ni el perfil persistente de Chromium; por eso esta prueba se ejecutó en el runner de CI autorizado. Reproducir desde `LotteryNet/` en un runner Linux con Chromium completo y autorización para crear namespaces:
+
+```sh
+npm install --no-audit --no-fund --no-save playwright@1.56.1
+npx playwright install --with-deps chromium
+python3 tests/browser/tampermonkey/prepare-extension.py
+node tests/browser/tampermonkey/run-isolated.mjs
+```
+
+**Evidencia:** [informe original de CI por fase y caso](qa/tampermonkey-isolated-2026-10-20.json). Artefacto de CI `12288427881`, ZIP SHA-256 `4956a8b692f7961d7c29e5a975c9885f5d0da1d62f18484f183992f79f218cd2`. El workflow publica solo JSON/PNG de diagnóstico, excluyendo perfiles y paquete de extensión.
+
+Referencias primarias: [permiso userScripts de Chrome](https://developer.chrome.com/docs/extensions/reference/api/userScripts), [extensiones en Playwright](https://playwright.dev/docs/chrome-extensions) y [GM_xmlhttpRequest de Tampermonkey](https://www.tampermonkey.net/documentation.php?q=GM_xmlhttpRequest).
+
+**Puerta pendiente:** integración autenticada y convivencia real en un entorno autorizado con bloqueo efectivo. Este ensayo no aprueba A19 en producción. `src/index.js` permanece **INACTIVO**; Fase 2 y AUTO no se declaran terminados.
+
+## 20. Firefox real con Tampermonkey de Mozilla Add-ons — 20/10/2026
+
+**Resultado:** [CI 39521594551](https://github.com/Nox1do/rover-lottery/actions/runs/39521594551), commit `6e891c985e0e36e1cdd0135032d088ef5c581d4e`: **cuatro trabajos SUCCESS**. Pasaron 34/34 Node, build y auditoría de entrada inactiva, regresiones anteriores y ensayos con Tampermonkey real en ambos navegadores. La adaptación a Firefox fue aprobada por el usuario porque es su navegador habitual.
+
+### Plataforma y gestor comprobados
+
+| Plataforma del ensayo | Gestor real | Manifest | Resultado |
+| --- | --- | --- | --- |
+| Firefox **158.0.1**, Selenium **4.51.0**, geckodriver **0.37.1** | Tampermonkey **5.5.0**, Mozilla Add-ons | V2 | **120/120** |
+| Chromium **141.0.7390.37**, Playwright **1.56.1** | Tampermonkey **5.4.1**, paquete estable descomprimido | V3 | **120/120**, ensayo independiente |
+
+Las distribuciones del gestor difieren; el resultado de Chromium no se usa como sustituto de Firefox. La prueba nueva ejecuta Firefox estable original en un runner Linux, no el Firefox modificado que distribuye Playwright ni la instalación Windows del usuario.
+
+El XPI original de [Tampermonkey 5.5.0 en Mozilla Add-ons](https://addons.mozilla.org/firefox/downloads/file/4797143/tampermonkey-5.5.0.xpi), publicado por Jan Biniok (`derjanb`), queda fijado a SHA-256 `190031c78dbc5696114835601f2c8e6b855ad1e134df5df278f8fc158c065908`. Se verifica el manifiesto y GUID `firefox@tampermonkey.net`. Firefox lo instala mediante la API nativa de geckodriver como complemento no temporal; su AddonManager confirma **firma válida, estado activo y versión 5.5.0**. No se modifica ni recompone el paquete y no se deshabilita su comprobación de firma.
+
+Geckodriver crea un perfil nuevo por fase. La opción documentada `--allow-system-access` se usa exclusivamente para leer esos metadatos y el UUID interno de la extensión en el perfil de pruebas; después se restaura el contexto de contenido. No se utiliza para ejecutar ni sustituir código GM o para llenar casillas. El userscript se importa y confirma mediante la UI real de Utilities, y el dashboard acredita que está habilitado. El bundle conserva su coincidencia exclusiva con la página local `http://127.0.0.1/rover.html*`.
+
+### Controles y evidencia
+
+Se reutilizan el mismo builder, los módulos reales, los doce casos por sorteo, los fixtures y las aserciones independientes de las secciones 18–19. El bundle ejecutado en ambas fases de Firefox tiene SHA-256 idéntico `0119be4a90947f2f56b897e7869e0b52aa8eb2e9886d9c391e135e64849ef60a`. `GM_info` confirma Tampermonkey 5.5.0, script 0.0.1, `sandboxMode: raw` y las API GM declaradas.
+
+| Comprobación | Firefox + Tampermonkey real |
+| --- | --- |
+| Preflight: POST de página y POST de GM al receptor externo | Ambos recibidos; GM respondió 200 |
+| Almacenamiento GM: escribir / leer / borrar | Correcto en ambas fases |
+| Namespace de la fase aislada | Distinto del padre; solo `lo`; **0 rutas IPv4 externas** |
+| Identidad del proceso en ambas fases | UID/GID **1001/1001**, usuario original no privilegiado |
+| POST externo de página / GM bajo aislamiento | Ambos fallaron; el receptor recibió **0 solicitudes** durante la fase |
+| GET de GM al fixture local bajo aislamiento | Correcto; el gestor seguía operativo |
+| Sorteos / campos / escenarios | **10 / 50 / 120 correctos** |
+| Eventos `input/change/blur` de llenado | **0 / 0 / 0** |
+| Clics de procesamiento / escrituras al servidor local | **0 / 0** |
+| Observación adicional antes de comprobar contadores | **500 ms**, con aislamiento mantenido |
+
+El control positivo previo impide confundir una extensión inoperante con un bloqueo efectivo. El control local en la fase aislada demuestra que las llamadas GM funcionan mientras su salida externa falla. Se mide lo que llegó al receptor, sin afirmar que se cuentan todos los intentos internos de red de Firefox o de la extensión.
+
+### Incidencias reproducidas y corregidas
+
+Selenium intentó abrir el dashboard mientras el diálogo de importación todavía interceptaba el clic. El controlador ahora espera mediante una lectura de hit testing que el elemento quede descubierto y realiza un clic nativo; no fuerza el clic ni elimina el diálogo.
+
+Después, el preflight pasó pero Firefox no arrancó bajo `sudo unshare`: su registro indicó que rechazaba ejecutarse como root en la sesión cuyo `XDG_RUNTIME_DIR` pertenecía a `runner`. Tras crear el namespace y levantar `lo`, el proceso vuelve mediante `sudo -u/-g` al UID/GID originales **dentro del mismo namespace**. El controlador comprueba ambas identidades antes de iniciar Firefox y conserva sus opciones de seguridad predeterminadas. La prueba corregida superó el mismo caso de arranque y los 120 escenarios.
+
+### Reproducción y límites
+
+Con Firefox y geckodriver oficiales en rutas absolutas y permiso para crear el namespace en un runner Linux no privilegiado, desde `LotteryNet/`:
+
+```sh
+npm install --no-audit --no-fund --no-save selenium-webdriver@4.51.0
+python3 tests/browser/tampermonkey/prepare-firefox-extension.py
+LOTTERYNET_QA_MANAGER_BROWSER=firefox \
+FIREFOX_PATH=/ruta/absoluta/firefox \
+GECKODRIVER_PATH=/ruta/absoluta/geckodriver \
+FIREFOX_EXPECTED_VERSION=158.0.1 \
+node tests/browser/tampermonkey/run-isolated.mjs
+```
+
+La selección Firefox exige sus ejecutables y su controlador propios; una configuración incompleta o un nombre de navegador desconocido falla, sin sustituirse por Chromium. El workflow descarga Firefox 158.0.1 y geckodriver 0.37.1 antes del aislamiento. Publica únicamente JSON/PNG y excluye perfiles, XPI y bundle instalado.
+
+**Informe original:** [firefox-tampermonkey-isolated-2026-10-20.json](qa/firefox-tampermonkey-isolated-2026-10-20.json), copiado sin modificar desde el artefacto `12310879522`. ZIP SHA-256 `8b40c2e141c1355ddea589874b180456cae2b84aebfe062daf68c63863c4ef48`. Los timestamps del informe están en UTC; la ejecución corresponde al 20/10 en la zona del cliente.
+
+Referencias primarias: [Selenium Firefox Driver](https://www.selenium.dev/selenium/docs/api/javascript/module-selenium-webdriver_firefox-Driver.html), [geckodriver — flags](https://firefox-source-docs.mozilla.org/testing/geckodriver/Flags.html), [Tampermonkey en AMO](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/).
+
+**Alcance pendiente:** esta evidencia cubre Firefox y Tampermonkey reales sobre una copia local, en Linux y sin sesión autenticada ni los demás userscripts del usuario. No valida Windows, su perfil instalado, listeners/AJAX reales de Rover, persistencia entre reinicios, AUTO ni multitab. Producción continúa inactiva; Fase 2/A19 en Rover autenticado y convivencia real siguen pendientes.
 

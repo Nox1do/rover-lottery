@@ -1,0 +1,15 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const root = path.resolve(__dirname,'..'), meta = require('../metadata.json');
+assert.equal(require('../package.json').version, meta.version);
+const file = 'Rovs-Loterias-USA-React';
+const script = fs.readFileSync(path.join(root,file+'.user.js'),'utf8');
+const end = '// ==/UserScript==';
+assert.equal(fs.readFileSync(path.join(root,file+'.meta.js'),'utf8'),script.slice(0,script.indexOf(end)+end.length)+'\n');
+assert.match(script,/^\/\/ @name\s+Rovs Loterias USA React 0\.0\.1$/m);
+assert.match(script,new RegExp('^// @version\\s+'+meta.version.replaceAll('.','\\.')+'$','m'));
+assert.equal(fs.readFileSync(path.join(root,'versions',`${file}-v${meta.version}.user.js`),'utf8'),script);
+assert.match(script,/Loterias%20USA%20React\/Rovs-Loterias-USA-React\.meta\.js/);
+assert.doesNotMatch(fs.readFileSync(path.join(root,'src/rover.js'),'utf8'),/fetch\s*\(|XMLHttpRequest\s*\(|\.click\s*\(/);
+console.log('PASS publicación: identidad independiente, metadatos, URLs, archivo histórico y adaptador sin llamadas/acciones de publicación');

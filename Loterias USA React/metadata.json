@@ -1,0 +1,16 @@
+{
+  "name": "Rovs Loterias USA React 0.0.1",
+  "version": "0.0.1",
+  "namespace": "https://github.com/Nox1do/rover-lottery/Loterias-USA-React",
+  "connect": [
+    "lotteryusa.com",
+    "mobile-fla.lotteryservices.com",
+    "lalotmobapi.intralot.us",
+    "api-solutions.ohiolottery.com",
+    "authapi-solutions.ohiolottery.com",
+    "tna.p1.awc.lotteryservices.net",
+    "ins.p1.awc.lotteryservices.net",
+    "gas-v2.p1.awc.lotteryservices.net",
+    "mapp.illinoislottery.com"
+  ]
+}

@@ -1,4 +1,4 @@
-# Rovs Loterias USA React 0.0.1
+# Rovs Loterias USA React 0.0.2
 
 [Instalar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA%20React/Rovs-Loterias-USA-React.user.js)
 
@@ -8,11 +8,13 @@ Userscript independiente para **Firefox + Tampermonkey** en `https://central.rov
 
 1. Instala el script desde el enlace anterior y recarga Rover.
 2. Selecciona la fecha en Rover y pulsa **Buscar**. La barra confirma la fecha cuando termina la carga. Si ya tenías la tabla abierta al instalar el script, pulsa Buscar de nuevo.
-3. Abre **Loterías USA** en la esquina inferior derecha. Elige Día/Noche o filtra por nombre/código.
+3. Abre **Loterías USA** en la esquina inferior derecha. Arranca compacta. Elige Día/Noche o filtra por nombre/código. Arrastra los bordes o las esquinas con el ratón o el dedo para cambiar ancho/alto; **Compactar** restaura el tamaño inicial. La cuadrícula muestra más filas al aumentar la altura y se desplaza verticalmente.
 4. Pulsa la lotería. El script consulta su proveedor y llena Pick 3 y/o Pick 4 en la fila que coincida por nombre **y** abreviatura. Washington estado usa WST-NG y solo Pick 3.
 5. Revisa los valores. La publicación se sigue realizando manualmente con **Procesar**, desde Rover.
 
 El propio Rover deriva 1era/2da/3ra y puede llenar las loterías dependientes que tenga configuradas, igual que al escribir manualmente. El userscript conserva ese comportamiento y no publica ninguna de esas filas.
+
+En móvil los controles se organizan en dos filas, tienen áreas de pulsación de al menos 44 px y abrir la barra no enfoca el buscador para evitar que aparezca el teclado. El tamaño se limita a la pantalla y se ajusta al girar el dispositivo o cambiar la ventana. Cada recarga vuelve al tamaño compacto; cerrar/abrir conserva el tamaño durante esa página. Los bordes también admiten las flechas del teclado.
 
 La barra usa JavaScript vanilla y los colores, tipografía y variables del nuevo Rover, con tema claro/oscuro. «React» en el nombre identifica el sistema de destino; el producto no descarga ni monta una segunda copia de React.
 
@@ -41,7 +43,7 @@ npm run release
 npm run check
 ```
 
-En este trabajo se probaron **Firefox 153.0 de Playwright y React 19.3.1**, la versión observada en el código público de Rover. La reproducción incluye campos controlados, derivación de premios y una dependencia de prueba. Se comprueba el estado React después de otro render, además de los valores visibles.
+En este trabajo se probaron **Firefox 153.0 de Playwright y React 19.3.1**, la versión observada en el código público de Rover. La reproducción incluye campos controlados, derivación de premios y una dependencia de prueba. Se comprueba el estado React después de otro render, además de los valores visibles. La suite incluye arrastre real con ratón, ajuste por teclado, viewport móvil de 390 × 844, cambios de orientación/ventana, pulsaciones táctiles y eventos Pointer sintéticos de tipo touch para el redimensionado. No equivale a probar el gesto sobre un teléfono físico.
 
 Los resultados de proveedores se simulan mediante un puente GM de prueba. Las pruebas de navegador no instalan la extensión Tampermonkey ni usan una sesión de producción: esto valida el adaptador en Firefox y React, pero no equivale a una prueba completa de la extensión sobre tu cuenta de Rover. Para confirmar en la sesión real, consulta una fila, revisa los cinco campos, cambia el filtro de la tabla y vuelve a mostrarla; comprueba que los valores se conservan antes de procesar.
 

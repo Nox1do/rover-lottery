@@ -22,3 +22,12 @@ Versión independiente solicitada para `/loteria/resultados/ver`. Conserva las 7
 ## Límite de la verificación
 
 La inspección de la sesión real usa Opera solo para lectura. Las escrituras de prueba se realizan exclusivamente en una reproducción local, sin sesión ni datos privados. El puente GM de las pruebas simula las respuestas de proveedores; esto no equivale a instalar Tampermonkey en la sesión de producción.
+
+## 0.0.2 — Barra ajustable y móvil
+
+Petición: ajustar desde bordes, más alta o compacta, móvil y compacta por defecto. Se mantiene JavaScript vanilla, estilo nativo y las fuentes existentes. Se eligen eventos Pointer frente al resize nativo por compatibilidad táctil y control de límites.
+
+- [x] Probar primero en Firefox: tamaño compacto, arrastre real de bordes/esquinas, límites, teclado, móvil y eventos Pointer de tipo táctil.
+- [x] Reorganizar `src/ui.js`: cabecera adaptable, cuadrícula con scroll vertical, ocho bordes/esquinas, botón Compactar y controles táctiles. Ajustar al cambiar orientación, sin persistir tamaños grandes entre recargas.
+- [x] Ejecutar la suite completa y revisar capturas. Incrementar a 0.0.2 conservando identidad e históricos.
+- Publicar y contrastar los archivos raw con los probados.

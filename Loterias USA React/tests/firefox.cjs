@@ -11,8 +11,8 @@ const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 let browser, server, origin;
 
-async function setup({ mode = '', date = '24 oct 2026' } = {}) {
-  const page = await browser.newPage();
+async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = false } = {}) {
+  const page = await browser.newPage({ ...(viewport ? { viewport } : {}), hasTouch });
   page.setDefaultTimeout(5000);
   page.setDefaultNavigationTimeout(10000);
   page.on('pageerror', error => console.error('FIXTURE PAGE ERROR', error.message));
@@ -23,8 +23,8 @@ async function setup({ mode = '', date = '24 oct 2026' } = {}) {
   await page.goto(origin + '/loteria/resultados/ver', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window.fixtureDate === 'function');
   if (date !== '24 oct 2026') await page.evaluate(date => window.fixtureDate(date), date);
-  await page.evaluate(mode => {
-    window.GM_info = { script: { version: '0.0.1' } };
+  await page.evaluate(({ mode, version }) => {
+    window.GM_info = { script: { version } };
     window.externalRequests = [];
     window.GM_xmlhttpRequest = options => {
       window.externalRequests.push(options.url);
@@ -43,11 +43,12 @@ async function setup({ mode = '', date = '24 oct 2026' } = {}) {
       }, mode === 'slow' ? 200 : 0);
       return { abort() {} };
     };
-  }, mode);
+  }, { mode, version: require('../metadata.json').version });
   await page.addScriptTag({ content: script });
   const bar = page.locator('#rlur-bar');
-  await bar.waitFor({ timeout: 3000 });
+  await bar.waitFor({ state: 'attached', timeout: 3000 });
   await page.locator('#rlur-toggle').click();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('#rlur-bar')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
   return {
     page, requests,
     async bind() { await page.locator('form button[type="submit"]').click(); await page.waitForFunction(() => document.querySelector('#rlur-context')?.dataset.ready === 'true'); },
@@ -60,11 +61,86 @@ async function setup({ mode = '', date = '24 oct 2026' } = {}) {
 test('Barra nativa independiente: 75 botones, versión y categoría', async () => {
   const r = await setup(); try {
     assert.equal(await r.page.locator('[data-lottery-id]').count(), 75);
-    assert.equal(await r.page.locator('.rlur-version').textContent(), 'v0.0.1');
+    assert.equal(await r.page.locator('.rlur-version').textContent(), 'v' + require('../metadata.json').version);
     assert.equal(await r.page.locator('[data-lottery-id="wa-night"]').isVisible(), false);
     await r.page.locator('[data-category="NOCHE"]').click();
     assert.equal(await r.page.locator('[data-lottery-id="wa-night"]').isVisible(), true);
     assert.equal(await r.page.locator('[data-lottery-id="ga-am"]').isVisible(), false);
+  } finally { await r.close(); }
+});
+async function dragEdge(page, edge, dx, dy) {
+  const box = await page.locator(`[data-resize="${edge}"]`).boundingBox();
+  assert.ok(box, `Borde ${edge} visible`);
+  const x = box.x + box.width / 2, y = box.y + box.height / 2;
+  await page.mouse.move(x, y); await page.mouse.down();
+  const viewport = page.viewportSize();
+  await page.mouse.move(Math.max(1, Math.min(viewport.width - 1, x + dx)), Math.max(1, Math.min(viewport.height - 1, y + dy)), { steps: 8 }); await page.mouse.up();
+}
+async function panelBox(page) { return page.locator('#rlur-bar').boundingBox(); }
+function assertInside(box, width, height) {
+  assert.ok(box.x >= 0 && box.y >= 0, JSON.stringify(box));
+  assert.ok(box.x + box.width <= width + 1 && box.y + box.height <= height + 1, JSON.stringify(box));
+}
+test('Tamaño: compacto inicial, borde superior y Compactar', async () => {
+  const r = await setup(); try {
+    const initial = await panelBox(r.page);
+    assert.ok(initial.height <= 190, 'La barra debe abrir compacta');
+    assert.ok(initial.width <= 960, 'La barra no ocupa todo el escritorio');
+    const visibleCount = () => r.page.locator('[data-lottery-id]:not([hidden])').evaluateAll(nodes => nodes.filter(n => {
+      const b = n.getBoundingClientRect(), g = n.parentElement.getBoundingClientRect(); return b.top >= g.top && b.bottom <= g.bottom;
+    }).length);
+    const before = await visibleCount();
+    await dragEdge(r.page, 'n', 0, -200);
+    assert.ok((await panelBox(r.page)).height >= initial.height + 195);
+    assert.ok(await visibleCount() > before, 'Más altura debe mostrar más botones completos');
+    await r.page.getByRole('button', { name: 'Volver al tamaño compacto' }).click();
+    assert.ok(Math.abs((await panelBox(r.page)).height - initial.height) <= 1);
+  } finally { await r.close(); }
+});
+test('Tamaño: bordes, esquinas, teclado y límites de pantalla', async () => {
+  const r = await setup(); try {
+    await dragEdge(r.page, 'w', 180, 0); assert.ok((await panelBox(r.page)).width <= 785);
+    await dragEdge(r.page, 'nw', -100, -150); assert.ok((await panelBox(r.page)).height >= 325);
+    const before = await panelBox(r.page);
+    await r.page.locator('[data-resize="n"]').focus(); await r.page.keyboard.press('ArrowDown');
+    assert.ok((await panelBox(r.page)).height < before.height);
+    await dragEdge(r.page, 'ne', 2000, -2000); assertInside(await panelBox(r.page), 1280, 720);
+    await dragEdge(r.page, 'sw', 2000, 2000);
+    const small = await panelBox(r.page); assertInside(small, 1280, 720); assert.ok(small.width >= 360 && small.height >= 150);
+    await r.page.setViewportSize({ width: 320, height: 380 });
+    await r.page.waitForTimeout(100); assertInside(await panelBox(r.page), 320, 380);
+    await r.page.locator('.rlur-close').click();
+    assert.equal(await r.page.locator('#rlur-bar').evaluate(el => el.inert), true);
+    await r.page.locator('#rlur-toggle').click();
+    await r.page.waitForFunction(() => getComputedStyle(document.querySelector('#rlur-bar')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
+    assertInside(await panelBox(r.page), 320, 380);
+  } finally { await r.close(); }
+});
+test('Móvil: compacto, controles táctiles, cuadrícula y ajuste con el dedo', async () => {
+  const r = await setup({ viewport: { width: 390, height: 844 }, hasTouch: true }); try {
+    const initial = await panelBox(r.page); assertInside(initial, 390, 844); assert.ok(initial.height <= 280);
+    assert.notEqual(await r.page.evaluate(() => document.activeElement?.id), 'rlur-search', 'Abrir no debe activar el teclado móvil');
+    for (const selector of ['#rlur-search', '[data-category="DIA"]', '[data-lottery-id="ga-am"]', '.rlur-close']) {
+      assert.ok((await r.page.locator(selector).boundingBox()).height >= 44, `${selector} debe admitir pulsación táctil`);
+    }
+    assert.equal(await r.page.locator('#rlur-search').evaluate(el => getComputedStyle(el).fontSize), '16px');
+    await r.page.locator('[data-category="NOCHE"]').tap();
+    await r.page.locator('#rlur-search').fill('WST-NG');
+    assert.equal(await r.page.locator('[data-lottery-id="wa-night"]').isVisible(), true);
+    await r.page.locator('#rlur-search').fill('');
+    const handle = r.page.locator('[data-resize="n"]'), box = await handle.boundingBox();
+    assert.equal(await handle.evaluate(el => getComputedStyle(el).touchAction), 'none');
+    const pointer = { pointerId: 7, pointerType: 'touch', isPrimary: true, clientX: box.x + box.width / 2, clientY: box.y + box.height / 2, buttons: 1, bubbles: true };
+    await handle.dispatchEvent('pointerdown', pointer);
+    await handle.dispatchEvent('pointermove', { ...pointer, clientY: pointer.clientY - 180 });
+    await handle.dispatchEvent('pointerup', { ...pointer, clientY: pointer.clientY - 180, buttons: 0 });
+    assert.ok((await panelBox(r.page)).height >= initial.height + 175);
+    await r.page.screenshot({ path: path.join(root, 'test-results', 'barra-mobile-alta.png') });
+    await r.page.getByRole('button', { name: 'Volver al tamaño compacto' }).tap();
+    assert.ok(Math.abs((await panelBox(r.page)).height - initial.height) <= 1);
+    await r.page.screenshot({ path: path.join(root, 'test-results', 'barra-mobile-compacta.png') });
+    await r.page.setViewportSize({ width: 844, height: 390 }); await r.page.waitForTimeout(100);
+    assertInside(await panelBox(r.page), 844, 390);
   } finally { await r.close(); }
 });
 test('Sin Buscar: rechaza la consulta y no inventa la fecha de hoy', async () => {

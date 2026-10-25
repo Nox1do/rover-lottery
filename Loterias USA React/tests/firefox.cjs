@@ -240,7 +240,7 @@ test('Tamaño: compacto inicial, borde superior y Compactar', async () => {
     await r.page.waitForFunction(() => Number(document.querySelector('.rlur-grid').style.getPropertyValue('--rlur-rows')) > 2);
     assert.ok((await panelBox(r.page)).height >= initial.height + 195);
     assert.ok(await visibleCount() > before, 'Más altura debe mostrar más botones completos');
-    await r.page.getByRole('button', { name: 'Volver al tamaño compacto' }).click();
+    await r.page.getByRole('button', { name: 'Restablecer tamaño compacto' }).click();
     assert.ok(Math.abs((await panelBox(r.page)).height - initial.height) <= 1);
   } finally { await r.close(); }
 });
@@ -285,7 +285,7 @@ for (const [label, viewport, scale, minFont] of [
     await r.page.locator('.rlur-grid').evaluate(el => el.style.paddingBottom = '19px');
     await r.page.waitForFunction(() => Number(document.querySelector('.rlur-grid').style.getPropertyValue('--rlur-rows')) >= 2);
     await r.page.locator('.rlur-grid').evaluate(el => el.style.paddingBottom = '');
-    await r.page.getByRole('button', { name: 'Volver al tamaño compacto' }).click();
+    await r.page.getByRole('button', { name: 'Restablecer tamaño compacto' }).click();
     assert.ok(Math.abs((await panelBox(r.page)).width - viewport.width) <= 1);
     await r.page.screenshot({ path: path.join(root, 'test-results', `barra-${label.replaceAll(' ', '-')}.png`), scale: 'css' });
     await r.page.locator('#rlur-bar').screenshot({ path: path.join(root, 'test-results', `panel-${label.replaceAll(' ', '-')}.png`), scale: 'css' });
@@ -311,7 +311,7 @@ test('Móvil: compacto, controles táctiles, cuadrícula y ajuste con el dedo', 
     await handle.dispatchEvent('pointerup', { ...pointer, clientY: pointer.clientY - 180, buttons: 0 });
     assert.ok((await panelBox(r.page)).height >= initial.height + 175);
     await r.page.screenshot({ path: path.join(root, 'test-results', 'barra-mobile-alta.png') });
-    await r.page.getByRole('button', { name: 'Volver al tamaño compacto' }).tap();
+    await r.page.getByRole('button', { name: 'Restablecer tamaño compacto' }).tap();
     assert.ok(Math.abs((await panelBox(r.page)).height - initial.height) <= 1);
     await r.page.screenshot({ path: path.join(root, 'test-results', 'barra-mobile-compacta.png') });
     await r.page.setViewportSize({ width: 844, height: 390 }); await r.page.waitForTimeout(100);

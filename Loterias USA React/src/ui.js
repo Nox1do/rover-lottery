@@ -2,7 +2,7 @@ function createInterface(onQuery) {
     const feedback = createFillFeedback();
     const style = document.createElement('style');
     style.textContent = `
-      #rlur-host { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; --rlur-font: clamp(.875rem, calc(.625rem + .208334vw), 1.125rem); --rlur-small: clamp(.75rem, calc(.625rem + .104167vw), .875rem); --rlur-row: clamp(52px, calc(40px + .625vw), 64px); font-size: var(--rlur-font); line-height: 1.4; color: var(--foreground, #0f172a); }
+      #rlur-host { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; --rlur-font: clamp(.875rem, calc(.625rem + .208334vw), 1.125rem); --rlur-small: clamp(.75rem, calc(.625rem + .104167vw), .875rem); --rlur-row: clamp(46px, calc(34px + .625vw), 58px); font-size: var(--rlur-font); line-height: 1.4; color: var(--foreground, #0f172a); }
       #rlur-host * { box-sizing: border-box; }
       #rlur-bar { position: fixed; z-index: 40; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border, #cbd5e1); border-radius: var(--radius, 10px); background: var(--card, #fff); box-shadow: 0 8px 32px #0002; visibility: hidden; transform: translateY(100vh); transition: transform .18s ease, visibility .18s; }
       #rlur-bar[data-period="DIA"] { --rlur-accent: #2563eb; border-top: 3px solid #93c5fd; }
@@ -20,6 +20,8 @@ function createInterface(onQuery) {
       .rlur-title { display: flex; align-items: center; min-height: 38px; font-size: var(--rlur-font); font-weight: 600; white-space: nowrap; }
       .rlur-actions { display: flex; gap: 4px; }
       .rlur-close, .rlur-compact { min-height: 38px; border: 1px solid var(--border, #cbd5e1); background: transparent; color: var(--muted-foreground, #64748b); padding: 5px 8px; border-radius: 6px; }
+      .rlur-compact { display: grid; place-items: center; width: 38px; padding: 6px; }
+      #rlur-host .rlur-compact svg { width: 18px; height: 18px; stroke-width: 2; }
       .rlur-close { min-width: 34px; font-size: 18px !important; }
       .rlur-tabs { display: flex; gap: 3px; padding: 3px; border-radius: 6px; background: var(--muted, #f1f5f9); }
       .rlur-tabs button { flex: 1; min-height: 32px; border: 0; padding: 5px 8px; border-radius: 4px; background: transparent; color: var(--muted-foreground, #64748b); white-space: nowrap; }
@@ -35,8 +37,8 @@ function createInterface(onQuery) {
       .dark #rlur-context[data-tone="error"] { color: #fca5a5; }
       .dark #rlur-context[data-tone="warning"] { color: #fcd34d; }
       .dark #rlur-context[data-tone="success"] { color: #6ee7b7; }
-      .rlur-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(160px, 10vw, 240px)), 1fr)); grid-auto-rows: var(--rlur-row); gap: 6px; overflow-y: auto; overflow-x: hidden; min-height: 0; min-width: 0; flex: 1; padding: 2px; align-content: start; scrollbar-width: thin; overscroll-behavior: contain; }
-      .rlur-lottery { display: flex; gap: 7px; align-items: center; justify-content: space-between; padding: 5px 9px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; text-align: left; min-height: 44px; min-width: 0; }
+      .rlur-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(160px, 10vw, 240px)), 1fr)); grid-auto-rows: var(--rlur-row); gap: 4px; overflow-y: auto; overflow-x: hidden; min-height: 0; min-width: 0; flex: 1; padding: 2px; align-content: start; scrollbar-width: thin; overscroll-behavior: contain; }
+      .rlur-lottery { display: flex; gap: 4px; align-items: center; justify-content: space-between; padding: 2px 6px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; text-align: left; min-height: 44px; min-width: 0; }
       .rlur-lottery > span:first-child { overflow: hidden; text-overflow: ellipsis; }
       .rlur-lottery:hover { background: var(--muted, #f1f5f9); }
       .rlur-lottery[data-status="success"] { border-color: #10b981; }
@@ -67,7 +69,7 @@ function createInterface(onQuery) {
       .rlur-resize[data-resize="se"] { bottom: -9px; right: -9px; cursor: nwse-resize; }
       #rlur-bar[data-narrow="false"] { display: grid; grid-template-columns: clamp(280px, 19vw, 360px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 6px 16px; }
       #rlur-bar[data-narrow="false"] .rlur-controls { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-content: start; }
-      #rlur-bar[data-narrow="false"] .rlur-grid { grid-template-columns: none; grid-template-rows: repeat(var(--rlur-rows, 2), minmax(var(--rlur-row), 1fr)); grid-auto-flow: column; grid-auto-columns: clamp(184px, 11vw, 268px); overflow-x: auto; overflow-y: hidden; }
+      #rlur-bar[data-narrow="false"] .rlur-grid { grid-template-columns: none; grid-template-rows: repeat(var(--rlur-rows, 2), var(--rlur-row)); grid-auto-flow: column; grid-auto-columns: clamp(168px, 10vw, 240px); overflow-x: auto; overflow-y: hidden; }
       #rlur-bar[data-narrow="false"] .rlur-title { display: none; }
       #rlur-bar[data-narrow="false"] .rlur-tabs { grid-column: 1; grid-row: 1; }
       #rlur-bar[data-narrow="false"] .rlur-actions { grid-column: 2; grid-row: 1; }
@@ -78,7 +80,7 @@ function createInterface(onQuery) {
       #rlur-bar[data-narrow="true"] .rlur-actions { grid-column: 2; grid-row: 1; justify-content: end; }
       #rlur-bar[data-narrow="true"] .rlur-tabs { grid-column: 1; grid-row: 2; }
       #rlur-bar[data-narrow="true"] .rlur-search-wrap { grid-column: 2; grid-row: 2; }
-      @media (max-width: 640px), (pointer: coarse) { #rlur-host .rlur-close, #rlur-host .rlur-compact, #rlur-search, .rlur-title { min-height: 44px; } .rlur-tabs { padding: 0; } .rlur-tabs button { min-height: 44px; } #rlur-search { font-size: 16px !important; } }
+      @media (max-width: 640px), (pointer: coarse) { #rlur-host .rlur-compact, #rlur-host .rlur-close { min-width: 44px; } #rlur-host .rlur-close, #rlur-host .rlur-compact, #rlur-search, .rlur-title { min-height: 44px; } .rlur-tabs { padding: 0; } .rlur-tabs button { min-height: 44px; } #rlur-search { font-size: 16px !important; } }
       @keyframes rlur-spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) { #rlur-bar { transition: none; } }
     `;
@@ -88,7 +90,7 @@ function createInterface(onQuery) {
     const left = document.createElement('div'); left.className = 'rlur-controls';
     const title = document.createElement('div'); title.className = 'rlur-title'; title.textContent = 'Rovs Loterias USA';
     const close = document.createElement('button'); close.type = 'button'; close.className = 'rlur-close'; close.textContent = '×'; close.title = 'Cerrar barra'; close.setAttribute('aria-label', 'Cerrar barra'); left.append(title);
-    const compact = document.createElement('button'); compact.type = 'button'; compact.className = 'rlur-compact'; compact.textContent = 'Compactar'; compact.setAttribute('aria-label', 'Volver al tamaño compacto');
+    const compact = document.createElement('button'); compact.type = 'button'; compact.className = 'rlur-compact'; compact.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 6 6M4 10h6V4m10 16-6-6m6 0h-6v6"/></svg>'; compact.title = 'Restablecer tamaño compacto (ancho completo)'; compact.setAttribute('aria-label', 'Restablecer tamaño compacto');
     const actions = document.createElement('div'); actions.className = 'rlur-actions'; actions.append(compact, close);
     const tabs = document.createElement('div'); tabs.className = 'rlur-tabs'; tabs.setAttribute('aria-label', 'Categoría');
     const icons = {
@@ -124,7 +126,7 @@ function createInterface(onQuery) {
     }
     function updateGridRows() {
         const css = getComputedStyle(grid), gap = parseFloat(css.rowGap) || 0;
-        const rowHeight = parseFloat(css.gridAutoRows) || 52;
+        const rowHeight = parseFloat(css.gridAutoRows) || 46;
         const available = grid.clientHeight - parseFloat(css.paddingTop) - parseFloat(css.paddingBottom);
         const rows = Math.max(1, Math.floor((available + gap) / (rowHeight + gap)));
         if (grid.style.getPropertyValue('--rlur-rows') !== String(rows)) grid.style.setProperty('--rlur-rows', String(rows));
@@ -157,7 +159,7 @@ function createInterface(onQuery) {
         resized = false;
         const b = limits(), width = b.maxWidth;
         // Dos filas legibles y espacio para scrollbars clásicos de Firefox en Windows.
-        const compactHeight = 188 + clamp((window.innerWidth - 1920) / 80, 0, 24);
+        const compactHeight = 172 + clamp((window.innerWidth - 1920) / 80, 0, 24);
         const height = Math.min(b.maxHeight, width < 700 ? 270 : Math.ceil(compactHeight));
         paint({ left: b.right - width, top: b.bottom - height, width, height });
     }

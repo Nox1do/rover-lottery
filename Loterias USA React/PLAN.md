@@ -56,3 +56,7 @@ Separar motivos mediante códigos estables, sin inferirlos a partir del texto. C
 1. Pruebas Firefox de motivos distintos e iconos, texto visible en móvil, estado ocupado y limpieza al cambiar el contexto.
 2. Añadir módulo `status.js`, etiquetar errores existentes y presentar cada estado sin modificar consultas, parsers ni escritura en Rover.
 3. Ejecutar suite completa, comprobar paridad y capturas, actualizar versión/documentación y publicar 0.0.5 con los mismos enlaces.
+
+## 0.0.6 — Restablecer con icono y botones más densos
+
+Sustituir el texto Compactar por flechas hacia dentro, con tooltip y nombre accesible de la función. Reducir padding, separación y tamaño de filas/columnas de loterías sin reducir la tipografía; fijar la altura de filas para que no se estiren. Mantener los objetivos táctiles de 44 px y restauración de ancho/alto desde el icono. Actualizar los selectores accesibles de las pruebas existentes, ejecutar la suite completa, revisar capturas y publicar con los mismos enlaces.

@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.0.6 — 2026-10-25
+
+- Sustituye el texto Compactar por un SVG de flechas hacia dentro, con tooltip y nombre accesible «Restablecer tamaño compacto».
+- Reduce relleno, separación y anchura de los botones de loterías; las filas ya no se estiran dejando espacio sobrante alrededor del texto.
+- Reduce la altura compacta inicial al espacio que necesitan las filas; conserva la tipografía 4K, las dos filas y el tamaño ajustable.
+- Mantiene botones táctiles de al menos 44 px en móvil y las funciones existentes de avisos y resaltado.
+
 ## 0.0.5 — 2026-10-25
 
 - Sustituye el error genérico compartido por 18 motivos con SVG y etiquetas propios: carga, completo, parcial, pendiente, fecha/contexto, tabla/fila, duplicados, bloqueo, red, timeout, fuente, respuesta inválida, cancelación y llenado no confirmado.

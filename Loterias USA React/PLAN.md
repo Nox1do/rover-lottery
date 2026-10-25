@@ -48,3 +48,11 @@ Comparar la variante React 0.0.3 contra el script base 0.6.7, sin modificar el p
 2. Módulo de realimentación visual independiente; aplicarlo después de verificar el estado de Rover, sin eventos adicionales ni escritura en APIs. Limpiar ante edición manual o cambio de contexto.
 3. Recuperar los elementos de presentación y diagnóstico; contrastar inventario/proveedores, documentar las diferencias intencionales de la adaptación React.
 4. Suite completa, capturas, release 0.0.4, revisión de cambios y verificación de GitHub/raw.
+
+## 0.0.5 — Estados e iconos claros
+
+Separar motivos mediante códigos estables, sin inferirlos a partir del texto. Catálogo central con SVG, etiqueta y tono para carga, éxito, parcial, pendiente, fecha, cambio de contexto, tabla/fila, duplicados, bloqueo, conexión, timeout, fuente, respuesta inválida, cancelación y verificación del llenado. Mostrar el mensaje con el nombre de la lotería en el pie de la barra y en el nombre accesible del botón; conservar tooltip detallado y colores semánticos. La X queda reservada para cerrar la barra.
+
+1. Pruebas Firefox de motivos distintos e iconos, texto visible en móvil, estado ocupado y limpieza al cambiar el contexto.
+2. Añadir módulo `status.js`, etiquetar errores existentes y presentar cada estado sin modificar consultas, parsers ni escritura en Rover.
+3. Ejecutar suite completa, comprobar paridad y capturas, actualizar versión/documentación y publicar 0.0.5 con los mismos enlaces.

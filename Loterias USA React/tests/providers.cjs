@@ -10,7 +10,7 @@ assert.match(script, /@name\s+Rovs Loterias USA React 0\.0\.1/, 'Falta el usersc
 const dom = new JSDOM('');
 Object.defineProperty(dom.window.HTMLElement.prototype, 'innerText', { get() { return this.textContent; } });
 const ctx = vm.createContext({ console, URL, Date, Intl, DOMParser: dom.window.DOMParser, GM_xmlhttpRequest() { throw Error('No network expected in parser tests'); } });
-const modules = ['config.js', 'helpers.js', 'providers.js'].map(f => fs.readFileSync(path.join(root, 'src', f), 'utf8')).join('\n');
+const modules = ['config.js', 'helpers.js', 'status.js', 'providers.js'].map(f => fs.readFileSync(path.join(root, 'src', f), 'utf8')).join('\n');
 vm.runInContext(modules + '\nthis.api={LOTERIAS,PROVIDERS,parseGeorgiaGame,parseIllinoisGame,parseLotteryUSA,parseCentralDate};', ctx);
 const { api } = ctx;
 const legacy = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/legacy-inventory.json'), 'utf8'));

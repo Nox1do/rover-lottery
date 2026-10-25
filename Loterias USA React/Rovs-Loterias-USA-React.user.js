@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterias USA React 0.0.1
 // @namespace    https://github.com/Nox1do/rover-lottery/Loterias-USA-React
-// @version      0.0.4
+// @version      0.0.5
 // @description  Barra manual de loterías USA para la tabla React de Rover. Solo llenado de formulario.
 // @author       noeg
 // @match        https://central.roversport.net/*
@@ -26,7 +26,7 @@
 
 (function () {
 'use strict';
-const APP_VERSION = "0.0.4";
+const APP_VERSION = "0.0.5";
 
 // --- src/config.js ---
     const LOTERIAS = [
@@ -506,8 +506,47 @@ function queryReport(config, provider, snapshot, result, state) {
 }
 
 
+// --- src/status.js ---
+// Un motivo, un icono y una etiqueta: los mensajes no se clasifican por su texto.
+const QUERY_STATES = Object.freeze({
+    idle: { label: '', tone: 'idle', icon: '' },
+    loading: { label: 'Consultando sorteo', tone: 'loading', icon: '<circle cx="12" cy="12" r="9" stroke-dasharray="42 15"/>' },
+    success: { label: 'Llenado completo', tone: 'success', icon: '<circle cx="12" cy="12" r="9"/><path d="m7 12 3 3 7-7"/>' },
+    partial: { label: 'Llenado parcial', tone: 'warning', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h9"/>' },
+    pending: { label: 'Resultado pendiente', tone: 'pending', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
+    date_required: { label: 'Fecha sin confirmar', tone: 'warning', icon: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 15h3"/>' },
+    context_changed: { label: 'Fecha o servidor cambió', tone: 'warning', icon: '<path d="M3 10a9 9 0 1 1 2 8M3 4v6h6M12 7v5l3 2"/>' },
+    rover_loading: { label: 'Cargando tabla de Rover', tone: 'warning', icon: '<path d="M20 7v5h-5M4 17v-5h5M20 12a8 8 0 0 0-14-5M4 12a8 8 0 0 0 14 5"/>' },
+    table_missing: { label: 'Tabla no disponible', tone: 'warning', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12M15 13v3M15 18v.1"/>' },
+    row_missing: { label: 'Fila no visible', tone: 'warning', icon: '<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M7 10h6"/>' },
+    row_duplicate: { label: 'Fila duplicada', tone: 'error', icon: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>' },
+    fields_locked: { label: 'Campos bloqueados', tone: 'warning', icon: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3"/>' },
+    network: { label: 'Sin conexión', tone: 'error', icon: '<path d="m3 3 18 18M2 8a17 17 0 0 1 4-2M10 4a17 17 0 0 1 12 4M5 12a11 11 0 0 1 4-2M13 10a11 11 0 0 1 6 2M8 16a5 5 0 0 1 8 0M12 20v.1"/>' },
+    timeout: { label: 'Tiempo agotado', tone: 'warning', icon: '<path d="M6 3h12M6 21h12M7 3v4l10 10v4M17 3v4L7 17v4"/>' },
+    source_error: { label: 'Fuente no disponible', tone: 'error', icon: '<path d="M6 18a5 5 0 0 1-1-10 7 7 0 0 1 13-1 5.5 5.5 0 0 1 2 10M12 10v4M12 17v.1"/>' },
+    invalid_response: { label: 'Respuesta inválida', tone: 'error', icon: '<path d="M14 2H5v20h14V7l-5-5v5h5M12 11v4M12 18v.1"/>' },
+    cancelled: { label: 'Consulta cancelada', tone: 'warning', icon: '<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>' },
+    unconfirmed: { label: 'Llenado no confirmado', tone: 'warning', icon: '<path d="M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6l-9-4M9 9a3 3 0 1 1 4 3v3M13 18v.1"/>' },
+    error: { label: 'Error inesperado', tone: 'error', icon: '<path d="m8 2-6 6v8l6 6h8l6-6V8l-6-6ZM12 7v6M12 17v.1"/>' }
+});
+
+function queryState(code) {
+    const key = Object.hasOwn(QUERY_STATES, code) ? code : 'error';
+    return { code: key, ...QUERY_STATES[key] };
+}
+function queryIcon(code) {
+    const state = queryState(code);
+    return state.icon ? `<svg viewBox="0 0 24 24" data-icon="${state.code}" aria-hidden="true">${state.icon}</svg>` : '';
+}
+function statusError(code, message) {
+    const error = new Error(message);
+    error.code = code;
+    return error;
+}
+
+
 // --- src/providers.js ---
-// Proveedores extraídos sin cambios de Rovs Loterías USA 0.6.7.
+// Proveedores de USA 0.6.7; solo se añaden códigos de error para la presentación.
     const PROVIDERS = Object.freeze({
         LOTTERYUSA: {
             name: 'LotteryUSA', labels: ['Pick 3', 'Pick 4'],
@@ -568,13 +607,13 @@ function queryReport(config, provider, snapshot, result, state) {
                 method: 'GET', timeout: 20000, ...options,
                 onload: response => {
                     if (response.status === 200) { resolve(response); return; }
-                    const error = new Error(`HTTP ${response.status}`);
+                    const error = statusError('source_error', `La fuente respondió HTTP ${response.status}. Intenta de nuevo más tarde.`);
                     error.status = response.status;
                     reject(error);
                 },
-                onerror: () => reject(new Error('Error de conexión')),
-                ontimeout: () => reject(new Error('Tiempo de espera agotado')),
-                onabort: () => reject(new Error('Solicitud cancelada'))
+                onerror: () => reject(statusError('network', 'No se pudo conectar con la fuente. Revisa tu conexión y vuelve a consultar.')),
+                ontimeout: () => reject(statusError('timeout', 'La fuente tardó demasiado. Vuelve a consultar.')),
+                onabort: () => reject(statusError('cancelled', 'La consulta se canceló. Puedes consultar otra vez.'))
             });
         });
     }
@@ -583,8 +622,8 @@ function queryReport(config, provider, snapshot, result, state) {
         const response = await requestWithGM(options);
         let data;
         try { data = JSON.parse(response.responseText); }
-        catch (_) { throw new Error('JSON inválido'); }
-        if (!validate(data)) throw new Error('Respuesta de API inválida');
+        catch (_) { throw statusError('invalid_response', 'JSON inválido'); }
+        if (!validate(data)) throw statusError('invalid_response', 'Respuesta de API inválida');
         return data;
     }
 
@@ -899,7 +938,7 @@ function queryReport(config, provider, snapshot, result, state) {
             const token = response.data.token;
             const minutes = Number(response.data.minutesToExpiration);
             if (typeof token !== 'string' || !token.trim() || !Number.isFinite(minutes) || minutes <= 0) {
-                throw new Error('La app no entregó una sesión válida');
+                throw statusError('source_error', 'La app no entregó una sesión válida');
             }
             ohioSession.token = token;
             ohioSession.expiresAt = Date.now() + minutes * 60000 * 0.99;
@@ -914,7 +953,7 @@ function queryReport(config, provider, snapshot, result, state) {
         const response = await requestOhioApi(url, { token });
         const gameId = gameName === 'Pick3' ? 13 : 14;
         if (response.data.drawGameId !== gameId || !Array.isArray(response.data.draws)) {
-            throw new Error(`${gameName}: respuesta de juego inválida`);
+            throw statusError('invalid_response', `${gameName}: respuesta de juego inválida`);
         }
         return response;
     }
@@ -1000,7 +1039,7 @@ function queryReport(config, provider, snapshot, result, state) {
         // La app pide 180 sorteos; el servicio limita cada página a 100.
         // Seguir solo las páginas necesarias para alcanzar la fecha de Rover.
         for (let page = 0; page < 3; page++) {
-            if (visited.has(url.href)) throw new Error(`${gameName}: paginación repetida`);
+            if (visited.has(url.href)) throw statusError('invalid_response', `${gameName}: paginación repetida`);
             visited.add(url.href);
             const data = await requestTennesseePage(url, gameName);
             draws.push(...data.draws);
@@ -1011,17 +1050,17 @@ function queryReport(config, provider, snapshot, result, state) {
             }
 
             if (typeof data.nextPageUrl !== 'string' || !data.nextPageUrl) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             const next = new URL(data.nextPageUrl, TENNESSEE_API.origin);
             // La cabecera de la app se envía únicamente a este servicio y juego.
             if (next.origin !== TENNESSEE_API.origin || next.pathname !== TENNESSEE_API.drawPath ||
                 next.username || next.password || next.searchParams.get('game-names') !== gameName) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             url = next;
         }
-        throw new Error(`${gameName}: historial incompleto`);
+        throw statusError('invalid_response', `${gameName}: historial incompleto`);
     }
 
     function requestTennesseePage(pageUrl, gameName) {
@@ -1098,7 +1137,7 @@ function queryReport(config, provider, snapshot, result, state) {
         // La app pide 180 sorteos; el servicio limita cada página a 100.
         // Seguir solo las páginas necesarias para alcanzar la fecha de Rover.
         for (let page = 0; page < 3; page++) {
-            if (visited.has(url.href)) throw new Error(`${gameName}: paginación repetida`);
+            if (visited.has(url.href)) throw statusError('invalid_response', `${gameName}: paginación repetida`);
             visited.add(url.href);
             const data = await requestIndianaPage(url, gameName);
             draws.push(...data.draws);
@@ -1109,7 +1148,7 @@ function queryReport(config, provider, snapshot, result, state) {
             }
 
             if (typeof data.nextPageUrl !== 'string' || !data.nextPageUrl) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             const next = new URL(data.nextPageUrl, INDIANA_API.origin);
             // El parámetro de caché no identifica una página distinta.
@@ -1117,11 +1156,11 @@ function queryReport(config, provider, snapshot, result, state) {
             // La cabecera de la app se envía únicamente a este servicio y juego.
             if (next.origin !== INDIANA_API.origin || next.pathname !== INDIANA_API.drawPath ||
                 next.username || next.password || next.searchParams.get('game-names') !== gameName) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             url = next;
         }
-        throw new Error(`${gameName}: historial incompleto`);
+        throw statusError('invalid_response', `${gameName}: historial incompleto`);
     }
 
     function requestIndianaPage(pageUrl, gameName) {
@@ -1194,7 +1233,7 @@ function queryReport(config, provider, snapshot, result, state) {
         const draws = [], visited = new Set();
 
         for (let page = 0; page < 3; page++) {
-            if (visited.has(url.href)) throw new Error(`${gameName}: paginación repetida`);
+            if (visited.has(url.href)) throw statusError('invalid_response', `${gameName}: paginación repetida`);
             visited.add(url.href);
             const data = await requestGeorgiaPage(url, gameName);
             draws.push(...data.draws);
@@ -1204,18 +1243,18 @@ function queryReport(config, provider, snapshot, result, state) {
                 return { draws };
             }
             if (typeof data.nextPageUrl !== 'string' || !data.nextPageUrl) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             // URL codifica también los espacios de CASH 3 y CASH 4.
             const next = new URL(data.nextPageUrl, GEORGIA_API.origin);
             next.searchParams.delete('_');
             if (next.origin !== GEORGIA_API.origin || next.pathname !== GEORGIA_API.drawPath ||
                 next.username || next.password || next.searchParams.get('game-names') !== gameName) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             url = next;
         }
-        throw new Error(`${gameName}: historial incompleto`);
+        throw statusError('invalid_response', `${gameName}: historial incompleto`);
     }
 
     function requestGeorgiaPage(pageUrl, gameName) {
@@ -1278,10 +1317,10 @@ function queryReport(config, provider, snapshot, result, state) {
         const doc = new DOMParser().parseFromString(response.responseText, 'text/html');
         let config;
         try { config = JSON.parse(doc.querySelector('#client-data')?.textContent || '').__exc_server_config__; }
-        catch (_) { throw new Error('Respuesta de Illinois inválida'); }
+        catch (_) { throw statusError('invalid_response', 'Respuesta de Illinois inválida'); }
         if (doc.body.id !== `dbg-results-${gameCode}` || config?.gameCode !== gameCode ||
             config.dateFrom !== dateKey || config.dateTo !== dateKey) {
-            throw new Error('Respuesta de Illinois inválida');
+            throw statusError('invalid_response', 'Respuesta de Illinois inválida');
         }
         return doc;
     }
@@ -1376,20 +1415,25 @@ function createRoverAdapter(onChange) {
 
     function capture() {
         const current = sync();
-        if (!current.ready) throw new Error(current.message || 'Abre Ver resultados en Rover.');
+        if (!current.ready) {
+            const code = !current.active || (current.dateKey && !current.table) ? 'table_missing' : current.search?.disabled ? 'rover_loading' : 'date_required';
+            throw statusError(code, current.message || 'Abre Ver resultados en Rover.');
+        }
         return { epoch, dateKey: current.dateKey, date: new Date(current.date.getTime()), server: current.server };
     }
 
     function assertCurrent(snapshot) {
-        const current = capture();
-        if (snapshot.epoch !== current.epoch || snapshot.dateKey !== current.dateKey || snapshot.server !== current.server) {
-            throw new Error('Cambió la fecha o el servidor. Consulta esta lotería otra vez.');
+        const current = sync();
+        const selectedDate = current.date && formatLocalDateKey(current.date);
+        if (snapshot.epoch !== current.epoch || snapshot.dateKey !== selectedDate || snapshot.server !== current.server || !current.active) {
+            throw statusError('context_changed', 'Cambió la fecha o el servidor. Consulta esta lotería otra vez.');
         }
+        if (!current.ready) throw statusError('table_missing', 'La tabla no está disponible. Pulsa Buscar en Rover.');
     }
 
     function findFields(config) {
         const table = resultTable();
-        if (!table) throw new Error('No se reconoce la tabla de resultados.');
+        if (!table) throw statusError('table_missing', 'No se reconoce la tabla de resultados. Pulsa Buscar en Rover.');
         const headers = [...table.querySelectorAll('thead th')].map(th => normalizeLabel(th.textContent));
         const rows = [...table.querySelectorAll('tbody tr')].filter(row => {
             const first = row.querySelector('td');
@@ -1397,10 +1441,10 @@ function createRoverAdapter(onChange) {
             const code = first?.querySelector('[data-slot="badge"]')?.textContent;
             return normalizeLabel(name) === normalizeLabel(config.nombreFila) && String(code || '').trim() === config.codigo;
         });
-        if (rows.length !== 1) throw new Error(rows.length ? 'Hay más de una fila para esta lotería.' : 'La lotería no está visible. Revisa la fecha y el filtro de Rover.');
+        if (rows.length !== 1) throw statusError(rows.length ? 'row_duplicate' : 'row_missing', rows.length ? 'Hay más de una fila para esta lotería. Revisa la tabla.' : 'La lotería no está visible. Revisa la fecha y el filtro de Rover.');
         const cells = [...rows[0].children];
         const fields = Object.fromEntries(Object.entries(columns).map(([name, header]) => [name, cells[headers.indexOf(header)]?.querySelector('input')]));
-        if (Object.values(fields).some(input => !input || input.disabled || input.readOnly)) throw new Error('Los campos de esta lotería no están disponibles para editar.');
+        if (Object.values(fields).some(input => !input || input.disabled || input.readOnly)) throw statusError('fields_locked', 'Los campos de esta lotería no están disponibles para editar.');
         return fields;
     }
 
@@ -1409,11 +1453,11 @@ function createRoverAdapter(onChange) {
         findFields(config); // Validar todos los campos antes de la primera escritura.
         const expected = {}, picks = [];
         if (result.p3 != null) {
-            if (!/^\d{3}$/.test(result.p3)) throw new Error('Pick 3 inválido.');
+            if (!/^\d{3}$/.test(result.p3)) throw statusError('invalid_response', 'Pick 3 inválido.');
             expected.pick3 = result.p3; expected.primera = result.p3.slice(-2); picks.push('pick3');
         }
         if (result.p4 != null) {
-            if (!/^\d{4}$/.test(result.p4)) throw new Error('Pick 4 inválido.');
+            if (!/^\d{4}$/.test(result.p4)) throw statusError('invalid_response', 'Pick 4 inválido.');
             expected.pick4 = result.p4; expected.segunda = result.p4.slice(0, 2); expected.tercera = result.p4.slice(-2); picks.push('pick4');
         }
         for (const key of picks) {
@@ -1428,7 +1472,7 @@ function createRoverAdapter(onChange) {
         }
         assertCurrent(snapshot);
         const fields = findFields(config);
-        if (Object.entries(expected).some(([key, value]) => fields[key].value !== value)) throw new Error('Rover no conservó todos los valores. Revisa la fila antes de procesar.');
+        if (Object.entries(expected).some(([key, value]) => fields[key].value !== value)) throw statusError('unconfirmed', 'Rover no conservó todos los valores. Revisa la fila antes de procesar.');
         return expected;
     }
     return { capture, assertCurrent, findFields, fill };
@@ -1505,15 +1549,23 @@ function createInterface(onQuery) {
       .rlur-search-wrap { min-width: 0; }
       #rlur-search { width: 100%; min-height: 38px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; padding: 6px 9px; }
       .rlur-version { display: block; margin-top: 3px; font-size: var(--rlur-small); font-weight: 700; color: #c45b62; }
-      #rlur-context { flex-shrink: 0; font-size: var(--rlur-small); line-height: 1.4; color: var(--muted-foreground, #64748b); max-height: 42px; overflow: auto; overflow-wrap: anywhere; }
+      #rlur-context { flex-shrink: 0; font-size: var(--rlur-small); line-height: 1.4; color: var(--muted-foreground, #64748b); max-height: 64px; overflow: auto; overflow-wrap: anywhere; display: flex; gap: 6px; align-items: start; }
+      #rlur-context svg { flex-shrink: 0; width: 1.25em; height: 1.25em; margin-top: 1px; }
+      #rlur-context[data-tone="error"] { color: #b91c1c; }
+      #rlur-context[data-tone="warning"] { color: #92400e; }
+      #rlur-context[data-tone="success"] { color: #047857; }
+      .dark #rlur-context[data-tone="error"] { color: #fca5a5; }
+      .dark #rlur-context[data-tone="warning"] { color: #fcd34d; }
+      .dark #rlur-context[data-tone="success"] { color: #6ee7b7; }
       .rlur-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(160px, 10vw, 240px)), 1fr)); grid-auto-rows: var(--rlur-row); gap: 6px; overflow-y: auto; overflow-x: hidden; min-height: 0; min-width: 0; flex: 1; padding: 2px; align-content: start; scrollbar-width: thin; overscroll-behavior: contain; }
       .rlur-lottery { display: flex; gap: 7px; align-items: center; justify-content: space-between; padding: 5px 9px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; text-align: left; min-height: 44px; min-width: 0; }
       .rlur-lottery > span:first-child { overflow: hidden; text-overflow: ellipsis; }
       .rlur-lottery:hover { background: var(--muted, #f1f5f9); }
       .rlur-lottery[data-status="success"] { border-color: #10b981; }
       .rlur-lottery[data-status="error"] { border-color: #d97777; }
-      .rlur-status { display: inline-flex; flex-shrink: 0; width: 1em; height: 1em; color: var(--muted-foreground, #64748b); }
-      [data-status="loading"] .rlur-status { border: 2px solid var(--border, #cbd5e1); border-top-color: var(--foreground, #0f172a); border-radius: 50%; animation: rlur-spin .8s linear infinite; }
+      .rlur-status { display: inline-flex; flex-shrink: 0; width: 1.25em; height: 1.25em; min-width: 18px; min-height: 18px; color: var(--muted-foreground, #64748b); }
+      #rlur-host .rlur-status svg { width: 100%; height: 100%; stroke-width: 2; }
+      [data-status="loading"] .rlur-status { animation: rlur-spin .8s linear infinite; }
       [data-status="success"] .rlur-status { color: #059669; }
       [data-status="error"] .rlur-status { color: #c45b62; }
       [data-status="warning"] .rlur-status { color: #b45309; }
@@ -1564,13 +1616,12 @@ function createInterface(onQuery) {
     const icons = {
         day: '<circle cx="7" cy="7" r="2.5"/><path d="M7 0v1M7 13v1M0 7h1M13 7h1M2 2l1 1M11 11l1 1M2 12l1-1M11 3l1-1"/>',
         night: '<path d="M11.7 8.4A5.3 5.3 0 0 1 5.6 2.3 5.3 5.3 0 1 0 11.7 8.4Z"/>',
-        success: '<path d="m2 7 3 3 7-7"/>', error: '<path d="m3 3 8 8M11 3l-8 8"/>',
-        warning: '<path d="M7 2 13 12H1Z M7 5v3 M7 10v.1"/>', pending: '<circle cx="7" cy="7" r="5"/><path d="M3.5 10.5 10.5 3.5"/>',
         panel: '<rect x="1" y="2" width="12" height="10" rx="2"/><path d="M1 8h12"/>'
     };
     const svg = key => `<svg viewBox="0 0 14 14" aria-hidden="true">${icons[key] || ''}</svg>`;
     let category = 'DIA', open = false;
     const categoryButtons = new Map(), buttons = new Map();
+    let notice = false;
     for (const [id, label, icon] of [['DIA', 'Día', 'day'], ['NOCHE', 'Noche', 'night']]) {
         const button = document.createElement('button'); button.type = 'button'; button.dataset.category = id;
         button.innerHTML = svg(icon); button.append(document.createTextNode(' ' + label));
@@ -1586,7 +1637,7 @@ function createInterface(onQuery) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'rlur-lottery'; button.dataset.lotteryId = config.id;
         const label = document.createElement('span'); label.textContent = config.nombreMenu;
         const status = document.createElement('span'); status.className = 'rlur-status'; button.append(label, status);
-        button.onclick = () => onQuery(config); button.dataset.status = 'idle'; buttons.set(config.id, button); grid.append(button);
+        button.onclick = () => onQuery(config); button.dataset.status = 'idle'; button.dataset.statusCode = 'idle'; button.setAttribute('aria-label', config.nombreMenu); buttons.set(config.id, button); grid.append(button);
     }
     function filter() {
         bar.dataset.period = category; grid.scrollLeft = grid.scrollTop = 0;
@@ -1679,14 +1730,30 @@ function createInterface(onQuery) {
     window.addEventListener('resize', fitViewport);
     window.visualViewport?.addEventListener('resize', fitViewport);
     window.visualViewport?.addEventListener('scroll', fitViewport);
-    function setStatus(id, state, message = '') {
-        const button = buttons.get(id); button.dataset.status = state; button.disabled = state === 'loading'; button.title = message;
-        button.querySelector('.rlur-status').innerHTML = state === 'loading' || state === 'idle' ? '' : svg(state);
+    function setStatus(id, code, message = '') {
+        const state = queryState(code), button = buttons.get(id);
+        const config = LOTERIAS.find(config => config.id === id);
+        button.dataset.status = state.tone; button.dataset.statusCode = state.code;
+        button.disabled = state.code === 'loading'; button.title = [state.label, message].filter(Boolean).join(' · ');
+        button.setAttribute('aria-busy', String(state.code === 'loading'));
+        button.setAttribute('aria-label', config.nombreMenu + (state.label ? ' — ' + state.label : ''));
+        button.querySelector('.rlur-status').innerHTML = queryIcon(state.code);
+        if (state.code === 'idle') return;
+        notice = true; context.dataset.tone = state.tone; context.dataset.statusCode = state.code;
+        context.innerHTML = queryIcon(state.code);
+        const text = document.createElement('span');
+        text.textContent = `${config.nombreMenu} · ${state.label}${message ? ' · ' + message : ''}`;
+        context.append(text); context.scrollTop = 0;
     }
     let previousEpoch = -1;
     function setContext(view) {
-        bar.hidden = toggle.hidden = !view.active; context.textContent = view.message; context.dataset.ready = String(view.ready);
-        if (previousEpoch !== view.epoch) { feedback.clear(); for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
+        bar.hidden = toggle.hidden = !view.active; context.dataset.ready = String(view.ready);
+        if (previousEpoch !== view.epoch) { notice = false; feedback.clear(); for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
+        if (view.ready && context.dataset.statusCode === 'rover_loading') {
+            notice = false;
+            for (const [id, button] of buttons) if (button.dataset.statusCode === 'rover_loading') setStatus(id, 'idle');
+        }
+        if (!notice) { context.textContent = view.message; delete context.dataset.tone; delete context.dataset.statusCode; }
     }
     return { setStatus, setContext, highlightFields: feedback.highlight };
 }
@@ -1702,7 +1769,7 @@ const rover = createRoverAdapter(ui.setContext);
 async function runQuery(config) {
     if (running.has(config.id)) return;
     const token = Symbol(); running.set(config.id, token);
-    ui.setStatus(config.id, 'loading', 'Consultando sorteo…');
+    ui.setStatus(config.id, 'loading');
     let snapshot, provider, result;
     const details = message => [snapshot?.dateKey, config.sorteo, message, result?.source || provider?.name || config.fuente].filter(Boolean).join(' · ');
     const report = state => console.table(queryReport(config, provider, snapshot, result, state));
@@ -1710,7 +1777,7 @@ async function runQuery(config) {
         snapshot = rover.capture();
         rover.findFields(config);
         provider = PROVIDERS[config.fuente];
-        if (!provider) throw new Error('Fuente de resultados no disponible.');
+        if (!provider) throw statusError('source_error', 'Fuente de resultados no disponible.');
         result = await provider.consultar(config, snapshot.date);
         rover.assertCurrent(snapshot);
         if (!result.p3 && !result.p4) {
@@ -1723,13 +1790,14 @@ async function runQuery(config) {
         const fields = rover.findFields(config);
         ui.highlightFields(Object.keys(expected).map(key => fields[key]));
         const missing = result.requiredGames.filter(key => !result[key]);
-        const state = missing.length ? 'warning' : 'success';
+        const state = missing.length ? 'partial' : 'success';
         const message = missing.length ? `Resultado parcial: falta ${missing.map(key => provider.labels[key === 'p3' ? 0 : 1]).join(', ')}.` : 'Completado. Revisa la fila antes de procesar.';
         ui.setStatus(config.id, state, details(message));
         report(message);
     } catch (error) {
-        const message = error instanceof Error ? error.message : 'No se pudo completar la consulta.';
-        ui.setStatus(config.id, 'error', details(message)); report(message);
+        const code = queryState(error?.code).code;
+        const message = code === 'error' ? 'No se pudo completar la consulta. Intenta nuevamente.' : error.message;
+        ui.setStatus(config.id, code, details(message)); report(message);
         console.error(`[Rovs Loterias USA React] ${config.nombreFila}: ${message}`);
     } finally { if (running.get(config.id) === token) running.delete(config.id); }
 }

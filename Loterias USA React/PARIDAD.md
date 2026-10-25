@@ -32,6 +32,10 @@ El verde se aplica después de que Rover conserve los valores. Un parcial Pick 3
 - Durante la consulta se deshabilita el botón para evitar duplicados; las escrituras de distintas loterías se ordenan en una cola.
 - La publicación sigue siendo manual. No se llaman APIs de Rover ni se pulsa Procesar.
 
+## Actualización 0.0.5: presentación de avisos
+
+La auditoría de 0.0.4 contrastó las 41 funciones originales. En 0.0.5 se añaden códigos a las excepciones del transporte y de validación para distinguir los avisos; los endpoints, parámetros, parsers y estrategias de consulta se conservan. La presentación usa el catálogo de [ESTADOS.md](ESTADOS.md), sin reutilizar una X para motivos diferentes. Se mantienen verde/negrita y la prueba de inventario de las 75 configuraciones.
+
 ## Verificación
 
 Inventario de referencia en `tests/fixtures/legacy-inventory.json`. Pruebas de proveedores y Firefox con React controlado: cinco campos verdes, fin del efecto sin alterar colores, repetición del efecto, edición manual, parciales de ambos tipos, cambio de contexto, banderas/acentos/orden y diagnósticos de éxito/pendiente/error, además de los casos previos de fecha, identidad y tamaños.

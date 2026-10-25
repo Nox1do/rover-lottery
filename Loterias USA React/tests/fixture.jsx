@@ -26,6 +26,7 @@ function App() {
   window.fixtureValues = (code, fields) => setValues(old => ({ ...old, [code]: { ...old[code], ...fields } }));
   window.fixtureDuplicate = false;
   function change(code, key, raw) {
+    if (window.fixtureIgnoreInput) return;
     setValues(old => {
       const row = { ...old[code] }, value = raw.replace(/[^A-Za-z0-9]/g, '').slice(0, key.startsWith('pick') ? 4 : 2);
       row[key] = value;
@@ -39,7 +40,7 @@ function App() {
   return <main data-tick={tick}>
     <h1>Ver resultados</h1>
     <button title="Servidor cuyos datos se están viendo" onClick={window.fixtureServer}>{server}</button>
-    <form onSubmit={event => { event.preventDefault(); setBusy(true); setTimeout(() => { setLoaded(selected); setBusy(false); setValues(initial()); }, 90); }}>
+    <form onSubmit={event => { event.preventDefault(); setBusy(true); setTimeout(() => { setLoaded(selected); setBusy(false); setValues(initial()); }, window.fixtureLoadDelay || 90); }}>
       <label>Fecha</label><button type="button" aria-haspopup="dialog" onClick={() => setSelected(selected === '24 oct 2026' ? '23 oct 2026' : '24 oct 2026')}>{selected}</button>
       <button type="submit" disabled={busy}>Buscar</button>
     </form>

@@ -1,4 +1,4 @@
-// Proveedores extraídos sin cambios de Rovs Loterías USA 0.6.7.
+// Proveedores de USA 0.6.7; solo se añaden códigos de error para la presentación.
     const PROVIDERS = Object.freeze({
         LOTTERYUSA: {
             name: 'LotteryUSA', labels: ['Pick 3', 'Pick 4'],
@@ -59,13 +59,13 @@
                 method: 'GET', timeout: 20000, ...options,
                 onload: response => {
                     if (response.status === 200) { resolve(response); return; }
-                    const error = new Error(`HTTP ${response.status}`);
+                    const error = statusError('source_error', `La fuente respondió HTTP ${response.status}. Intenta de nuevo más tarde.`);
                     error.status = response.status;
                     reject(error);
                 },
-                onerror: () => reject(new Error('Error de conexión')),
-                ontimeout: () => reject(new Error('Tiempo de espera agotado')),
-                onabort: () => reject(new Error('Solicitud cancelada'))
+                onerror: () => reject(statusError('network', 'No se pudo conectar con la fuente. Revisa tu conexión y vuelve a consultar.')),
+                ontimeout: () => reject(statusError('timeout', 'La fuente tardó demasiado. Vuelve a consultar.')),
+                onabort: () => reject(statusError('cancelled', 'La consulta se canceló. Puedes consultar otra vez.'))
             });
         });
     }
@@ -74,8 +74,8 @@
         const response = await requestWithGM(options);
         let data;
         try { data = JSON.parse(response.responseText); }
-        catch (_) { throw new Error('JSON inválido'); }
-        if (!validate(data)) throw new Error('Respuesta de API inválida');
+        catch (_) { throw statusError('invalid_response', 'JSON inválido'); }
+        if (!validate(data)) throw statusError('invalid_response', 'Respuesta de API inválida');
         return data;
     }
 
@@ -390,7 +390,7 @@
             const token = response.data.token;
             const minutes = Number(response.data.minutesToExpiration);
             if (typeof token !== 'string' || !token.trim() || !Number.isFinite(minutes) || minutes <= 0) {
-                throw new Error('La app no entregó una sesión válida');
+                throw statusError('source_error', 'La app no entregó una sesión válida');
             }
             ohioSession.token = token;
             ohioSession.expiresAt = Date.now() + minutes * 60000 * 0.99;
@@ -405,7 +405,7 @@
         const response = await requestOhioApi(url, { token });
         const gameId = gameName === 'Pick3' ? 13 : 14;
         if (response.data.drawGameId !== gameId || !Array.isArray(response.data.draws)) {
-            throw new Error(`${gameName}: respuesta de juego inválida`);
+            throw statusError('invalid_response', `${gameName}: respuesta de juego inválida`);
         }
         return response;
     }
@@ -491,7 +491,7 @@
         // La app pide 180 sorteos; el servicio limita cada página a 100.
         // Seguir solo las páginas necesarias para alcanzar la fecha de Rover.
         for (let page = 0; page < 3; page++) {
-            if (visited.has(url.href)) throw new Error(`${gameName}: paginación repetida`);
+            if (visited.has(url.href)) throw statusError('invalid_response', `${gameName}: paginación repetida`);
             visited.add(url.href);
             const data = await requestTennesseePage(url, gameName);
             draws.push(...data.draws);
@@ -502,17 +502,17 @@
             }
 
             if (typeof data.nextPageUrl !== 'string' || !data.nextPageUrl) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             const next = new URL(data.nextPageUrl, TENNESSEE_API.origin);
             // La cabecera de la app se envía únicamente a este servicio y juego.
             if (next.origin !== TENNESSEE_API.origin || next.pathname !== TENNESSEE_API.drawPath ||
                 next.username || next.password || next.searchParams.get('game-names') !== gameName) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             url = next;
         }
-        throw new Error(`${gameName}: historial incompleto`);
+        throw statusError('invalid_response', `${gameName}: historial incompleto`);
     }
 
     function requestTennesseePage(pageUrl, gameName) {
@@ -589,7 +589,7 @@
         // La app pide 180 sorteos; el servicio limita cada página a 100.
         // Seguir solo las páginas necesarias para alcanzar la fecha de Rover.
         for (let page = 0; page < 3; page++) {
-            if (visited.has(url.href)) throw new Error(`${gameName}: paginación repetida`);
+            if (visited.has(url.href)) throw statusError('invalid_response', `${gameName}: paginación repetida`);
             visited.add(url.href);
             const data = await requestIndianaPage(url, gameName);
             draws.push(...data.draws);
@@ -600,7 +600,7 @@
             }
 
             if (typeof data.nextPageUrl !== 'string' || !data.nextPageUrl) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             const next = new URL(data.nextPageUrl, INDIANA_API.origin);
             // El parámetro de caché no identifica una página distinta.
@@ -608,11 +608,11 @@
             // La cabecera de la app se envía únicamente a este servicio y juego.
             if (next.origin !== INDIANA_API.origin || next.pathname !== INDIANA_API.drawPath ||
                 next.username || next.password || next.searchParams.get('game-names') !== gameName) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             url = next;
         }
-        throw new Error(`${gameName}: historial incompleto`);
+        throw statusError('invalid_response', `${gameName}: historial incompleto`);
     }
 
     function requestIndianaPage(pageUrl, gameName) {
@@ -685,7 +685,7 @@
         const draws = [], visited = new Set();
 
         for (let page = 0; page < 3; page++) {
-            if (visited.has(url.href)) throw new Error(`${gameName}: paginación repetida`);
+            if (visited.has(url.href)) throw statusError('invalid_response', `${gameName}: paginación repetida`);
             visited.add(url.href);
             const data = await requestGeorgiaPage(url, gameName);
             draws.push(...data.draws);
@@ -695,18 +695,18 @@
                 return { draws };
             }
             if (typeof data.nextPageUrl !== 'string' || !data.nextPageUrl) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             // URL codifica también los espacios de CASH 3 y CASH 4.
             const next = new URL(data.nextPageUrl, GEORGIA_API.origin);
             next.searchParams.delete('_');
             if (next.origin !== GEORGIA_API.origin || next.pathname !== GEORGIA_API.drawPath ||
                 next.username || next.password || next.searchParams.get('game-names') !== gameName) {
-                throw new Error(`${gameName}: paginación inválida`);
+                throw statusError('invalid_response', `${gameName}: paginación inválida`);
             }
             url = next;
         }
-        throw new Error(`${gameName}: historial incompleto`);
+        throw statusError('invalid_response', `${gameName}: historial incompleto`);
     }
 
     function requestGeorgiaPage(pageUrl, gameName) {
@@ -769,10 +769,10 @@
         const doc = new DOMParser().parseFromString(response.responseText, 'text/html');
         let config;
         try { config = JSON.parse(doc.querySelector('#client-data')?.textContent || '').__exc_server_config__; }
-        catch (_) { throw new Error('Respuesta de Illinois inválida'); }
+        catch (_) { throw statusError('invalid_response', 'Respuesta de Illinois inválida'); }
         if (doc.body.id !== `dbg-results-${gameCode}` || config?.gameCode !== gameCode ||
             config.dateFrom !== dateKey || config.dateTo !== dateKey) {
-            throw new Error('Respuesta de Illinois inválida');
+            throw statusError('invalid_response', 'Respuesta de Illinois inválida');
         }
         return doc;
     }

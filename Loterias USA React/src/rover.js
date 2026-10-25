@@ -64,20 +64,25 @@ function createRoverAdapter(onChange) {
 
     function capture() {
         const current = sync();
-        if (!current.ready) throw new Error(current.message || 'Abre Ver resultados en Rover.');
+        if (!current.ready) {
+            const code = !current.active || (current.dateKey && !current.table) ? 'table_missing' : current.search?.disabled ? 'rover_loading' : 'date_required';
+            throw statusError(code, current.message || 'Abre Ver resultados en Rover.');
+        }
         return { epoch, dateKey: current.dateKey, date: new Date(current.date.getTime()), server: current.server };
     }
 
     function assertCurrent(snapshot) {
-        const current = capture();
-        if (snapshot.epoch !== current.epoch || snapshot.dateKey !== current.dateKey || snapshot.server !== current.server) {
-            throw new Error('Cambió la fecha o el servidor. Consulta esta lotería otra vez.');
+        const current = sync();
+        const selectedDate = current.date && formatLocalDateKey(current.date);
+        if (snapshot.epoch !== current.epoch || snapshot.dateKey !== selectedDate || snapshot.server !== current.server || !current.active) {
+            throw statusError('context_changed', 'Cambió la fecha o el servidor. Consulta esta lotería otra vez.');
         }
+        if (!current.ready) throw statusError('table_missing', 'La tabla no está disponible. Pulsa Buscar en Rover.');
     }
 
     function findFields(config) {
         const table = resultTable();
-        if (!table) throw new Error('No se reconoce la tabla de resultados.');
+        if (!table) throw statusError('table_missing', 'No se reconoce la tabla de resultados. Pulsa Buscar en Rover.');
         const headers = [...table.querySelectorAll('thead th')].map(th => normalizeLabel(th.textContent));
         const rows = [...table.querySelectorAll('tbody tr')].filter(row => {
             const first = row.querySelector('td');
@@ -85,10 +90,10 @@ function createRoverAdapter(onChange) {
             const code = first?.querySelector('[data-slot="badge"]')?.textContent;
             return normalizeLabel(name) === normalizeLabel(config.nombreFila) && String(code || '').trim() === config.codigo;
         });
-        if (rows.length !== 1) throw new Error(rows.length ? 'Hay más de una fila para esta lotería.' : 'La lotería no está visible. Revisa la fecha y el filtro de Rover.');
+        if (rows.length !== 1) throw statusError(rows.length ? 'row_duplicate' : 'row_missing', rows.length ? 'Hay más de una fila para esta lotería. Revisa la tabla.' : 'La lotería no está visible. Revisa la fecha y el filtro de Rover.');
         const cells = [...rows[0].children];
         const fields = Object.fromEntries(Object.entries(columns).map(([name, header]) => [name, cells[headers.indexOf(header)]?.querySelector('input')]));
-        if (Object.values(fields).some(input => !input || input.disabled || input.readOnly)) throw new Error('Los campos de esta lotería no están disponibles para editar.');
+        if (Object.values(fields).some(input => !input || input.disabled || input.readOnly)) throw statusError('fields_locked', 'Los campos de esta lotería no están disponibles para editar.');
         return fields;
     }
 
@@ -97,11 +102,11 @@ function createRoverAdapter(onChange) {
         findFields(config); // Validar todos los campos antes de la primera escritura.
         const expected = {}, picks = [];
         if (result.p3 != null) {
-            if (!/^\d{3}$/.test(result.p3)) throw new Error('Pick 3 inválido.');
+            if (!/^\d{3}$/.test(result.p3)) throw statusError('invalid_response', 'Pick 3 inválido.');
             expected.pick3 = result.p3; expected.primera = result.p3.slice(-2); picks.push('pick3');
         }
         if (result.p4 != null) {
-            if (!/^\d{4}$/.test(result.p4)) throw new Error('Pick 4 inválido.');
+            if (!/^\d{4}$/.test(result.p4)) throw statusError('invalid_response', 'Pick 4 inválido.');
             expected.pick4 = result.p4; expected.segunda = result.p4.slice(0, 2); expected.tercera = result.p4.slice(-2); picks.push('pick4');
         }
         for (const key of picks) {
@@ -116,7 +121,7 @@ function createRoverAdapter(onChange) {
         }
         assertCurrent(snapshot);
         const fields = findFields(config);
-        if (Object.entries(expected).some(([key, value]) => fields[key].value !== value)) throw new Error('Rover no conservó todos los valores. Revisa la fila antes de procesar.');
+        if (Object.entries(expected).some(([key, value]) => fields[key].value !== value)) throw statusError('unconfirmed', 'Rover no conservó todos los valores. Revisa la fila antes de procesar.');
         return expected;
     }
     return { capture, assertCurrent, findFields, fill };

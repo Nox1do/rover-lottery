@@ -27,15 +27,23 @@ function createInterface(onQuery) {
       .rlur-search-wrap { min-width: 0; }
       #rlur-search { width: 100%; min-height: 38px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; padding: 6px 9px; }
       .rlur-version { display: block; margin-top: 3px; font-size: var(--rlur-small); font-weight: 700; color: #c45b62; }
-      #rlur-context { flex-shrink: 0; font-size: var(--rlur-small); line-height: 1.4; color: var(--muted-foreground, #64748b); max-height: 42px; overflow: auto; overflow-wrap: anywhere; }
+      #rlur-context { flex-shrink: 0; font-size: var(--rlur-small); line-height: 1.4; color: var(--muted-foreground, #64748b); max-height: 64px; overflow: auto; overflow-wrap: anywhere; display: flex; gap: 6px; align-items: start; }
+      #rlur-context svg { flex-shrink: 0; width: 1.25em; height: 1.25em; margin-top: 1px; }
+      #rlur-context[data-tone="error"] { color: #b91c1c; }
+      #rlur-context[data-tone="warning"] { color: #92400e; }
+      #rlur-context[data-tone="success"] { color: #047857; }
+      .dark #rlur-context[data-tone="error"] { color: #fca5a5; }
+      .dark #rlur-context[data-tone="warning"] { color: #fcd34d; }
+      .dark #rlur-context[data-tone="success"] { color: #6ee7b7; }
       .rlur-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(160px, 10vw, 240px)), 1fr)); grid-auto-rows: var(--rlur-row); gap: 6px; overflow-y: auto; overflow-x: hidden; min-height: 0; min-width: 0; flex: 1; padding: 2px; align-content: start; scrollbar-width: thin; overscroll-behavior: contain; }
       .rlur-lottery { display: flex; gap: 7px; align-items: center; justify-content: space-between; padding: 5px 9px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; text-align: left; min-height: 44px; min-width: 0; }
       .rlur-lottery > span:first-child { overflow: hidden; text-overflow: ellipsis; }
       .rlur-lottery:hover { background: var(--muted, #f1f5f9); }
       .rlur-lottery[data-status="success"] { border-color: #10b981; }
       .rlur-lottery[data-status="error"] { border-color: #d97777; }
-      .rlur-status { display: inline-flex; flex-shrink: 0; width: 1em; height: 1em; color: var(--muted-foreground, #64748b); }
-      [data-status="loading"] .rlur-status { border: 2px solid var(--border, #cbd5e1); border-top-color: var(--foreground, #0f172a); border-radius: 50%; animation: rlur-spin .8s linear infinite; }
+      .rlur-status { display: inline-flex; flex-shrink: 0; width: 1.25em; height: 1.25em; min-width: 18px; min-height: 18px; color: var(--muted-foreground, #64748b); }
+      #rlur-host .rlur-status svg { width: 100%; height: 100%; stroke-width: 2; }
+      [data-status="loading"] .rlur-status { animation: rlur-spin .8s linear infinite; }
       [data-status="success"] .rlur-status { color: #059669; }
       [data-status="error"] .rlur-status { color: #c45b62; }
       [data-status="warning"] .rlur-status { color: #b45309; }
@@ -86,13 +94,12 @@ function createInterface(onQuery) {
     const icons = {
         day: '<circle cx="7" cy="7" r="2.5"/><path d="M7 0v1M7 13v1M0 7h1M13 7h1M2 2l1 1M11 11l1 1M2 12l1-1M11 3l1-1"/>',
         night: '<path d="M11.7 8.4A5.3 5.3 0 0 1 5.6 2.3 5.3 5.3 0 1 0 11.7 8.4Z"/>',
-        success: '<path d="m2 7 3 3 7-7"/>', error: '<path d="m3 3 8 8M11 3l-8 8"/>',
-        warning: '<path d="M7 2 13 12H1Z M7 5v3 M7 10v.1"/>', pending: '<circle cx="7" cy="7" r="5"/><path d="M3.5 10.5 10.5 3.5"/>',
         panel: '<rect x="1" y="2" width="12" height="10" rx="2"/><path d="M1 8h12"/>'
     };
     const svg = key => `<svg viewBox="0 0 14 14" aria-hidden="true">${icons[key] || ''}</svg>`;
     let category = 'DIA', open = false;
     const categoryButtons = new Map(), buttons = new Map();
+    let notice = false;
     for (const [id, label, icon] of [['DIA', 'Día', 'day'], ['NOCHE', 'Noche', 'night']]) {
         const button = document.createElement('button'); button.type = 'button'; button.dataset.category = id;
         button.innerHTML = svg(icon); button.append(document.createTextNode(' ' + label));
@@ -108,7 +115,7 @@ function createInterface(onQuery) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'rlur-lottery'; button.dataset.lotteryId = config.id;
         const label = document.createElement('span'); label.textContent = config.nombreMenu;
         const status = document.createElement('span'); status.className = 'rlur-status'; button.append(label, status);
-        button.onclick = () => onQuery(config); button.dataset.status = 'idle'; buttons.set(config.id, button); grid.append(button);
+        button.onclick = () => onQuery(config); button.dataset.status = 'idle'; button.dataset.statusCode = 'idle'; button.setAttribute('aria-label', config.nombreMenu); buttons.set(config.id, button); grid.append(button);
     }
     function filter() {
         bar.dataset.period = category; grid.scrollLeft = grid.scrollTop = 0;
@@ -201,14 +208,30 @@ function createInterface(onQuery) {
     window.addEventListener('resize', fitViewport);
     window.visualViewport?.addEventListener('resize', fitViewport);
     window.visualViewport?.addEventListener('scroll', fitViewport);
-    function setStatus(id, state, message = '') {
-        const button = buttons.get(id); button.dataset.status = state; button.disabled = state === 'loading'; button.title = message;
-        button.querySelector('.rlur-status').innerHTML = state === 'loading' || state === 'idle' ? '' : svg(state);
+    function setStatus(id, code, message = '') {
+        const state = queryState(code), button = buttons.get(id);
+        const config = LOTERIAS.find(config => config.id === id);
+        button.dataset.status = state.tone; button.dataset.statusCode = state.code;
+        button.disabled = state.code === 'loading'; button.title = [state.label, message].filter(Boolean).join(' · ');
+        button.setAttribute('aria-busy', String(state.code === 'loading'));
+        button.setAttribute('aria-label', config.nombreMenu + (state.label ? ' — ' + state.label : ''));
+        button.querySelector('.rlur-status').innerHTML = queryIcon(state.code);
+        if (state.code === 'idle') return;
+        notice = true; context.dataset.tone = state.tone; context.dataset.statusCode = state.code;
+        context.innerHTML = queryIcon(state.code);
+        const text = document.createElement('span');
+        text.textContent = `${config.nombreMenu} · ${state.label}${message ? ' · ' + message : ''}`;
+        context.append(text); context.scrollTop = 0;
     }
     let previousEpoch = -1;
     function setContext(view) {
-        bar.hidden = toggle.hidden = !view.active; context.textContent = view.message; context.dataset.ready = String(view.ready);
-        if (previousEpoch !== view.epoch) { feedback.clear(); for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
+        bar.hidden = toggle.hidden = !view.active; context.dataset.ready = String(view.ready);
+        if (previousEpoch !== view.epoch) { notice = false; feedback.clear(); for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
+        if (view.ready && context.dataset.statusCode === 'rover_loading') {
+            notice = false;
+            for (const [id, button] of buttons) if (button.dataset.statusCode === 'rover_loading') setStatus(id, 'idle');
+        }
+        if (!notice) { context.textContent = view.message; delete context.dataset.tone; delete context.dataset.statusCode; }
     }
     return { setStatus, setContext, highlightFields: feedback.highlight };
 }

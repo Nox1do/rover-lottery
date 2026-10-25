@@ -1,11 +1,11 @@
 {
   "name": "rovs-loterias-usa-react",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "scripts": {
     "build": "node tools/build.cjs",
     "release": "node tools/build.cjs --release",
-    "test": "node tests/providers.cjs && node tests/firefox.cjs",
+    "test": "node tests/status.cjs && node tests/providers.cjs && node tests/firefox.cjs",
     "check": "node tools/check-release.cjs"
   },
   "devDependencies": {

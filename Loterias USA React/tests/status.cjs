@@ -1,0 +1,16 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const context = vm.createContext({});
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/status.js'), 'utf8') + ';this.api = { QUERY_STATES, queryState, queryIcon, statusError };', context);
+const { QUERY_STATES, queryState, queryIcon, statusError } = context.api;
+const outcomes = Object.entries(QUERY_STATES).filter(([code]) => code !== 'idle');
+assert.equal(new Set(outcomes.map(([, state]) => state.icon)).size, outcomes.length, 'Cada motivo debe tener una geometría distinta');
+assert.equal(new Set(outcomes.map(([, state]) => state.label)).size, outcomes.length, 'Cada motivo debe tener una etiqueta distinta');
+assert.ok(outcomes.every(([, state]) => state.icon && state.label && state.tone));
+assert.equal(queryState(undefined).code, 'error');
+assert.equal(queryState('toString').code, 'error');
+assert.equal(queryIcon('idle'), '');
+assert.equal(queryState(statusError('network', 'Mensaje arbitrario').code).code, 'network', 'El estado no depende del texto de la excepción');
+console.log(`PASS catálogo: ${outcomes.length} motivos con iconos/etiquetas únicos y códigos de error estables`);

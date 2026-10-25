@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.0.5 — 2026-10-25
+
+- Sustituye el error genérico compartido por 18 motivos con SVG y etiquetas propios: carga, completo, parcial, pendiente, fecha/contexto, tabla/fila, duplicados, bloqueo, red, timeout, fuente, respuesta inválida, cancelación y llenado no confirmado.
+- Muestra el motivo, la lotería y el detalle en el pie de la barra, también en móvil; nombre accesible del botón y estado ocupado. La X queda solo para cerrar.
+- Añade códigos de error estables al transporte y al adaptador, sin clasificar por el texto del mensaje ni cambiar endpoints o parsers.
+- Centraliza los estados en `src/status.js`, documenta el catálogo en ESTADOS.md y añade pruebas de iconos únicos, mensajes y motivos en Firefox.
+- Conserva el verde/negrita, inventario de 75 loterías, tamaño ajustable, tipografía y demás funciones recuperadas.
+
 ## 0.0.4 — 2026-10-25
 
 - Recupera el verde suave temporal y la negrita en los campos llenados y confirmados, incluidos los premios derivados; los resultados parciales solo marcan los campos disponibles.

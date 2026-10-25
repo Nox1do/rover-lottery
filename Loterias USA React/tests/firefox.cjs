@@ -32,9 +32,13 @@ async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = fal
     console.error = message => { window.queryErrors.push(message); originalError(message); };
     window.GM_xmlhttpRequest = options => {
       window.externalRequests.push(options.url);
+      if (mode === 'unexpected') throw new Error('Fixture unexpected failure');
       setTimeout(() => {
         if (mode === 'network') return options.onerror();
         if (mode === 'timeout') return options.ontimeout();
+        if (mode === 'cancelled') return options.onabort();
+        if (mode === 'http') return options.onload({ status: 503, responseText: '' });
+        if (mode === 'invalid') return options.onload({ status: 200, responseText: '{invalid json' });
         const url = new URL(options.url), game = url.searchParams.get('game-names');
         if (mode === 'pending' || (mode === 'partial' && game === 'CASH 4') || (mode === 'partial4' && game === 'CASH 3')) return options.onload({ status: 200, responseText: JSON.stringify({ draws: [] }) });
         if (url.hostname === 'gas-v2.p1.awc.lotteryservices.net') {
@@ -70,6 +74,74 @@ test('Barra nativa independiente: 75 botones, versión y categoría', async () =
     await r.page.locator('[data-category="NOCHE"]').click();
     assert.equal(await r.page.locator('[data-lottery-id="wa-night"]').isVisible(), true);
     assert.equal(await r.page.locator('[data-lottery-id="ga-am"]').isVisible(), false);
+  } finally { await r.close(); }
+});
+for (const [mode, code, label] of [
+  ['', 'success', 'Llenado completo'], ['partial', 'partial', 'Llenado parcial'],
+  ['pending', 'pending', 'Resultado pendiente'], ['network', 'network', 'Sin conexión'],
+  ['timeout', 'timeout', 'Tiempo agotado'], ['http', 'source_error', 'Fuente no disponible'],
+  ['invalid', 'invalid_response', 'Respuesta inválida'], ['cancelled', 'cancelled', 'Consulta cancelada'],
+  ['unexpected', 'error', 'Error inesperado']
+]) test(`Iconos claros: ${code}`, async () => {
+  const r = await setup({ mode }); try {
+    await r.bind(); const button = await r.click('ga-am');
+    assert.equal(await button.getAttribute('data-status-code'), code);
+    assert.equal(await button.locator('.rlur-status svg').getAttribute('data-icon'), code);
+    assert.match(await button.getAttribute('aria-label'), new RegExp(label));
+    assert.match(await r.page.locator('#rlur-context').textContent(), new RegExp('Georgia Midday.*' + label));
+    assert.equal(await r.page.locator('#rlur-context').getAttribute('role'), 'status');
+    if (code === 'network') await r.page.locator('#rlur-bar').screenshot({ path: path.join(root, 'test-results', 'mensaje-red.png') });
+  } finally { await r.close(); }
+});
+for (const [code, label] of [
+  ['date_required', 'Fecha sin confirmar'], ['row_missing', 'Fila no visible'],
+  ['row_duplicate', 'Fila duplicada'], ['fields_locked', 'Campos bloqueados'],
+  ['context_changed', 'Fecha o servidor cambió'], ['table_missing', 'Tabla no disponible']
+]) test(`Iconos claros: ${code}`, async () => {
+  const r = await setup({ mode: code === 'context_changed' ? 'slow' : '' }); try {
+    if (code !== 'date_required') await r.bind();
+    if (code === 'row_missing') await r.page.getByPlaceholder('Buscar lotería', { exact: true }).fill('WASHINGTON');
+    if (code === 'row_duplicate') await r.page.evaluate(() => { const row = document.querySelector('tr[data-code="GE-MD"]'); row.after(row.cloneNode(true)); });
+    if (code === 'fields_locked') await r.page.locator('tr[data-code="GE-MD"] input').last().evaluate(el => el.readOnly = true);
+    if (code === 'table_missing') await r.page.locator('table th').first().evaluate(el => el.textContent = 'Otra tabla');
+    const button = r.page.locator('[data-lottery-id="ga-am"]');
+    if (code === 'context_changed') {
+      await button.click(); await r.page.evaluate(() => window.fixtureServer());
+      await r.page.waitForFunction(() => document.querySelector('[data-lottery-id="ga-am"]').dataset.statusCode === 'context_changed');
+    } else await r.click('ga-am');
+    assert.equal(await button.getAttribute('data-status-code'), code);
+    assert.equal(await button.locator('.rlur-status svg').getAttribute('data-icon'), code);
+    assert.match(await r.page.locator('#rlur-context').textContent(), new RegExp(label));
+    assert.deepEqual(await r.values('GE-MD'), Array(['row_missing', 'date_required'].includes(code) ? 0 : code === 'row_duplicate' ? 10 : 5).fill(''));
+  } finally { await r.close(); }
+});
+test('Iconos claros: llenado no confirmado y tabla de Rover cargando', async () => {
+  const r = await setup(); try {
+    await r.bind(); await r.page.evaluate(() => window.fixtureIgnoreInput = true);
+    const button = await r.click('ga-am');
+    assert.equal(await button.getAttribute('data-status-code'), 'unconfirmed');
+    assert.match(await r.page.locator('#rlur-context').textContent(), /Llenado no confirmado/);
+    assert.equal(await r.page.locator('input.rlur-filled').count(), 0);
+    await r.page.evaluate(() => { window.fixtureIgnoreInput = false; window.fixtureLoadDelay = 600; });
+    await r.page.locator('form button[type="submit"]').click(); await r.click('ga-am');
+    assert.equal(await button.getAttribute('data-status-code'), 'rover_loading');
+    await r.page.waitForFunction(() => document.querySelector('#rlur-context').dataset.ready === 'true');
+    assert.match(await r.page.locator('#rlur-context').textContent(), /Listo/);
+    assert.equal(await button.getAttribute('data-status-code'), 'idle');
+  } finally { await r.close(); }
+});
+test('Iconos claros: carga visible y limpieza al cambiar la fecha', async () => {
+  const r = await setup({ mode: 'slow', viewport: { width: 390, height: 844 }, hasTouch: true }); try {
+    await r.bind(); const button = r.page.locator('[data-lottery-id="ga-am"]'); await button.tap();
+    assert.equal(await button.getAttribute('data-status-code'), 'loading');
+    assert.equal(await button.getAttribute('aria-busy'), 'true');
+    assert.match(await r.page.locator('#rlur-context').textContent(), /Consultando sorteo/);
+    await r.page.waitForFunction(() => document.querySelector('[data-lottery-id="ga-am"]').dataset.statusCode === 'success');
+    await r.page.locator('#rlur-bar').screenshot({ path: path.join(root, 'test-results', 'mensaje-mobile.png') });
+    await r.page.evaluate(() => window.fixtureDate('23 oct 2026'));
+    await r.page.waitForFunction(() => document.querySelector('[data-lottery-id="ga-am"]').dataset.statusCode === 'idle');
+    assert.match(await r.page.locator('#rlur-context').textContent(), /Pulsa Buscar/);
+    assert.equal(await button.locator('.rlur-status svg').count(), 0);
   } finally { await r.close(); }
 });
 test('Paridad visual: banderas, Día/Noche y navegación horizontal en el orden anterior', async () => {
@@ -311,7 +383,7 @@ test('Identidad duplicada: rechaza la fila antes de consultar la fuente', async 
 test('Campo de solo lectura: rechaza el llenado completo antes de consultar', async () => {
   const r = await setup(); try {
     await r.bind(); await r.page.locator('tr[data-code="GE-MD"] input').last().evaluate(el => el.readOnly = true);
-    const b = await r.click('ga-am'); assert.equal(await b.getAttribute('data-status'), 'error');
+    const b = await r.click('ga-am'); assert.equal(await b.getAttribute('data-status-code'), 'fields_locked');
     assert.equal(await r.page.evaluate(() => window.externalRequests.length), 0);
     assert.deepEqual(await r.values('GE-MD'), Array(5).fill(''));
   } finally { await r.close(); }

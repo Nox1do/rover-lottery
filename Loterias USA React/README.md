@@ -1,4 +1,4 @@
-# Rovs Loterias USA React 0.0.4
+# Rovs Loterias USA React 0.0.5
 
 [Instalar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA%20React/Rovs-Loterias-USA-React.user.js)
 
@@ -26,6 +26,12 @@ Consulta [PARIDAD.md](PARIDAD.md) para ver la comparación con USA 0.6.7. Se rec
 
 El inventario de pruebas contrasta las 75 loterías contra una copia de la configuración original 0.6.7 para detectar pérdidas de sorteos, fuentes, URLs u orden. Las funciones de proveedores/transporte se contrastaron con el original y no cambiaron. Las mejoras de tamaño, móvil, 4K y protección de fecha se conservan.
 
+## Avisos claros
+
+Cada motivo tiene su propio SVG y etiqueta, definidos en `src/status.js`: ver [ESTADOS.md](ESTADOS.md). El pie de la barra muestra la lotería, el motivo y el detalle de la consulta sin depender del color, del tooltip o de interpretar un emoji. El botón incluye la misma etiqueta accesible y el estado ocupado mientras consulta. La X queda únicamente para cerrar la barra.
+
+Los errores llevan un código estable desde el transporte, la validación o el adaptador; no se clasifican por coincidencias del texto. La fecha sin confirmar, fila no visible, campos bloqueados, timeout y error de red ya no comparten un «error» genérico. Estos códigos no cambian los endpoints, consultas, parsers, guardado ni el llenado de Rover.
+
 ## Fecha y disponibilidad
 
 Cambiar calendario, servidor o volver a pulsar Buscar invalida las consultas anteriores. No se toma la fecha de hoy como respaldo. Una fila oculta por el filtro de Rover o todavía no habilitada por su horario no se llena: elimina el filtro o revisa la fecha en Rover y vuelve a consultar.
@@ -36,7 +42,7 @@ El script no realiza llamadas a APIs internas de Rover, no guarda ni procesa res
 
 La versión instalada aparece debajo del buscador. Las URLs `.user.js` y `.meta.js` de esta carpeta son estables y permiten actualizaciones de Tampermonkey. El `@name` inicial es exactamente `Rovs Loterias USA React 0.0.1`; se conserva como identidad de instalación para evitar copias duplicadas. El número instalado se obtiene de `GM_info.script.version`.
 
-`src/config.js`: loterías y códigos; `src/providers.js`: fuentes y parsers; `src/rover.js`: fecha, identidad y escritura del formulario; `src/ui.js`: barra; `src/feedback.js`: resaltado y limpieza visual; `src/main.js`: consultas manuales y estados. `tools/build.cjs` genera un único userscript sin dependencias de ejecución.
+`src/config.js`: loterías y códigos; `src/providers.js`: fuentes y parsers; `src/rover.js`: fecha, identidad y escritura del formulario; `src/ui.js`: barra; `src/status.js`: catálogo de estados, SVG y códigos de error; `src/feedback.js`: resaltado y limpieza visual; `src/main.js`: consultas manuales y estados. `tools/build.cjs` genera un único userscript sin dependencias de ejecución.
 
 ## Pruebas reproducibles
 

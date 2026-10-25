@@ -1,4 +1,4 @@
-# Rovs Loterias USA React 0.0.3
+# Rovs Loterias USA React 0.0.4
 
 [Instalar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA%20React/Rovs-Loterias-USA-React.user.js)
 
@@ -8,9 +8,9 @@ Userscript independiente para **Firefox + Tampermonkey** en `https://central.rov
 
 1. Instala el script desde el enlace anterior y recarga Rover.
 2. Selecciona la fecha en Rover y pulsa **Buscar**. La barra confirma la fecha cuando termina la carga. Si ya tenías la tabla abierta al instalar el script, pulsa Buscar de nuevo.
-3. Abre **Loterías USA** en la esquina inferior derecha. Arranca compacta y ocupa toda la ventana de izquierda a derecha. En escritorio los controles quedan a la izquierda y la cuadrícula de loterías a la derecha, como en la barra anterior. Elige Día/Noche o filtra por nombre/código. Arrastra los bordes o las esquinas con el ratón o el dedo para cambiar ancho/alto; **Compactar** restaura el tamaño inicial. La cuadrícula muestra más filas al aumentar la altura y se desplaza verticalmente.
+3. Abre **Loterías USA** en la esquina inferior derecha. Arranca compacta y ocupa toda la ventana de izquierda a derecha. En escritorio los controles quedan a la izquierda y la cuadrícula de loterías a la derecha, como en la barra anterior. Elige Día/Noche o filtra por nombre/código. Arrastra los bordes o las esquinas con el ratón o el dedo para cambiar ancho/alto; **Compactar** restaura el tamaño inicial. La cuadrícula de escritorio conserva el orden por columnas y el desplazamiento horizontal de la versión anterior; muestra dos filas en el tamaño compacto y más filas al ampliar. En móvil el desplazamiento es vertical.
 4. Pulsa la lotería. El script consulta su proveedor y llena Pick 3 y/o Pick 4 en la fila que coincida por nombre **y** abreviatura. Washington estado usa WST-NG y solo Pick 3.
-5. Revisa los valores. La publicación se sigue realizando manualmente con **Procesar**, desde Rover.
+5. Los campos confirmados se resaltan en verde suave durante un segundo y se desvanecen durante otro; quedan en negrita hasta editar la fila o cambiar de contexto. Un resultado parcial solo marca los campos que se llenaron. Revisa los valores. La publicación se sigue realizando manualmente con **Procesar**, desde Rover.
 
 El propio Rover deriva 1era/2da/3ra y puede llenar las loterías dependientes que tenga configuradas, igual que al escribir manualmente. El userscript conserva ese comportamiento y no publica ninguna de esas filas.
 
@@ -19,6 +19,12 @@ En móvil los controles se organizan en dos filas, tienen áreas de pulsación d
 La tipografía usa fuentes del sistema (Segoe UI en Windows), peso medio, altura de línea 1.4 y tamaño adaptable de 14 a 18 px según el ancho CSS disponible. En una ventana 4K al 100 % llega a 18 px; con escalado del sistema al 200 % se respeta el tamaño que ya aplica el navegador, sin multiplicarlo otra vez por la densidad. Compactar restablece también el ancho completo.
 
 La barra usa JavaScript vanilla y los colores, tipografía y variables del nuevo Rover, con tema claro/oscuro. «React» en el nombre identifica el sistema de destino; el producto no descarga ni monta una segunda copia de React.
+
+## Paridad con la versión anterior
+
+Consulta [PARIDAD.md](PARIDAD.md) para ver la comparación con USA 0.6.7. Se recuperaron el verde temporal, la negrita, los acentos Día/Noche, las banderas, la navegación horizontal, el naranja de advertencias, el detalle de sorteo y los registros completos. Cada consulta muestra en consola la hora, fecha, sorteo, fuente, código y nombres propios del proveedor (Cash 3/4, Daily 3/4 o Pick 3/4), también si no hay resultado o falla.
+
+El inventario de pruebas contrasta las 75 loterías contra una copia de la configuración original 0.6.7 para detectar pérdidas de sorteos, fuentes, URLs u orden. Las funciones de proveedores/transporte se contrastaron con el original y no cambiaron. Las mejoras de tamaño, móvil, 4K y protección de fecha se conservan.
 
 ## Fecha y disponibilidad
 
@@ -30,7 +36,7 @@ El script no realiza llamadas a APIs internas de Rover, no guarda ni procesa res
 
 La versión instalada aparece debajo del buscador. Las URLs `.user.js` y `.meta.js` de esta carpeta son estables y permiten actualizaciones de Tampermonkey. El `@name` inicial es exactamente `Rovs Loterias USA React 0.0.1`; se conserva como identidad de instalación para evitar copias duplicadas. El número instalado se obtiene de `GM_info.script.version`.
 
-`src/config.js`: loterías y códigos; `src/providers.js`: fuentes y parsers; `src/rover.js`: fecha, identidad y escritura del formulario; `src/ui.js`: barra; `src/main.js`: consultas manuales y estados. `tools/build.cjs` genera un único userscript sin dependencias de ejecución.
+`src/config.js`: loterías y códigos; `src/providers.js`: fuentes y parsers; `src/rover.js`: fecha, identidad y escritura del formulario; `src/ui.js`: barra; `src/feedback.js`: resaltado y limpieza visual; `src/main.js`: consultas manuales y estados. `tools/build.cjs` genera un único userscript sin dependencias de ejecución.
 
 ## Pruebas reproducibles
 

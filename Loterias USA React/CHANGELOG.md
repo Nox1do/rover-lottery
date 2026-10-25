@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.0.4 — 2026-10-25
+
+- Recupera el verde suave temporal y la negrita en los campos llenados y confirmados, incluidos los premios derivados; los resultados parciales solo marcan los campos disponibles.
+- Restaura acentos Día/Noche, banderas, advertencias naranjas y navegación horizontal por columnas en escritorio, con dos filas compactas y más filas al ampliar.
+- Recupera detalles de fecha/sorteo y registros de todas las consultas con hora, fuente y nombres reales de los juegos; restaura diagnósticos de error en consola.
+- Separa el feedback visual en un módulo; restaura los colores propios del tema y limpia marcas al editar o cambiar fecha/servidor/ruta. Detecta cambios de texto del calendario y servidor sin esperar otra consulta.
+- Añade inventario de referencia de las 75 configuraciones de USA 0.6.7 y auditoría documentada en PARIDAD.md. Mantiene proveedores, llenado React, tipografía 4K y tamaño ajustable.
+
 ## 0.0.3 — 2026-10-25
 
 - Tamaño compacto inicial de ancho completo, de izquierda a derecha; Compactar también restaura ese ancho.

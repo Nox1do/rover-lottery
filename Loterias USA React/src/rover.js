@@ -58,7 +58,7 @@ function createRoverAdapter(onChange) {
         pending = !!candidate; schedule();
     }, true);
     const observer = new MutationObserver(schedule);
-    observer.observe(document.getElementById('root') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+    observer.observe(document.getElementById('root') || document.body, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
     window.addEventListener('popstate', schedule);
     sync();
 

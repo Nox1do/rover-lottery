@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterias USA React 0.0.1
 // @namespace    https://github.com/Nox1do/rover-lottery/Loterias-USA-React
-// @version      0.0.3
+// @version      0.0.4
 // @description  Barra manual de loterías USA para la tabla React de Rover. Solo llenado de formulario.
 // @author       noeg
 // @match        https://central.roversport.net/*
@@ -26,7 +26,7 @@
 
 (function () {
 'use strict';
-const APP_VERSION = "0.0.3";
+const APP_VERSION = "0.0.4";
 
 // --- src/config.js ---
     const LOTERIAS = [
@@ -491,6 +491,19 @@ function parseCentralDate(text) {
 }
 
 function nextRender() { return new Promise(resolve => setTimeout(resolve, 0)); }
+
+// Cada consulta conserva fecha/sorteo, hora y los nombres propios del proveedor.
+function queryReport(config, provider, snapshot, result, state) {
+    const labels = provider?.labels || ['Pick 3', 'Pick 4'];
+    return {
+        'Lotería': config.nombreMenu, 'Código': config.codigo,
+        'Fuente': result?.source || provider?.name || config.fuente,
+        'Hora': new Date().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        'Fecha': snapshot?.dateKey || 'Sin fecha vinculada',
+        ...(config.sorteo ? { 'Sorteo': config.sorteo } : {}),
+        [labels[0]]: result?.p3 || '—', [labels[1]]: result?.p4 || '—', 'Estado': state
+    };
+}
 
 
 // --- src/providers.js ---
@@ -1357,7 +1370,7 @@ function createRoverAdapter(onChange) {
         pending = !!candidate; schedule();
     }, true);
     const observer = new MutationObserver(schedule);
-    observer.observe(document.getElementById('root') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+    observer.observe(document.getElementById('root') || document.body, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
     window.addEventListener('popstate', schedule);
     sync();
 
@@ -1422,13 +1435,58 @@ function createRoverAdapter(onChange) {
 }
 
 
+// --- src/feedback.js ---
+// Feedback visual únicamente: no modifica valores ni emite eventos de formulario.
+function createFillFeedback() {
+    const style = document.createElement('style');
+    style.textContent = `
+      #root input.rlur-filled { font-weight: 700; }
+      #root input.rlur-fill-flash { animation: rlur-filled-flash 2s ease-out; }
+      @keyframes rlur-filled-flash {
+        0%, 50% { background-color: #d1fae5; color: #065f46; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #root input.rlur-fill-flash { animation-duration: 1s; animation-timing-function: steps(1, end); }
+      }
+    `;
+    document.head.append(style);
+    const marked = new Set(), timers = new WeakMap();
+    function remove(input) {
+        clearTimeout(timers.get(input)); timers.delete(input);
+        input.classList.remove('rlur-filled', 'rlur-fill-flash'); marked.delete(input);
+    }
+    function clear() { for (const input of marked) remove(input); }
+    function highlight(inputs) {
+        for (const input of marked) if (!input.isConnected) remove(input);
+        for (const input of inputs) {
+            remove(input);
+            // Reiniciar el pulso incluso si se vuelve a consultar la misma fila.
+            void input.offsetWidth;
+            input.classList.add('rlur-filled', 'rlur-fill-flash'); marked.add(input);
+            const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1000 : 2000;
+            timers.set(input, setTimeout(() => { input.classList.remove('rlur-fill-flash'); timers.delete(input); }, duration));
+        }
+    }
+    document.addEventListener('input', event => {
+        if (!event.target.matches?.('#root table input')) return;
+        for (const input of event.target.closest('tr')?.querySelectorAll('input') || []) remove(input);
+    }, true);
+    return { highlight, clear };
+}
+
+
 // --- src/ui.js ---
 function createInterface(onQuery) {
+    const feedback = createFillFeedback();
     const style = document.createElement('style');
     style.textContent = `
       #rlur-host { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; --rlur-font: clamp(.875rem, calc(.625rem + .208334vw), 1.125rem); --rlur-small: clamp(.75rem, calc(.625rem + .104167vw), .875rem); --rlur-row: clamp(52px, calc(40px + .625vw), 64px); font-size: var(--rlur-font); line-height: 1.4; color: var(--foreground, #0f172a); }
       #rlur-host * { box-sizing: border-box; }
       #rlur-bar { position: fixed; z-index: 40; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border, #cbd5e1); border-radius: var(--radius, 10px); background: var(--card, #fff); box-shadow: 0 8px 32px #0002; visibility: hidden; transform: translateY(100vh); transition: transform .18s ease, visibility .18s; }
+      #rlur-bar[data-period="DIA"] { --rlur-accent: #2563eb; border-top: 3px solid #93c5fd; }
+      #rlur-bar[data-period="NOCHE"] { --rlur-accent: #b45309; border-top: 3px solid #fcd34d; }
+      .dark #rlur-bar[data-period="DIA"] { --rlur-accent: #93c5fd; }
+      .dark #rlur-bar[data-period="NOCHE"] { --rlur-accent: #fcd34d; }
       #rlur-bar.is-open { visibility: visible; transform: translateY(0); }
       #rlur-bar.is-resizing { user-select: none; transition: none; }
       #rlur-bar[hidden], #rlur-toggle[hidden], #rlur-host [hidden] { display: none !important; }
@@ -1443,7 +1501,7 @@ function createInterface(onQuery) {
       .rlur-close { min-width: 34px; font-size: 18px !important; }
       .rlur-tabs { display: flex; gap: 3px; padding: 3px; border-radius: 6px; background: var(--muted, #f1f5f9); }
       .rlur-tabs button { flex: 1; min-height: 32px; border: 0; padding: 5px 8px; border-radius: 4px; background: transparent; color: var(--muted-foreground, #64748b); white-space: nowrap; }
-      .rlur-tabs button[aria-pressed="true"] { background: var(--card, #fff); color: var(--foreground, #0f172a); box-shadow: 0 1px 3px #0001; font-weight: 600; }
+      .rlur-tabs button[aria-pressed="true"] { background: var(--card, #fff); color: var(--rlur-accent, var(--foreground, #0f172a)); box-shadow: 0 1px 3px #0001; font-weight: 600; }
       .rlur-search-wrap { min-width: 0; }
       #rlur-search { width: 100%; min-height: 38px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; padding: 6px 9px; }
       .rlur-version { display: block; margin-top: 3px; font-size: var(--rlur-small); font-weight: 700; color: #c45b62; }
@@ -1457,7 +1515,10 @@ function createInterface(onQuery) {
       .rlur-status { display: inline-flex; flex-shrink: 0; width: 1em; height: 1em; color: var(--muted-foreground, #64748b); }
       [data-status="loading"] .rlur-status { border: 2px solid var(--border, #cbd5e1); border-top-color: var(--foreground, #0f172a); border-radius: 50%; animation: rlur-spin .8s linear infinite; }
       [data-status="success"] .rlur-status { color: #059669; }
-      [data-status="error"] .rlur-status, [data-status="warning"] .rlur-status { color: #c45b62; }
+      [data-status="error"] .rlur-status { color: #c45b62; }
+      [data-status="warning"] .rlur-status { color: #b45309; }
+      .dark [data-status="warning"] .rlur-status { color: #fcd34d; }
+      .rlur-lottery[data-status="warning"] { border-color: #d97706; }
       #rlur-toggle { position: fixed; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 40; display: flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 13px; border: 1px solid var(--border, #cbd5e1); border-radius: 7px; background: var(--card, #fff); color: var(--foreground, #0f172a); box-shadow: 0 2px 9px #0002; font-weight: 600; }
       #rlur-toggle[aria-expanded="true"] { display: none; }
       #rlur-host svg { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -1476,6 +1537,7 @@ function createInterface(onQuery) {
       .rlur-resize[data-resize="se"] { bottom: -9px; right: -9px; cursor: nwse-resize; }
       #rlur-bar[data-narrow="false"] { display: grid; grid-template-columns: clamp(280px, 19vw, 360px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 6px 16px; }
       #rlur-bar[data-narrow="false"] .rlur-controls { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-content: start; }
+      #rlur-bar[data-narrow="false"] .rlur-grid { grid-template-columns: none; grid-template-rows: repeat(var(--rlur-rows, 2), minmax(var(--rlur-row), 1fr)); grid-auto-flow: column; grid-auto-columns: clamp(184px, 11vw, 268px); overflow-x: auto; overflow-y: hidden; }
       #rlur-bar[data-narrow="false"] .rlur-title { display: none; }
       #rlur-bar[data-narrow="false"] .rlur-tabs { grid-column: 1; grid-row: 1; }
       #rlur-bar[data-narrow="false"] .rlur-actions { grid-column: 2; grid-row: 1; }
@@ -1522,14 +1584,23 @@ function createInterface(onQuery) {
     const grid = document.createElement('div'); grid.className = 'rlur-grid';
     for (const config of LOTERIAS) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'rlur-lottery'; button.dataset.lotteryId = config.id;
-        const label = document.createElement('span'); label.textContent = config.nombreMenu.replace(/^🇺🇸\s*/, '');
+        const label = document.createElement('span'); label.textContent = config.nombreMenu;
         const status = document.createElement('span'); status.className = 'rlur-status'; button.append(label, status);
         button.onclick = () => onQuery(config); button.dataset.status = 'idle'; buttons.set(config.id, button); grid.append(button);
     }
     function filter() {
+        bar.dataset.period = category; grid.scrollLeft = grid.scrollTop = 0;
         for (const config of LOTERIAS) buttons.get(config.id).hidden = config.categoria !== category || !normalizeLabel(config.nombreMenu + config.codigo).includes(normalizeLabel(search.value));
         for (const [id, button] of categoryButtons) button.setAttribute('aria-pressed', String(id === category));
     }
+    function updateGridRows() {
+        const css = getComputedStyle(grid), gap = parseFloat(css.rowGap) || 0;
+        const rowHeight = parseFloat(css.gridAutoRows) || 52;
+        const available = grid.clientHeight - parseFloat(css.paddingTop) - parseFloat(css.paddingBottom);
+        const rows = Math.max(1, Math.floor((available + gap) / (rowHeight + gap)));
+        if (grid.style.getPropertyValue('--rlur-rows') !== String(rows)) grid.style.setProperty('--rlur-rows', String(rows));
+    }
+    const gridObserver = new ResizeObserver(updateGridRows); gridObserver.observe(grid);
     search.addEventListener('input', filter); filter();
     const toggle = document.createElement('button'); toggle.type = 'button'; toggle.id = 'rlur-toggle'; toggle.innerHTML = svg('panel'); toggle.append(document.createTextNode('Loterías USA'));
     // Geometry is local to this page: every reload starts compact.
@@ -1551,12 +1622,14 @@ function createInterface(onQuery) {
         const height = clamp(next.height, minHeight, bounds.maxHeight);
         geometry = { left: clamp(next.left, bounds.left, bounds.right - width), top: clamp(next.top, bounds.top, bounds.bottom - height), width, height };
         Object.assign(bar.style, { left: geometry.left + 'px', top: geometry.top + 'px', width: width + 'px', height: height + 'px' });
-        bar.dataset.narrow = String(width < 700);
+        bar.dataset.narrow = String(width < 700); requestAnimationFrame(updateGridRows);
     }
     function resetSize() {
         resized = false;
         const b = limits(), width = b.maxWidth;
-        const height = Math.min(b.maxHeight, width < 700 ? 270 : window.innerWidth >= 3200 ? 196 : 172);
+        // Dos filas legibles y espacio para scrollbars clásicos de Firefox en Windows.
+        const compactHeight = 188 + clamp((window.innerWidth - 1920) / 80, 0, 24);
+        const height = Math.min(b.maxHeight, width < 700 ? 270 : Math.ceil(compactHeight));
         paint({ left: b.right - width, top: b.bottom - height, width, height });
     }
     function resizeFrom(start, edge, dx, dy) {
@@ -1613,9 +1686,9 @@ function createInterface(onQuery) {
     let previousEpoch = -1;
     function setContext(view) {
         bar.hidden = toggle.hidden = !view.active; context.textContent = view.message; context.dataset.ready = String(view.ready);
-        if (previousEpoch !== view.epoch) { for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
+        if (previousEpoch !== view.epoch) { feedback.clear(); for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
     }
-    return { setStatus, setContext };
+    return { setStatus, setContext, highlightFields: feedback.highlight };
 }
 
 
@@ -1630,26 +1703,34 @@ async function runQuery(config) {
     if (running.has(config.id)) return;
     const token = Symbol(); running.set(config.id, token);
     ui.setStatus(config.id, 'loading', 'Consultando sorteo…');
+    let snapshot, provider, result;
+    const details = message => [snapshot?.dateKey, config.sorteo, message, result?.source || provider?.name || config.fuente].filter(Boolean).join(' · ');
+    const report = state => console.table(queryReport(config, provider, snapshot, result, state));
     try {
-        const snapshot = rover.capture();
+        snapshot = rover.capture();
         rover.findFields(config);
-        const provider = PROVIDERS[config.fuente];
+        provider = PROVIDERS[config.fuente];
         if (!provider) throw new Error('Fuente de resultados no disponible.');
-        const result = await provider.consultar(config, snapshot.date);
+        result = await provider.consultar(config, snapshot.date);
         rover.assertCurrent(snapshot);
         if (!result.p3 && !result.p4) {
-            ui.setStatus(config.id, 'pending', 'Sin resultado para la fecha y sorteo seleccionados.'); return;
+            const message = 'Sin resultado para la fecha y sorteo seleccionados.';
+            ui.setStatus(config.id, 'pending', details(message)); report(message); return;
         }
         const write = writeQueue.then(() => rover.fill(config, result, snapshot));
         writeQueue = write.catch(() => {});
-        await write;
+        const expected = await write;
+        const fields = rover.findFields(config);
+        ui.highlightFields(Object.keys(expected).map(key => fields[key]));
         const missing = result.requiredGames.filter(key => !result[key]);
         const state = missing.length ? 'warning' : 'success';
         const message = missing.length ? `Resultado parcial: falta ${missing.map(key => provider.labels[key === 'p3' ? 0 : 1]).join(', ')}.` : 'Completado. Revisa la fila antes de procesar.';
-        ui.setStatus(config.id, state, `${message}\n${snapshot.dateKey} · ${result.source}`);
-        console.table({ Lotería: config.nombreFila, Código: config.codigo, Fecha: snapshot.dateKey, Fuente: result.source, 'Pick 3': result.p3 || '—', 'Pick 4': result.p4 || '—', Estado: message });
+        ui.setStatus(config.id, state, details(message));
+        report(message);
     } catch (error) {
-        ui.setStatus(config.id, 'error', error instanceof Error ? error.message : 'No se pudo completar la consulta.');
+        const message = error instanceof Error ? error.message : 'No se pudo completar la consulta.';
+        ui.setStatus(config.id, 'error', details(message)); report(message);
+        console.error(`[Rovs Loterias USA React] ${config.nombreFila}: ${message}`);
     } finally { if (running.get(config.id) === token) running.delete(config.id); }
 }
 

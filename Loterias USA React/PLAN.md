@@ -39,3 +39,12 @@ Referencia: captura del usuario de la barra anterior. Barra compacta de extremo 
 1. Añadir pruebas Firefox de ancho completo a 1080p, 4K 100% y 4K con escala 200%, más reajuste de las pruebas existentes.
 2. Cambiar solo interfaz/medidas: ancho completo inicial y al Compactar; organización lateral en escritorio, tamaño fluido de texto y controles.
 3. Ejecutar suite completa y revisar capturas. Publicar 0.0.3 con los mismos enlaces e identidad; conservar históricos.
+
+## 0.0.4 — Recuperar paridad con USA 0.6.7
+
+Comparar la variante React 0.0.3 contra el script base 0.6.7, sin modificar el proyecto anterior. Recuperar: verde suave durante 1 s y desvanecimiento durante 1 s en los campos confirmados, negrita, acentos Día/Noche, banderas, navegación horizontal por columnas (dos filas compactas, más filas al ampliar), detalles de fecha/sorteo y registros de cada consulta con hora, fuente y nombres reales de los juegos. Mantener móvil vertical y tipografía 4K.
+
+1. Pruebas Firefox rojas de resaltado completo/parcial, limpieza, colores/banderas/orden y registros de éxito/pendiente/error.
+2. Módulo de realimentación visual independiente; aplicarlo después de verificar el estado de Rover, sin eventos adicionales ni escritura en APIs. Limpiar ante edición manual o cambio de contexto.
+3. Recuperar los elementos de presentación y diagnóstico; contrastar inventario/proveedores, documentar las diferencias intencionales de la adaptación React.
+4. Suite completa, capturas, release 0.0.4, revisión de cambios y verificación de GitHub/raw.

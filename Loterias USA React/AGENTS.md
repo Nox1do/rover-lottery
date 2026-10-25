@@ -9,3 +9,5 @@
 - Mantener compatibilidad con Firefox y probar estado React real después de otro render.
 - Antes de publicar: `npm run build`, `npm test`, `npm run release`, `npm run check`. En contenedores de prueba con restricciones de namespaces puede requerirse `ROVS_FIREFOX_CONTAINER=1` (solo entorno de pruebas, nunca en el producto).
 - No sobrescribir archivos históricos de versiones publicadas. Actualizar README y CHANGELOG. Verificar URLs raw tras publicar.
+- Mantener la paridad descrita en `PARIDAD.md`: verde/negrita de campos confirmados, limpieza de marcas, Día/Noche, banderas, orden/navegación y registros. Los cambios de interfaz deben conservar estas pruebas.
+- `tests/fixtures/legacy-inventory.json` fija las 75 configuraciones de USA 0.6.7; cualquier cambio intencional de inventario debe documentarse sin perder el resto.

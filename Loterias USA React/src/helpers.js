@@ -23,3 +23,16 @@ function parseCentralDate(text) {
 }
 
 function nextRender() { return new Promise(resolve => setTimeout(resolve, 0)); }
+
+// Cada consulta conserva fecha/sorteo, hora y los nombres propios del proveedor.
+function queryReport(config, provider, snapshot, result, state) {
+    const labels = provider?.labels || ['Pick 3', 'Pick 4'];
+    return {
+        'Lotería': config.nombreMenu, 'Código': config.codigo,
+        'Fuente': result?.source || provider?.name || config.fuente,
+        'Hora': new Date().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        'Fecha': snapshot?.dateKey || 'Sin fecha vinculada',
+        ...(config.sorteo ? { 'Sorteo': config.sorteo } : {}),
+        [labels[0]]: result?.p3 || '—', [labels[1]]: result?.p4 || '—', 'Estado': state
+    };
+}

@@ -1,9 +1,14 @@
 function createInterface(onQuery) {
+    const feedback = createFillFeedback();
     const style = document.createElement('style');
     style.textContent = `
       #rlur-host { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; --rlur-font: clamp(.875rem, calc(.625rem + .208334vw), 1.125rem); --rlur-small: clamp(.75rem, calc(.625rem + .104167vw), .875rem); --rlur-row: clamp(52px, calc(40px + .625vw), 64px); font-size: var(--rlur-font); line-height: 1.4; color: var(--foreground, #0f172a); }
       #rlur-host * { box-sizing: border-box; }
       #rlur-bar { position: fixed; z-index: 40; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border, #cbd5e1); border-radius: var(--radius, 10px); background: var(--card, #fff); box-shadow: 0 8px 32px #0002; visibility: hidden; transform: translateY(100vh); transition: transform .18s ease, visibility .18s; }
+      #rlur-bar[data-period="DIA"] { --rlur-accent: #2563eb; border-top: 3px solid #93c5fd; }
+      #rlur-bar[data-period="NOCHE"] { --rlur-accent: #b45309; border-top: 3px solid #fcd34d; }
+      .dark #rlur-bar[data-period="DIA"] { --rlur-accent: #93c5fd; }
+      .dark #rlur-bar[data-period="NOCHE"] { --rlur-accent: #fcd34d; }
       #rlur-bar.is-open { visibility: visible; transform: translateY(0); }
       #rlur-bar.is-resizing { user-select: none; transition: none; }
       #rlur-bar[hidden], #rlur-toggle[hidden], #rlur-host [hidden] { display: none !important; }
@@ -18,7 +23,7 @@ function createInterface(onQuery) {
       .rlur-close { min-width: 34px; font-size: 18px !important; }
       .rlur-tabs { display: flex; gap: 3px; padding: 3px; border-radius: 6px; background: var(--muted, #f1f5f9); }
       .rlur-tabs button { flex: 1; min-height: 32px; border: 0; padding: 5px 8px; border-radius: 4px; background: transparent; color: var(--muted-foreground, #64748b); white-space: nowrap; }
-      .rlur-tabs button[aria-pressed="true"] { background: var(--card, #fff); color: var(--foreground, #0f172a); box-shadow: 0 1px 3px #0001; font-weight: 600; }
+      .rlur-tabs button[aria-pressed="true"] { background: var(--card, #fff); color: var(--rlur-accent, var(--foreground, #0f172a)); box-shadow: 0 1px 3px #0001; font-weight: 600; }
       .rlur-search-wrap { min-width: 0; }
       #rlur-search { width: 100%; min-height: 38px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; padding: 6px 9px; }
       .rlur-version { display: block; margin-top: 3px; font-size: var(--rlur-small); font-weight: 700; color: #c45b62; }
@@ -32,7 +37,10 @@ function createInterface(onQuery) {
       .rlur-status { display: inline-flex; flex-shrink: 0; width: 1em; height: 1em; color: var(--muted-foreground, #64748b); }
       [data-status="loading"] .rlur-status { border: 2px solid var(--border, #cbd5e1); border-top-color: var(--foreground, #0f172a); border-radius: 50%; animation: rlur-spin .8s linear infinite; }
       [data-status="success"] .rlur-status { color: #059669; }
-      [data-status="error"] .rlur-status, [data-status="warning"] .rlur-status { color: #c45b62; }
+      [data-status="error"] .rlur-status { color: #c45b62; }
+      [data-status="warning"] .rlur-status { color: #b45309; }
+      .dark [data-status="warning"] .rlur-status { color: #fcd34d; }
+      .rlur-lottery[data-status="warning"] { border-color: #d97706; }
       #rlur-toggle { position: fixed; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 40; display: flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 13px; border: 1px solid var(--border, #cbd5e1); border-radius: 7px; background: var(--card, #fff); color: var(--foreground, #0f172a); box-shadow: 0 2px 9px #0002; font-weight: 600; }
       #rlur-toggle[aria-expanded="true"] { display: none; }
       #rlur-host svg { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -51,6 +59,7 @@ function createInterface(onQuery) {
       .rlur-resize[data-resize="se"] { bottom: -9px; right: -9px; cursor: nwse-resize; }
       #rlur-bar[data-narrow="false"] { display: grid; grid-template-columns: clamp(280px, 19vw, 360px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 6px 16px; }
       #rlur-bar[data-narrow="false"] .rlur-controls { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-content: start; }
+      #rlur-bar[data-narrow="false"] .rlur-grid { grid-template-columns: none; grid-template-rows: repeat(var(--rlur-rows, 2), minmax(var(--rlur-row), 1fr)); grid-auto-flow: column; grid-auto-columns: clamp(184px, 11vw, 268px); overflow-x: auto; overflow-y: hidden; }
       #rlur-bar[data-narrow="false"] .rlur-title { display: none; }
       #rlur-bar[data-narrow="false"] .rlur-tabs { grid-column: 1; grid-row: 1; }
       #rlur-bar[data-narrow="false"] .rlur-actions { grid-column: 2; grid-row: 1; }
@@ -97,14 +106,23 @@ function createInterface(onQuery) {
     const grid = document.createElement('div'); grid.className = 'rlur-grid';
     for (const config of LOTERIAS) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'rlur-lottery'; button.dataset.lotteryId = config.id;
-        const label = document.createElement('span'); label.textContent = config.nombreMenu.replace(/^🇺🇸\s*/, '');
+        const label = document.createElement('span'); label.textContent = config.nombreMenu;
         const status = document.createElement('span'); status.className = 'rlur-status'; button.append(label, status);
         button.onclick = () => onQuery(config); button.dataset.status = 'idle'; buttons.set(config.id, button); grid.append(button);
     }
     function filter() {
+        bar.dataset.period = category; grid.scrollLeft = grid.scrollTop = 0;
         for (const config of LOTERIAS) buttons.get(config.id).hidden = config.categoria !== category || !normalizeLabel(config.nombreMenu + config.codigo).includes(normalizeLabel(search.value));
         for (const [id, button] of categoryButtons) button.setAttribute('aria-pressed', String(id === category));
     }
+    function updateGridRows() {
+        const css = getComputedStyle(grid), gap = parseFloat(css.rowGap) || 0;
+        const rowHeight = parseFloat(css.gridAutoRows) || 52;
+        const available = grid.clientHeight - parseFloat(css.paddingTop) - parseFloat(css.paddingBottom);
+        const rows = Math.max(1, Math.floor((available + gap) / (rowHeight + gap)));
+        if (grid.style.getPropertyValue('--rlur-rows') !== String(rows)) grid.style.setProperty('--rlur-rows', String(rows));
+    }
+    const gridObserver = new ResizeObserver(updateGridRows); gridObserver.observe(grid);
     search.addEventListener('input', filter); filter();
     const toggle = document.createElement('button'); toggle.type = 'button'; toggle.id = 'rlur-toggle'; toggle.innerHTML = svg('panel'); toggle.append(document.createTextNode('Loterías USA'));
     // Geometry is local to this page: every reload starts compact.
@@ -126,12 +144,14 @@ function createInterface(onQuery) {
         const height = clamp(next.height, minHeight, bounds.maxHeight);
         geometry = { left: clamp(next.left, bounds.left, bounds.right - width), top: clamp(next.top, bounds.top, bounds.bottom - height), width, height };
         Object.assign(bar.style, { left: geometry.left + 'px', top: geometry.top + 'px', width: width + 'px', height: height + 'px' });
-        bar.dataset.narrow = String(width < 700);
+        bar.dataset.narrow = String(width < 700); requestAnimationFrame(updateGridRows);
     }
     function resetSize() {
         resized = false;
         const b = limits(), width = b.maxWidth;
-        const height = Math.min(b.maxHeight, width < 700 ? 270 : window.innerWidth >= 3200 ? 196 : 172);
+        // Dos filas legibles y espacio para scrollbars clásicos de Firefox en Windows.
+        const compactHeight = 188 + clamp((window.innerWidth - 1920) / 80, 0, 24);
+        const height = Math.min(b.maxHeight, width < 700 ? 270 : Math.ceil(compactHeight));
         paint({ left: b.right - width, top: b.bottom - height, width, height });
     }
     function resizeFrom(start, edge, dx, dy) {
@@ -188,7 +208,7 @@ function createInterface(onQuery) {
     let previousEpoch = -1;
     function setContext(view) {
         bar.hidden = toggle.hidden = !view.active; context.textContent = view.message; context.dataset.ready = String(view.ready);
-        if (previousEpoch !== view.epoch) { for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
+        if (previousEpoch !== view.epoch) { feedback.clear(); for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
     }
-    return { setStatus, setContext };
+    return { setStatus, setContext, highlightFields: feedback.highlight };
 }

@@ -13,6 +13,9 @@ const ctx = vm.createContext({ console, URL, Date, Intl, DOMParser: dom.window.D
 const modules = ['config.js', 'helpers.js', 'providers.js'].map(f => fs.readFileSync(path.join(root, 'src', f), 'utf8')).join('\n');
 vm.runInContext(modules + '\nthis.api={LOTERIAS,PROVIDERS,parseGeorgiaGame,parseIllinoisGame,parseLotteryUSA,parseCentralDate};', ctx);
 const { api } = ctx;
+const legacy = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/legacy-inventory.json'), 'utf8'));
+assert.equal(legacy.version, '0.6.7');
+assert.deepEqual(JSON.parse(JSON.stringify(api.LOTERIAS)).map(({ codigo, ...config }) => config), legacy.lotteries, 'Conservar las 75 loterías, fuentes, sorteos, URLs y orden del script anterior');
 assert.equal(api.LOTERIAS.length, 75);
 assert.equal(new Set(api.LOTERIAS.map(c => c.codigo)).size, 75);
 assert.ok(api.LOTERIAS.every(c => c.codigo && c.nombreFila && api.PROVIDERS[c.fuente]));

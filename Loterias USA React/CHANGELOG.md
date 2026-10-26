@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.0.8 — 2026-10-26
+
+- Elimina la separación inferior: la base de la barra queda siempre pegada al borde visible, incluso al usar el borde inferior para cambiar la altura.
+- Calcula el ancho sin incluir la barra de desplazamiento de la página, evitando desbordar o recortar el lado izquierdo; detecta cambios del ancho útil.
+- Usa ancho explícito coherente con ese cálculo y elimina las esquinas redondeadas inferiores.
+- Añade regresión Firefox con página larga, scrollbar estable y scroll de página; actualiza las pruebas de anclaje para exigir separación inferior cero.
+
 ## 0.0.7 — 2026-10-26
 
 - Corrige la barra flotando después de cambiar zoom o ventana tras ajustar sus bordes.

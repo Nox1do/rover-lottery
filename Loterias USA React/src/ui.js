@@ -4,7 +4,7 @@ function createInterface(onQuery) {
     style.textContent = `
       #rlur-host { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; --rlur-font: clamp(.875rem, calc(.625rem + .208334vw), 1.125rem); --rlur-small: clamp(.75rem, calc(.625rem + .104167vw), .875rem); --rlur-row: clamp(46px, calc(34px + .625vw), 58px); font-size: var(--rlur-font); line-height: 1.4; color: var(--foreground, #0f172a); }
       #rlur-host * { box-sizing: border-box; }
-      #rlur-bar { position: fixed; z-index: 40; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border, #cbd5e1); border-radius: var(--radius, 10px); background: var(--card, #fff); box-shadow: 0 8px 32px #0002; visibility: hidden; transform: translateY(100vh); transition: transform .18s ease, visibility .18s; }
+      #rlur-bar { position: fixed; z-index: 40; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border, #cbd5e1); border-radius: var(--radius, 10px) var(--radius, 10px) 0 0; background: var(--card, #fff); box-shadow: 0 -4px 24px #0002; visibility: hidden; transform: translateY(100vh); transition: transform .18s ease, visibility .18s; }
       #rlur-bar[data-period="DIA"] { --rlur-accent: #2563eb; border-top: 3px solid #93c5fd; }
       #rlur-bar[data-period="NOCHE"] { --rlur-accent: #b45309; border-top: 3px solid #fcd34d; }
       .dark #rlur-bar[data-period="DIA"] { --rlur-accent: #93c5fd; }
@@ -139,10 +139,11 @@ function createInterface(onQuery) {
     let geometry = null, resized = false, drag = null, widthFraction = 1, chosenHeight = 0;
     function limits() {
         const viewport = window.visualViewport;
-        const width = viewport?.width || window.innerWidth, height = viewport?.height || window.innerHeight;
+        const layoutWidth = document.documentElement.clientWidth || window.innerWidth;
+        const width = Math.min(viewport?.width || layoutWidth, layoutWidth), height = viewport?.height || window.innerHeight;
         const margin = width <= 640 ? 10 : 12;
         const left = viewport?.offsetLeft || 0, top = (viewport?.offsetTop || 0) + margin;
-        const maxWidth = Math.max(1, width), maxHeight = Math.max(1, height - margin * 2);
+        const maxWidth = Math.max(1, width), maxHeight = Math.max(1, height - margin);
         return { left, top, right: left + maxWidth, bottom: top + maxHeight, maxWidth, maxHeight,
             minWidth: Math.min(360, maxWidth), minHeight: Math.min(width <= 640 || matchMedia('(pointer: coarse)').matches ? 244 : 154, maxHeight) };
     }
@@ -151,12 +152,12 @@ function createInterface(onQuery) {
         const width = clamp(next.width, bounds.minWidth, bounds.maxWidth);
         const minHeight = Math.min(bounds.maxHeight, width < 700 ? Math.max(214, bounds.minHeight) : bounds.minHeight);
         const height = clamp(next.height, minHeight, bounds.maxHeight);
-        geometry = { left: clamp(next.left, bounds.left, bounds.right - width), top: clamp(next.top, bounds.top, bounds.bottom - height), width, height };
+        geometry = { left: clamp(next.left, bounds.left, bounds.right - width), top: bounds.bottom - height, width, height };
         // Anclar con right/bottom evita conservar un top obsoleto durante el zoom.
         Object.assign(bar.style, { left: 'auto', top: 'auto',
-            right: (window.innerWidth - geometry.left - width) + 'px',
+            right: ((document.documentElement.clientWidth || window.innerWidth) - geometry.left - width) + 'px',
             bottom: (window.innerHeight - geometry.top - height) + 'px',
-            width: Math.abs(width - window.innerWidth) < 1 ? '100%' : width + 'px', height: height + 'px' });
+            width: width + 'px', height: height + 'px' });
         bar.dataset.narrow = String(width < 700); requestAnimationFrame(updateGridRows);
     }
     function resetSize() {
@@ -220,6 +221,12 @@ function createInterface(onQuery) {
     window.addEventListener('resize', fitViewport);
     window.visualViewport?.addEventListener('resize', fitViewport);
     window.visualViewport?.addEventListener('scroll', fitViewport);
+    let layoutWidth = document.documentElement.clientWidth;
+    const viewportObserver = new ResizeObserver(() => {
+        const width = document.documentElement.clientWidth;
+        if (width !== layoutWidth) { layoutWidth = width; fitViewport(); }
+    });
+    viewportObserver.observe(document.documentElement);
     function setStatus(id, code, message = '') {
         const state = queryState(code), button = buttons.get(id);
         const config = LOTERIAS.find(config => config.id === id);

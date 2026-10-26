@@ -300,12 +300,31 @@ for (const mode of ['inicial', 'altura ajustada', 'ancho ajustado']) test(`Zoom/
       await r.page.setViewportSize(viewport);
       await r.page.waitForFunction(({ width, height, fraction }) => {
         const rect = document.querySelector('#rlur-bar').getBoundingClientRect();
-        return Math.abs(rect.bottom - (height - 12)) < 2 && Math.abs(rect.right - width) < 2 && Math.abs(rect.width - width * fraction) < 2;
+        return Math.abs(rect.bottom - height) < 2 && Math.abs(rect.right - width) < 2 && Math.abs(rect.width - width * fraction) < 2;
       }, { ...viewport, fraction });
     }
     const after = await panelBox(r.page);
     assert.ok(Math.abs(after.height - before.height) < 2, 'Conservar la altura elegida después de ampliar y reducir');
     await r.page.locator('#rlur-bar').screenshot({ path: path.join(root, 'test-results', `anclaje-${mode.replaceAll(' ', '-')}.png`) });
+  } finally { await r.close(); }
+});
+test('Pie fijo: sin margen inferior al desplazar una página larga o ajustar el borde inferior', async () => {
+  const r = await setup(); try {
+    await r.page.evaluate(() => {
+      document.documentElement.style.scrollbarGutter = 'stable';
+      document.documentElement.style.overflowY = 'scroll';
+      document.body.style.minHeight = '300vh';
+    });
+    for (const y of [0, 1500, 0]) {
+      await r.page.evaluate(y => window.scrollTo(0, y), y);
+      await r.page.waitForFunction(() => {
+        const box = document.querySelector('#rlur-bar').getBoundingClientRect();
+        return Math.abs(box.bottom - innerHeight) < 1 && Math.abs(box.left) < 1 && Math.abs(box.right - document.documentElement.clientWidth) < 1;
+      });
+    }
+    await dragEdge(r.page, 's', 0, -40);
+    assert.ok(Math.abs((await panelBox(r.page)).y + (await panelBox(r.page)).height - 720) < 1, 'El borde inferior debe seguir pegado al pie');
+    await r.page.screenshot({ path: path.join(root, 'test-results', 'pie-con-scroll.png') });
   } finally { await r.close(); }
 });
 test('Móvil: compacto, controles táctiles, cuadrícula y ajuste con el dedo', async () => {
@@ -436,7 +455,7 @@ test('Tema oscuro y navegación SPA: no duplica ni deja la barra fuera de la rut
     if (req.url === '/fixture.js') { res.setHeader('Content-Type', 'application/javascript'); return res.end(fixture.outputFiles[0].text); }
     if (req.url.startsWith('/api/')) { res.statusCode = 500; return res.end('No API requests are allowed in this fixture'); }
     res.setHeader('Content-Type', 'text/html');
-    res.end('<html><head><style>:root{--card:#fff;--foreground:#0f172a;--border:#cbd5e1;--muted:#f1f5f9;--muted-foreground:#64748b;--primary:#0f172a;--primary-foreground:#fff;--radius:8px}.dark{--card:#0f172a;--foreground:#f8fafc;--border:#334155;--muted:#1e293b;--muted-foreground:#94a3b8;--primary:#f8fafc;--primary-foreground:#0f172a}body{font-family:Arial;margin:24px}td,th{padding:5px}input{width:70px}</style></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>');
+    res.end('<!doctype html><html><head><style>:root{--card:#fff;--foreground:#0f172a;--border:#cbd5e1;--muted:#f1f5f9;--muted-foreground:#64748b;--primary:#0f172a;--primary-foreground:#fff;--radius:8px}.dark{--card:#0f172a;--foreground:#f8fafc;--border:#334155;--muted:#1e293b;--muted-foreground:#94a3b8;--primary:#f8fafc;--primary-foreground:#0f172a}body{font-family:Arial;margin:24px}td,th{padding:5px}input{width:70px}</style></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>');
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   origin = `http://127.0.0.1:${server.address().port}`;

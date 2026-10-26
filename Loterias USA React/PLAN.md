@@ -64,3 +64,7 @@ Sustituir el texto Compactar por flechas hacia dentro, con tooltip y nombre acce
 ## 0.0.7 — Anclaje tras zoom o cambio de ventana
 
 Regresión: tras redimensionar manualmente se conservaba top/left en píxeles, dejando la barra flotando al ampliar el viewport. Usar right/bottom y guardar la proporción de ancho y altura elegida independientemente de los límites temporales. Reproducir con cambios de viewport en Firefox: estado inicial, solo altura y ancho personalizado; comprobar anclaje inferior y vuelta al tamaño anterior. Conservar las demás funciones, ejecutar suite y publicar 0.0.7.
+
+## 0.0.8 — Base pegada al pie
+
+La captura de 0.0.7 todavía muestra un margen inferior y recorte lateral. Eliminar margen inferior y mantener la base anclada incluso cuando se redimensiona desde abajo; usar clientWidth y ancho explícito para excluir el scrollbar. Comprobar página larga con scrollbar estable, scroll y borde inferior, además de la suite existente.

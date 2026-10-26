@@ -1,4 +1,4 @@
-# Rovs Loterias USA React 0.0.8
+# Rovs Loterias USA React 0.0.9
 
 [Instalar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA%20React/Rovs-Loterias-USA-React.user.js)
 
@@ -9,7 +9,7 @@ Userscript independiente para **Firefox + Tampermonkey** en `https://central.rov
 1. Instala el script desde el enlace anterior y recarga Rover.
 2. Selecciona la fecha en Rover y pulsa **Buscar**. La barra confirma la fecha cuando termina la carga. Si ya tenías la tabla abierta al instalar el script, pulsa Buscar de nuevo.
 3. Abre **Loterías USA** en la esquina inferior derecha. Arranca compacta y ocupa toda la ventana de izquierda a derecha. En escritorio los controles quedan a la izquierda y la cuadrícula de loterías a la derecha, como en la barra anterior. Elige Día/Noche o filtra por nombre/código. Arrastra los bordes o las esquinas con el ratón o el dedo para cambiar ancho/alto; El icono de **flechas hacia dentro** restaura el tamaño inicial; su descripción es «Restablecer tamaño compacto (ancho completo)». La cuadrícula de escritorio conserva el orden por columnas y el desplazamiento horizontal de la versión anterior; muestra dos filas en el tamaño compacto y más filas al ampliar. En móvil el desplazamiento es vertical.
-4. Pulsa la lotería. El script consulta su proveedor y llena Pick 3 y/o Pick 4 en la fila que coincida por nombre **y** abreviatura. Washington estado usa WST-NG y solo Pick 3.
+4. Pulsa la lotería. El script consulta su proveedor y llena Pick 3 y/o Pick 4 en la fila que coincida por nombre **y** abreviatura. Washington estado usa WST-NG y solo Pick 3. Puedes volver a pulsar el botón para reemplazar los datos existentes y recalcular los premios, incluso si Pick 3/4 ya coincide. Si un pick coincide, se vacía brevemente y se vuelve a introducir mediante los eventos normales del formulario. Un resultado parcial conserva los campos del juego que no esté disponible.
 5. Los campos confirmados se resaltan en verde suave durante un segundo y se desvanecen durante otro; quedan en negrita hasta editar la fila o cambiar de contexto. Un resultado parcial solo marca los campos que se llenaron. Revisa los valores. La publicación se sigue realizando manualmente con **Procesar**, desde Rover.
 
 El propio Rover deriva 1era/2da/3ra y puede llenar las loterías dependientes que tenga configuradas, igual que al escribir manualmente. El userscript conserva ese comportamiento y no publica ninguna de esas filas.

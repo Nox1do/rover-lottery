@@ -375,6 +375,34 @@ test('Solo Pick 3: Washington estado no toca Pick 4 ni D.C.', async () => {
     assert.deepEqual(await r.values('DC-NG'), Array(5).fill(''));
   } finally { await r.close(); }
 });
+test('Volver a llenar: reemplaza los cinco valores existentes y conserva el estado React', async () => {
+  const r = await setup(); try {
+    await r.bind();
+    await r.page.evaluate(() => window.fixtureValues('GE-MD', { primera: '11', segunda: '22', tercera: '33', pick3: '111', pick4: '2233' }));
+    const b = await r.click('ga-am');
+    assert.equal(await b.getAttribute('data-status-code'), 'success');
+    await r.page.evaluate(() => window.fixtureRender());
+    assert.deepEqual(await r.values('GE-MD'), ['27', '09', '87', '027', '0987']);
+    assert.deepEqual(await r.values('GE-MD-MR'), ['27', '09', '87', '027', '0987']);
+  } finally { await r.close(); }
+});
+for (const mode of ['', 'partial', 'partial4', 'washington']) test(`Volver a llenar: recalcula premios con picks iguales (${mode || 'completo'})`, async () => {
+  const r = await setup({ mode: mode === 'washington' ? '' : mode }); try {
+    await r.bind();
+    const code = mode === 'washington' ? 'WST-NG' : 'GE-MD';
+    await r.page.evaluate(code => window.fixtureValues(code, { primera: '11', segunda: '22', tercera: '33', pick3: code === 'WST-NG' ? '035' : '027', pick4: '0987' }), code);
+    if (mode === 'washington') await r.page.locator('[data-category="NOCHE"]').click();
+    const b = await r.click(mode === 'washington' ? 'wa-night' : 'ga-am');
+    assert.equal(await b.getAttribute('data-status-code'), mode.startsWith('partial') ? 'partial' : 'success');
+    await r.page.evaluate(() => window.fixtureRender());
+    const expected = mode === 'partial' ? ['27', '22', '33', '027', '0987']
+      : mode === 'partial4' ? ['11', '09', '87', '027', '0987']
+      : mode === 'washington' ? ['35', '22', '33', '035', '0987']
+      : ['27', '09', '87', '027', '0987'];
+    assert.deepEqual(await r.values(code), expected);
+    if (mode !== 'washington') assert.deepEqual(await r.values('GE-MD-MR'), expected);
+  } finally { await r.close(); }
+});
 test('Cambio de fecha en vuelo: descarta el resultado', async () => {
   const r = await setup({ mode: 'slow' }); try {
     await r.bind(); await r.page.locator('[data-lottery-id="ga-am"]').click();

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterias USA React 0.0.1
 // @namespace    https://github.com/Nox1do/rover-lottery/Loterias-USA-React
-// @version      0.0.8
+// @version      0.0.9
 // @description  Barra manual de loterías USA para la tabla React de Rover. Solo llenado de formulario.
 // @author       noeg
 // @match        https://central.roversport.net/*
@@ -26,7 +26,7 @@
 
 (function () {
 'use strict';
-const APP_VERSION = "0.0.8";
+const APP_VERSION = "0.0.9";
 
 // --- src/config.js ---
     const LOTERIAS = [
@@ -1463,12 +1463,20 @@ function createRoverAdapter(onChange) {
         for (const key of picks) {
             assertCurrent(snapshot);
             const input = findFields(config)[key];
-            // Saltar el setter que React instala en la instancia permite que su
-            // manejador nativo de input detecte el cambio y actualice su estado.
-            const nativeSetter = Object.getOwnPropertyDescriptor(input.ownerDocument.defaultView.HTMLInputElement.prototype, 'value').set;
-            nativeSetter.call(input, expected[key]);
-            input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-            await nextRender();
+            // Si el pick ya coincide, vaciarlo primero como una edición normal
+            // obliga a React a recalcular los premios al volver a escribirlo.
+            // Solo se tocan los picks disponibles en el resultado consultado.
+            const values = input.value === expected[key] ? ['', expected[key]] : [expected[key]];
+            for (const value of values) {
+                assertCurrent(snapshot);
+                const current = findFields(config)[key];
+                // Saltar el setter de la instancia permite que React detecte
+                // el cambio mediante su manejador normal de input.
+                const nativeSetter = Object.getOwnPropertyDescriptor(current.ownerDocument.defaultView.HTMLInputElement.prototype, 'value').set;
+                nativeSetter.call(current, value);
+                current.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+                await nextRender();
+            }
         }
         assertCurrent(snapshot);
         const fields = findFields(config);

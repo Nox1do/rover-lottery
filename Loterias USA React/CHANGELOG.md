@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.0.9 — 2026-10-26
+
+- Permite repetir el llenado de una fila con datos existentes y recalcula 1era/2da/3ra incluso si los picks consultados ya coinciden con los del formulario.
+- Cuando un pick coincide, lo vacía y vuelve a introducir con eventos normales de entrada para que React ejecute la derivación nativa; conserva los juegos ausentes en resultados parciales.
+- Añade cinco regresiones Firefox para valores distintos, picks iguales, ambos parciales y Washington solo Pick 3; verifica valores conservados después de otro render y dependientes nativas.
+
 ## 0.0.8 — 2026-10-26
 
 - Elimina la separación inferior: la base de la barra queda siempre pegada al borde visible, incluso al usar el borde inferior para cambiar la altura.

@@ -60,3 +60,7 @@ Separar motivos mediante códigos estables, sin inferirlos a partir del texto. C
 ## 0.0.6 — Restablecer con icono y botones más densos
 
 Sustituir el texto Compactar por flechas hacia dentro, con tooltip y nombre accesible de la función. Reducir padding, separación y tamaño de filas/columnas de loterías sin reducir la tipografía; fijar la altura de filas para que no se estiren. Mantener los objetivos táctiles de 44 px y restauración de ancho/alto desde el icono. Actualizar los selectores accesibles de las pruebas existentes, ejecutar la suite completa, revisar capturas y publicar con los mismos enlaces.
+
+## 0.0.7 — Anclaje tras zoom o cambio de ventana
+
+Regresión: tras redimensionar manualmente se conservaba top/left en píxeles, dejando la barra flotando al ampliar el viewport. Usar right/bottom y guardar la proporción de ancho y altura elegida independientemente de los límites temporales. Reproducir con cambios de viewport en Firefox: estado inicial, solo altura y ancho personalizado; comprobar anclaje inferior y vuelta al tamaño anterior. Conservar las demás funciones, ejecutar suite y publicar 0.0.7.

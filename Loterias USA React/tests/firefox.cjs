@@ -291,6 +291,23 @@ for (const [label, viewport, scale, minFont] of [
     await r.page.locator('#rlur-bar').screenshot({ path: path.join(root, 'test-results', `panel-${label.replaceAll(' ', '-')}.png`), scale: 'css' });
   } finally { await r.close(); }
 });
+for (const mode of ['inicial', 'altura ajustada', 'ancho ajustado']) test(`Zoom/ventana: mantiene anclaje inferior y ancho ${mode}`, async () => {
+  const r = await setup({ viewport: { width: 1280, height: 720 } }); try {
+    if (mode !== 'inicial') await dragEdge(r.page, 'n', 0, -160);
+    if (mode === 'ancho ajustado') await dragEdge(r.page, 'w', 200, 0);
+    const before = await panelBox(r.page), fraction = before.width / 1280;
+    for (const viewport of [{ width: 1600, height: 900 }, { width: 1024, height: 576 }, { width: 1280, height: 720 }]) {
+      await r.page.setViewportSize(viewport);
+      await r.page.waitForFunction(({ width, height, fraction }) => {
+        const rect = document.querySelector('#rlur-bar').getBoundingClientRect();
+        return Math.abs(rect.bottom - (height - 12)) < 2 && Math.abs(rect.right - width) < 2 && Math.abs(rect.width - width * fraction) < 2;
+      }, { ...viewport, fraction });
+    }
+    const after = await panelBox(r.page);
+    assert.ok(Math.abs(after.height - before.height) < 2, 'Conservar la altura elegida después de ampliar y reducir');
+    await r.page.locator('#rlur-bar').screenshot({ path: path.join(root, 'test-results', `anclaje-${mode.replaceAll(' ', '-')}.png`) });
+  } finally { await r.close(); }
+});
 test('Móvil: compacto, controles táctiles, cuadrícula y ajuste con el dedo', async () => {
   const r = await setup({ viewport: { width: 390, height: 844 }, hasTouch: true }); try {
     const initial = await panelBox(r.page); assertInside(initial, 390, 844); assert.ok(initial.height <= 280);

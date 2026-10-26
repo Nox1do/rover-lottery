@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.0.7 — 2026-10-26
+
+- Corrige la barra flotando después de cambiar zoom o ventana tras ajustar sus bordes.
+- Ancla la posición con right/bottom; conserva ancho completo al ajustar solo la altura y la proporción elegida cuando se ajusta el ancho.
+- Mantiene la altura elegida y la recupera después de pasar temporalmente por una ventana más pequeña; conserva límites del viewport visual.
+- Añade tres regresiones Firefox para ampliación/reducción del viewport, retorno al tamaño anterior y anclaje inferior.
+
 ## 0.0.6 — 2026-10-25
 
 - Sustituye el texto Compactar por un SVG de flechas hacia dentro, con tooltip y nombre accesible «Restablecer tamaño compacto».

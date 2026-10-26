@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterias USA React 0.0.1
 // @namespace    https://github.com/Nox1do/rover-lottery/Loterias-USA-React
-// @version      0.0.6
+// @version      0.0.7
 // @description  Barra manual de loterías USA para la tabla React de Rover. Solo llenado de formulario.
 // @author       noeg
 // @match        https://central.roversport.net/*
@@ -26,7 +26,7 @@
 
 (function () {
 'use strict';
-const APP_VERSION = "0.0.6";
+const APP_VERSION = "0.0.7";
 
 // --- src/config.js ---
     const LOTERIAS = [
@@ -1658,7 +1658,7 @@ function createInterface(onQuery) {
     const toggle = document.createElement('button'); toggle.type = 'button'; toggle.id = 'rlur-toggle'; toggle.innerHTML = svg('panel'); toggle.append(document.createTextNode('Loterías USA'));
     // Geometry is local to this page: every reload starts compact.
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-    let geometry = null, resized = false, drag = null;
+    let geometry = null, resized = false, drag = null, widthFraction = 1, chosenHeight = 0;
     function limits() {
         const viewport = window.visualViewport;
         const width = viewport?.width || window.innerWidth, height = viewport?.height || window.innerHeight;
@@ -1674,11 +1674,15 @@ function createInterface(onQuery) {
         const minHeight = Math.min(bounds.maxHeight, width < 700 ? Math.max(214, bounds.minHeight) : bounds.minHeight);
         const height = clamp(next.height, minHeight, bounds.maxHeight);
         geometry = { left: clamp(next.left, bounds.left, bounds.right - width), top: clamp(next.top, bounds.top, bounds.bottom - height), width, height };
-        Object.assign(bar.style, { left: geometry.left + 'px', top: geometry.top + 'px', width: width + 'px', height: height + 'px' });
+        // Anclar con right/bottom evita conservar un top obsoleto durante el zoom.
+        Object.assign(bar.style, { left: 'auto', top: 'auto',
+            right: (window.innerWidth - geometry.left - width) + 'px',
+            bottom: (window.innerHeight - geometry.top - height) + 'px',
+            width: Math.abs(width - window.innerWidth) < 1 ? '100%' : width + 'px', height: height + 'px' });
         bar.dataset.narrow = String(width < 700); requestAnimationFrame(updateGridRows);
     }
     function resetSize() {
-        resized = false;
+        resized = false; widthFraction = 1;
         const b = limits(), width = b.maxWidth;
         // Dos filas legibles y espacio para scrollbars clásicos de Firefox en Windows.
         const compactHeight = 172 + clamp((window.innerWidth - 1920) / 80, 0, 24);
@@ -1696,6 +1700,7 @@ function createInterface(onQuery) {
         if (edge.includes('s')) bottom = clamp(bottom + dy, top + minHeight, b.bottom);
         resized = true;
         paint({ left, top, width: right - left, height: bottom - top });
+        widthFraction = geometry.width / b.maxWidth; chosenHeight = geometry.height;
     }
     const edgeNames = { n: 'superior', s: 'inferior', w: 'izquierdo', e: 'derecho', nw: 'superior izquierda', ne: 'superior derecha', sw: 'inferior izquierda', se: 'inferior derecha' };
     function endDrag() { drag = null; bar.classList.remove('is-resizing'); }
@@ -1728,7 +1733,12 @@ function createInterface(onQuery) {
     };
     toggle.setAttribute('aria-controls', 'rlur-bar'); toggle.setAttribute('aria-expanded', 'false'); toggle.onclick = () => setOpen(!open); close.onclick = () => setOpen(false); compact.onclick = resetSize;
     bar.append(left, grid, context); bar.inert = true; bar.setAttribute('aria-hidden', 'true'); host.append(bar, toggle); document.body.append(host); resetSize();
-    const fitViewport = () => { endDrag(); if (resized) paint(geometry); else resetSize(); };
+    const fitViewport = () => {
+        endDrag();
+        if (!resized) { resetSize(); return; }
+        const b = limits(), width = b.maxWidth * widthFraction;
+        paint({ left: b.right - width, top: b.bottom - chosenHeight, width, height: chosenHeight });
+    };
     window.addEventListener('resize', fitViewport);
     window.visualViewport?.addEventListener('resize', fitViewport);
     window.visualViewport?.addEventListener('scroll', fitViewport);

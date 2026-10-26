@@ -1,4 +1,4 @@
-# Rovs Loterias USA React 0.0.6
+# Rovs Loterias USA React 0.0.7
 
 [Instalar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA%20React/Rovs-Loterias-USA-React.user.js)
 
@@ -14,7 +14,7 @@ Userscript independiente para **Firefox + Tampermonkey** en `https://central.rov
 
 El propio Rover deriva 1era/2da/3ra y puede llenar las loterías dependientes que tenga configuradas, igual que al escribir manualmente. El userscript conserva ese comportamiento y no publica ninguna de esas filas.
 
-En móvil los controles se organizan en dos filas, tienen áreas de pulsación de al menos 44 px y abrir la barra no enfoca el buscador para evitar que aparezca el teclado. El tamaño se limita a la pantalla y se ajusta al girar el dispositivo o cambiar la ventana. Cada recarga vuelve al tamaño compacto; cerrar/abrir conserva el tamaño durante esa página. Los bordes también admiten las flechas del teclado.
+En móvil los controles se organizan en dos filas, tienen áreas de pulsación de al menos 44 px y abrir la barra no enfoca el buscador para evitar que aparezca el teclado. El tamaño se limita a la pantalla y se ajusta al girar el dispositivo o cambiar la ventana. Cada recarga vuelve al tamaño compacto; cerrar/abrir conserva el tamaño durante esa página. Los bordes también admiten las flechas del teclado. Al cambiar zoom o ventana la barra se mantiene anclada abajo: conserva el ancho completo si solo ajustaste la altura, o la proporción de ancho que elegiste. La altura elegida se conserva dentro de los límites de pantalla.
 
 La tipografía usa fuentes del sistema (Segoe UI en Windows), peso medio, altura de línea 1.4 y tamaño adaptable de 14 a 18 px según el ancho CSS disponible. En una ventana 4K al 100 % llega a 18 px; con escalado del sistema al 200 % se respeta el tamaño que ya aplica el navegador, sin multiplicarlo otra vez por la densidad. Restablecer tamaño compacto devuelve también el ancho completo. Los botones de loterías tienen menos relleno, separación y anchura; las filas usan una altura fija adaptable al texto, sin estirarse para ocupar el espacio sobrante. En móvil conservan un área de pulsación de al menos 44 px.
 

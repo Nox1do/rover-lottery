@@ -3,7 +3,7 @@
 Userscript independiente para la pantalla React de resultados de loterías de Rover Central.
 
 - **Script:** `central-loterias-resultados-react.user.js`
-- **Versión inicial:** `0.0.1`
+- **Versión actual:** `0.0.2` (inicial: `0.0.1`)
 - **Página objetivo:** `https://central.roversport.net/loteria/resultados/ver`
 - **Navegadores:** Firefox y Opera con Tampermonkey
 
@@ -16,7 +16,19 @@ Userscript independiente para la pantalla React de resultados de loterías de Ro
 El archivo incluye `@updateURL` y `@downloadURL` dirigidos a esta ruta estable de la rama `main`.
 Para futuras versiones, incrementar **tanto** `@version` como la constante `VERSION` del código, probar los cambios y publicar un nuevo commit. Tampermonkey podrá detectar la actualización de acuerdo con su configuración e intervalo de búsqueda.
 
-## Funcionalidad v0.0.1
+## Cambios en v0.0.2
+
+- Inicio anticipado con `@run-at document-start`, con montaje inmediato cuando la tabla ya está disponible y observación cuando React la crea después.
+- Los filtros dejan de usar `position: fixed` y `z-index` elevado: ahora se integran en la tarjeta de resultados, junto a su barra de búsqueda cuando hay espacio o en una fila propia encima de la tabla.
+- Ocultación de filtros al abrir modales; recuperación al cerrarlos y al reconstruirse tabla o barra superior, sin duplicar controles.
+- Limpieza de controles al cambiar a otra vista/ruta y compatibilidad con pantallas estrechas.
+- El diagnóstico `status()` incluye `panel.mounted`, `panel.mode`, `panel.inTableCard` y `panel.hidden`.
+
+## Pruebas v0.0.2
+
+Validado con `node --check` y Playwright/Chromium sobre reproducción local de la tabla de 12 columnas (no sobre producción autenticada): inicio antes y después de la tabla, filtros, colores, modales, reconexión del toolbar, reconstrucción de filas y tabla, cambio de ruta, vista oculta y tamaño móvil. Sin errores JavaScript ni bucles de MutationObserver. Firefox real y la sesión autenticada quedan pendientes de verificación.
+
+## Funcionalidad base v0.0.1
 
 - Filtros visuales excluyentes: **Procesados pendientes** y **Sin procesar**.
 - Resaltados rojo suave y azul suave para los sorteos configurados.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.3
+// @version      0.0.4
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,10 +16,11 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.3';
+  const VERSION = '0.0.4';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
+  const WIDTH_STYLE_ID = `${PREFIX}-column-widths`;
   const PANEL_ID = `${PREFIX}-panel`;
   const QA_KEY = '__CENTRAL_LOTERIAS_REACT_QA__';
   const ROW_REFRESH_DELAY = 50;
@@ -36,6 +37,10 @@
   const state = {
     table: null,
     tableObserver: null,
+    scrollHost: null,
+    widthSignature: '',
+    widthLock: null,
+    widthCache: null,
     shellObserver: null,
     scanTimer: 0,
     rowTimer: 0,
@@ -49,7 +54,7 @@
     headers: [],
     columns: {},
     data: { rows: 0, unprocessed: 0, processedPending: 0, other: 0, unknown: 0 },
-    stats: { scans: 0, rowPasses: 0, rowsInspected: 0, mutationBatches: 0 },
+    stats: { scans: 0, rowPasses: 0, rowsInspected: 0, mutationBatches: 0, widthLocks: 0 },
   };
 
   function onTargetPage() {
@@ -99,20 +104,15 @@
   }
 
   function looksLikeLotteryTable(table) {
-    if (table.closest(`#${PANEL_ID}`)) return -1;
+    // Central abre otras tablas dentro de modales. No son la tabla de resultados.
+    if (table.closest(`#${PANEL_ID}, [role="dialog"], [role="alertdialog"], [aria-modal="true"], dialog`)) return -1;
     const headers = getHeaders(table);
-    const rows = getRows(table);
-    if (!rows.length && !headers.length) return -1;
-    const all = headers.join(' ');
-    let score = /LOTERIA|SORTEO|LOTTERY/.test(all) ? 8 : 0;
-    if (/PENDIENT|PENDING|PEND\./.test(all)) score += 3;
-    if (/PROCESAD|PROCESAM|PROCESSED|PROC\./.test(all)) score += 3;
-    if (/HORA|HORARIO/.test(all)) score += 1;
-    if (rows.some((row) => /WASHINGTON|GEORGIA|ARIZONA|CALIFORNIA|TEXAS/i.test(row.textContent))) score += 4;
-    if (!score && document.querySelectorAll('main table, main [role="grid"], main [role="table"]').length === 1) {
-      score = rows.length > 0 ? 1 : 0;
-    }
-    return score;
+    const columns = mapColumns(headers);
+    if (columns.lottery < 0 || columns.hour < 0 || columns.pending < 0 || columns.processed < 0) return -1;
+    // Exigir el esquema real de Central evita capturar tablas comparativas y de fuentes.
+    const lotteryFields = headers.filter((value) => /^(1ERA|2DA|3RA|PICK 3|PICK 4)$/.test(value)).length;
+    if (lotteryFields < 3) return -1;
+    return 20 + lotteryFields + Math.min(getRows(table).length, 5);
   }
 
   function discoverTable() {
@@ -272,6 +272,7 @@
     state.stats.rowPasses++;
     state.stats.rowsInspected += targets.length;
     targets.forEach(annotateRow);
+    lockColumnsBeforeFiltering();
     summary();
   }
 
@@ -308,17 +309,85 @@
     else if (rows.size) scheduleRows(rows);
   }
 
+  function attachStableScrollbar(table) {
+    if (state.scrollHost?.isConnected) state.scrollHost.removeAttribute('data-clr-scroll-host');
+    state.scrollHost = null;
+    if (!table) return;
+    // Reservar el mismo espacio para la barra, haya 189 filas o sólo 3.
+    for (let parent = table.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+      if (/^(auto|scroll)$/.test(getComputedStyle(parent).overflowY)) {
+        state.scrollHost = parent;
+        parent.setAttribute('data-clr-scroll-host', 'true');
+        break;
+      }
+    }
+  }
+
+  function clearWidthLock() {
+    state.widthLock = null;
+    state.widthSignature = '';
+    document.getElementById(WIDTH_STYLE_ID)?.remove();
+  }
+
+  function writeWidthLock(widths, signature) {
+    if (!state.table?.matches('table') || widths.length !== state.headers.length) return false;
+    const total = widths.reduce((sum, width) => sum + width, 0);
+    if (!Number.isFinite(total) || total <= 0) return false;
+    // Sólo estilos en <head>: no insertar colgroup ni modificar la estructura React.
+    const selector = 'table[data-clr-table="true"][data-clr-width-locked="true"]';
+    const rules = widths.map((width, i) =>
+      `${selector} thead th:nth-child(${i + 1}) {width:${width.toFixed(2)}px!important;box-sizing:border-box!important;}`
+    );
+    let sheet = document.getElementById(WIDTH_STYLE_ID);
+    if (!sheet) {
+      sheet = document.createElement('style');
+      sheet.id = WIDTH_STYLE_ID;
+      document.head.appendChild(sheet);
+    }
+    sheet.textContent = `${selector}{table-layout:fixed!important;width:max(100%,${Math.ceil(total)}px)!important;}\n` + rules.join('\n');
+    state.table.setAttribute('data-clr-width-locked', 'true');
+    state.widthLock = widths.slice();
+    state.widthSignature = signature;
+    state.widthCache = { signature, widths: widths.slice() };
+    state.stats.widthLocks++;
+    return true;
+  }
+
+  function lockColumnsBeforeFiltering() {
+    const table = state.table;
+    if (!table?.matches('table') || !table.isConnected || state.widthLock) return;
+    const headers = [...table.querySelectorAll('thead tr:last-child > th')];
+    const signature = state.headers.join('|');
+    if (!signature || headers.length < 9) return;
+    // Si React recompone la misma tabla mientras un filtro está activo, reutilizar
+    // la geometría original; nunca reaprender anchos desde un subconjunto filtrado.
+    if (state.widthCache?.signature === signature && state.widthCache.widths.length === headers.length) {
+      writeWidthLock(state.widthCache.widths, signature);
+      return;
+    }
+    if (state.filter !== 'all') return;
+    const rows = getRows(table);
+    if (!rows.some((row) => row.getClientRects().length > 0)) return;
+    const widths = headers.map((header) => header.getBoundingClientRect().width);
+    if (widths.some((width) => !Number.isFinite(width) || width < 15)) return;
+    writeWidthLock(widths, signature);
+  }
+
   function bindTable(table) {
     if (table === state.table) return;
     state.tableObserver?.disconnect();
+    attachStableScrollbar(null);
+    clearWidthLock();
     if (state.table?.isConnected) {
       state.table.removeAttribute('data-clr-table');
       state.table.removeAttribute('data-clr-filter');
+      state.table.removeAttribute('data-clr-width-locked');
     }
     state.table = table;
     state.headers = table ? getHeaders(table) : [];
     state.columns = mapColumns(state.headers);
     if (table) {
+      attachStableScrollbar(table);
       table.setAttribute('data-clr-table', 'true');
       table.setAttribute('data-clr-filter', state.filter);
       state.tableObserver = new MutationObserver(onTableMutations);
@@ -348,6 +417,8 @@
 
   function setFilter(filter) {
     // Dos checkboxes excluyentes: pulsar el activo restablece "Todos".
+    // Medir con todas las filas visibles antes de ocultar alguna.
+    lockColumnsBeforeFiltering();
     state.filter = ['all', 'unprocessed', 'processed-pending'].includes(filter) ? filter : 'all';
     state.table?.setAttribute('data-clr-filter', state.filter);
     const panel = document.getElementById(PANEL_ID);
@@ -365,6 +436,7 @@
     style.id = STYLE_ID;
     style.textContent = `
       table[data-clr-table="true"]{--clr-head:#576a8f;--clr-text:#464c54;--clr-line:#dce2e9;--clr-input:#57595b;}
+      [data-clr-scroll-host="true"]{scrollbar-gutter:stable!important;}
       table[data-clr-table="true"] thead th{background:#576a8f!important;color:white!important;font-weight:600!important;font-size:14px!important;border-bottom:1px solid #d0d0d0!important;}
       table[data-clr-table="true"] tbody td{border-bottom:1px solid #dce2e9!important;padding:11px 12px!important;vertical-align:middle!important;font-size:14px!important;color:var(--clr-text);}
       table[data-clr-table="true"] tbody input:not([type="checkbox"]):not([type="radio"]),
@@ -594,6 +666,8 @@
       version: VERSION, activeRoute: onTargetPage(), tableFound: Boolean(state.table?.isConnected),
       tableTag: state.table?.tagName || null, headers: [...state.headers], columns: { ...state.columns },
       filter: state.filter, ...state.data,
+      columnLock: { active: Boolean(state.widthLock), columns: state.widthLock?.length || 0,
+        stableScrollbar: Boolean(state.scrollHost?.isConnected) },
       panel: { mounted: Boolean(state.panel?.isConnected), mode: state.panelMode,
         inTableCard: Boolean(state.panelHost?.isConnected && state.panelHost.contains(state.panel)),
         hidden: state.panel?.hidden ?? null },

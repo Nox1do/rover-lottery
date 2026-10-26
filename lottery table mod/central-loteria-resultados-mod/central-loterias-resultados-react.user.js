@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.1
+// @version      0.0.2
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
 // @source       https://github.com/Nox1do/rover-lottery/blob/main/lottery%20table%20mod/central-loteria-resultados-mod/central-loterias-resultados-react.user.js
 // @updateURL    https://raw.githubusercontent.com/Nox1do/rover-lottery/main/lottery%20table%20mod/central-loteria-resultados-mod/central-loterias-resultados-react.user.js
 // @downloadURL  https://raw.githubusercontent.com/Nox1do/rover-lottery/main/lottery%20table%20mod/central-loteria-resultados-mod/central-loterias-resultados-react.user.js
-// @run-at       document-idle
+// @run-at       document-start
 // @grant        none
 // @noframes
 // ==/UserScript==
@@ -16,14 +16,14 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.1';
+  const VERSION = '0.0.2';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
   const PANEL_ID = `${PREFIX}-panel`;
   const QA_KEY = '__CENTRAL_LOTERIAS_REACT_QA__';
-  const ROW_REFRESH_DELAY = 80;
-  const DISCOVERY_DELAY = 180;
+  const ROW_REFRESH_DELAY = 50;
+  const DISCOVERY_DELAY = 45;
   const COLORS = Object.freeze({
     red: new Map([
       ['AZ', 'ARIZONA'],
@@ -40,6 +40,9 @@
     scanTimer: 0,
     rowTimer: 0,
     positionFrame: 0,
+    panel: null,
+    panelHost: null,
+    panelMode: null,
     pendingRows: new Set(),
     refreshAll: false,
     filter: 'all',
@@ -322,9 +325,11 @@
       state.tableObserver.observe(table, { subtree: true, childList: true, characterData: true });
       scheduleRows();
       ensurePanel();
-      positionPanel();
+      mountPanel();
     } else {
-      document.getElementById(PANEL_ID)?.remove();
+      state.panel?.remove();
+      state.panelHost = null;
+      state.panelMode = null;
       state.data = { rows: 0, unprocessed: 0, processedPending: 0, other: 0, unknown: 0 };
     }
   }
@@ -388,28 +393,31 @@
       [role="table"][data-clr-table="true"][data-clr-filter="unprocessed"] [role="row"][data-clr-state="processed-pending"],
       [role="table"][data-clr-table="true"][data-clr-filter="processed-pending"] [role="row"][data-clr-state="other"],
       [role="table"][data-clr-table="true"][data-clr-filter="processed-pending"] [role="row"][data-clr-state="unprocessed"]{display:none!important;}
-      #${PANEL_ID}{all:initial;position:fixed;box-sizing:border-box;z-index:2147483000;background:#fff;color:#454d59;border:1px solid #dbe2eb;border-radius:8px;box-shadow:0 2px 8px #0000000c;font:500 12px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;padding:7px 9px;max-width:calc(100vw - 20px);display:flex;align-items:center;justify-content:center;gap:9px;white-space:nowrap;}
-      #${PANEL_ID} .clr-title{font-weight:700;color:#576a8f;white-space:nowrap;}
+      /* Los filtros forman parte de la tarjeta React: nunca son una capa fixed. */
+      #${PANEL_ID}{all:initial;position:static!important;z-index:auto!important;inset:auto!important;float:none!important;box-sizing:border-box;display:inline-flex;flex:0 0 auto;align-items:center;justify-content:flex-start;gap:10px;padding:6px 9px;border:1px solid #dbe2eb;border-radius:8px;background:#fff;color:#454d59;box-shadow:none;font:500 12px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;white-space:nowrap;max-width:100%;}
+      #${PANEL_ID}[hidden]{display:none!important;}
+      #${PANEL_ID}[data-clr-placement="toolbar"]{margin:0 8px 0 auto;}
+      #${PANEL_ID}[data-clr-placement="bar"]{display:flex;width:max-content;margin:4px 0 10px 0;flex-wrap:wrap;}
       #${PANEL_ID} label{display:inline-flex;gap:5px;align-items:center;cursor:pointer;white-space:nowrap;}
       #${PANEL_ID} input{margin:0;accent-color:#576a8f;width:15px;height:15px;cursor:pointer;}
       #${PANEL_ID} .clr-count{display:none;font-size:11px;color:#7b858e;white-space:nowrap;}
       #${PANEL_ID}[data-clr-warning="true"] .clr-count{color:#a35b08;}
-      @media(max-width:760px){#${PANEL_ID}{left:8px!important;right:8px!important;top:auto!important;bottom:8px!important;width:auto!important;max-width:none;font-size:11px;}}
+      @media(max-width:760px){#${PANEL_ID}{white-space:normal;font-size:11px;flex-wrap:wrap;gap:7px;}}
     `;
     document.head.appendChild(style);
   }
 
   function ensurePanel() {
-    if (document.getElementById(PANEL_ID)) return;
+    if (state.panel) return state.panel;
+    // Crear el panel separado: se monta DENTRO del bloque de la tabla, no en body.
     const panel = document.createElement('div');
     panel.id = PANEL_ID;
     panel.setAttribute('role', 'group');
     panel.setAttribute('aria-label', 'Filtros de resultados de loterias');
-    const options = [
+    for (const [value, title] of [
       ['processed-pending', 'Procesados pendientes'],
       ['unprocessed', 'Sin procesar'],
-    ];
-    for (const [value, title] of options) {
+    ]) {
       const item = document.createElement('label');
       const input = document.createElement('input');
       input.type = 'checkbox';
@@ -426,80 +434,140 @@
     counter.textContent = 'Analizando…';
     panel.append(counter);
     panel.title = 'Filtros visuales: Procesados pendientes / Sin procesar. Desmarca para mostrar todos.';
-    // Portal externo a #root: no insertamos ni quitamos elementos manejados por React.
-    document.body.appendChild(panel);
+    state.panel = panel;
+    return panel;
   }
 
   function findSearch() {
     if (!state.table) return null;
     const scope = state.table.closest('main, section, article') || document;
     const inputs = [...scope.querySelectorAll('input[type="search"], input[placeholder], input[aria-label]')];
-    return inputs.find((input) => /BUSCAR|SEARCH|LOTERIA|SORTEO/.test(normalize(
+    return inputs.find((input) => /BUSCAR\s+LOTERIA|SEARCH\s+LOTTERY|BUSCAR\s+SORTEO/.test(normalize(
       `${input.placeholder} ${input.getAttribute('aria-label') || ''}`
     ))) || null;
   }
 
-  function positionPanel() {
-    if (!onTargetPage()) return;
-    const panel = document.getElementById(PANEL_ID);
-    if (!panel || !state.table) return;
-    if (window.innerWidth <= 760) {
-      panel.style.removeProperty('top');
-      panel.style.removeProperty('right');
-      panel.style.removeProperty('visibility');
-      panel.style.left = '8px';
-      return;
-    }
-    panel.style.bottom = 'auto';
-    panel.style.right = 'auto';
+  function directChild(ancestor, descendant) {
+    let child = descendant;
+    while (child && child.parentElement !== ancestor) child = child.parentElement;
+    return child?.parentElement === ancestor ? child : null;
+  }
+
+  function findPanelPlacement() {
+    if (!state.table?.isConnected) return null;
     const search = findSearch();
-    const anchor = search?.getBoundingClientRect();
-    const pw = panel.offsetWidth;
-    const ph = panel.offsetHeight;
-    if (!anchor || anchor.width <= 0 || anchor.top < 0 || anchor.bottom > innerHeight) {
-      panel.style.visibility = 'hidden';
+    if (!search) return null; // Sin barra asociada: no mostrar controles flotantes.
+    let card = state.table.parentElement;
+    while (card && card !== document.body) {
+      if (card.contains(search)) {
+        const tableChild = directChild(card, state.table);
+        const searchChild = directChild(card, search);
+        if (!tableChild || !searchChild || tableChild === searchChild) return null;
+        // La barra compartida aparece sobre la tabla dentro de la misma tarjeta.
+        const controls = [...searchChild.querySelectorAll('button')];
+        const automatic = controls.find((button) => /^AUTOMATICOS(?:\s|$)/.test(normalize(button.textContent)));
+        if (automatic) {
+          let toolbar = search.parentElement;
+          while (toolbar && toolbar !== card && !toolbar.contains(automatic)) toolbar = toolbar.parentElement;
+          if (toolbar && toolbar !== card && !toolbar.contains(state.table) &&
+              ['flex', 'inline-flex'].includes(getComputedStyle(toolbar).display)) {
+            const rightChild = directChild(toolbar, automatic);
+            const searchGroup = directChild(toolbar, search);
+            if (rightChild && searchGroup && rightChild !== searchGroup) {
+              const leftSiblings = [...toolbar.children].filter((child) =>
+                child !== rightChild && child !== state.panel &&
+                [...toolbar.children].indexOf(child) < [...toolbar.children].indexOf(rightChild));
+              const leftEdge = Math.max(...leftSiblings.map((child) => child.getBoundingClientRect().right), 0);
+              const space = rightChild.getBoundingClientRect().left - leftEdge;
+              // Si no cabe a la derecha de Buscar, usar una fila normal sobre la tabla.
+              if (space >= 315) return { host: toolbar, before: rightChild, mode: 'toolbar' };
+            }
+          }
+        }
+        return { host: card, before: tableChild, mode: 'bar' };
+      }
+      card = card.parentElement;
+    }
+    return null;
+  }
+
+  function visibleElement(element) {
+    if (!element?.isConnected || element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+    return element.getClientRects().length > 0 &&
+      getComputedStyle(element).visibility !== 'hidden';
+  }
+
+  function isModalOpen() {
+    const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open], [aria-modal="true"]');
+    return [...dialogs].some((dialog) => !dialog.contains(state.table) && visibleElement(dialog));
+  }
+
+  function updatePanelVisibility() {
+    const panel = state.panel;
+    if (!panel) return;
+    const show = onTargetPage() && visibleElement(state.table) &&
+      panel.isConnected && Boolean(state.panelHost) && !isModalOpen();
+    if (panel.hidden === show) panel.hidden = !show;
+  }
+
+  function mountPanel() {
+    if (!onTargetPage() || !state.table?.isConnected) return;
+    const panel = ensurePanel();
+    // Un cloneNode(true) o una reconstrucción React puede duplicar el ID del panel:
+    // retirar copias sin listeners antes de recalcular el espacio disponible.
+    document.querySelectorAll(`#${PANEL_ID}`).forEach((copy) => {
+      if (copy !== panel) copy.remove();
+    });
+    const placement = findPanelPlacement();
+    if (!placement) {
+      panel.remove();
+      state.panelHost = null;
+      state.panelMode = null;
       return;
     }
-    // La barra React muestra "Buscar lotería", el contador y "Automáticos".
-    // Flotar en el hueco entre el contador y Automáticos evita mutar el árbol React.
-    const parent = state.table.closest('main, section, article') || document;
-    const buttons = [...parent.querySelectorAll('button')];
-    const automatic = buttons.find(button => /^AUTOMATICOS(?:\s|$)/.test(normalize(button.textContent)));
-    const autoLeft = automatic?.getBoundingClientRect()?.left;
-    const leftLimit = anchor.right + 58; // contador de loterías inmediatamente a la derecha
-    const rightLimit = Number.isFinite(autoLeft) ? autoLeft - 9 : window.innerWidth - 12;
-    const left = rightLimit - pw;
-    if (left >= leftLimit && left + pw <= window.innerWidth - 8) {
-      panel.style.left = `${Math.round(left)}px`;
-      panel.style.top = `${Math.round(anchor.top + (anchor.height - ph) / 2)}px`;
-      panel.style.visibility = 'visible';
-    } else {
-      // No tapar botones ni campos cuando no existe espacio lateral suficiente.
-      panel.style.left = '12px';
-      panel.style.top = 'auto';
-      panel.style.bottom = '8px';
-      panel.style.visibility = 'visible';
+    // React puede reconstruir el toolbar o la tabla: reinsertar solo si cambió.
+    if (panel.parentElement !== placement.host || panel.nextSibling !== placement.before) {
+      placement.host.insertBefore(panel, placement.before);
     }
+    if (state.panelMode !== placement.mode) panel.dataset.clrPlacement = placement.mode;
+    state.panelHost = placement.host;
+    state.panelMode = placement.mode;
+    updatePanelVisibility();
   }
 
   function schedulePanelPosition() {
     if (state.positionFrame) return;
     state.positionFrame = requestAnimationFrame(() => {
       state.positionFrame = 0;
-      positionPanel();
+      mountPanel();
     });
   }
 
+  function hasDialogNode(records) {
+    const modalSelector = '[role="dialog"], [role="alertdialog"], dialog, [aria-modal]';
+    return records.some((record) => [...record.addedNodes, ...record.removedNodes].some((node) =>
+      node.nodeType === Node.ELEMENT_NODE &&
+      (node.matches?.(modalSelector) || node.querySelector?.(modalSelector))));
+  }
+
   function onShellMutation(records) {
-    if (state.table && !state.table.isConnected) { scheduleDiscovery(); return; }
+    if (state.table && !state.table.isConnected) {
+      // Retirar ya el filtro, sin esperar a que el nuevo React termine de montar.
+      bindTable(null);
+      scheduleDiscovery();
+      return;
+    }
     if (!onTargetPage()) {
       if (state.table) bindTable(null);
       return;
     }
-    if (state.table) return;
-    // El observador global solo descubre tablas y reconexiones; no procesa inputs.
+    if (state.table) {
+      if (!state.panel?.isConnected || !state.panelHost?.isConnected) schedulePanelPosition();
+      if (hasDialogNode(records)) schedulePanelPosition();
+      return;
+    }
     for (const record of records) {
-      if ([...record.addedNodes].some((node) => node.nodeType === 1 &&
+      if ([...record.addedNodes].some((node) => node.nodeType === Node.ELEMENT_NODE &&
         (node.matches?.('table, [role="grid"], [role="table"], main, section, #root') ||
          node.querySelector?.('table, [role="grid"], [role="table"]')))) {
         scheduleDiscovery();
@@ -520,26 +588,40 @@
     status: () => ({
       version: VERSION, activeRoute: onTargetPage(), tableFound: Boolean(state.table?.isConnected),
       tableTag: state.table?.tagName || null, headers: [...state.headers], columns: { ...state.columns },
-      filter: state.filter, ...state.data, performance: { ...state.stats },
+      filter: state.filter, ...state.data,
+      panel: { mounted: Boolean(state.panel?.isConnected), mode: state.panelMode,
+        inTableCard: Boolean(state.panelHost?.isConnected && state.panelHost.contains(state.panel)),
+        hidden: state.panel?.hidden ?? null },
+      performance: { ...state.stats },
     }),
     rows: debugRows,
-    refresh: () => { scheduleDiscovery(); scheduleRows(); },
+    refresh: () => { scheduleDiscovery(); scheduleRows(); schedulePanelPosition(); },
     filter: (name) => setFilter(name),
     resetPerformance: () => { Object.keys(state.stats).forEach((key) => { state.stats[key] = 0; }); },
   });
 
+  let initialized = false;
   function initialize() {
-    if (!document.body) return;
+    if (initialized || !document.body) return;
+    initialized = true;
     ensureStyle();
     state.shellObserver = new MutationObserver(onShellMutation);
     state.shellObserver.observe(document.body, { childList: true, subtree: true });
-    scheduleDiscovery();
+    // Buscar en el primer ciclo disponible, también si React ya pintó la tabla.
+    bindTable(onTargetPage() ? discoverTable() : null);
+    if (!state.table) scheduleDiscovery();
     addEventListener('popstate', scheduleDiscovery, { passive: true });
     addEventListener('hashchange', scheduleDiscovery, { passive: true });
     addEventListener('resize', schedulePanelPosition, { passive: true });
-    addEventListener('scroll', schedulePanelPosition, { passive: true, capture: true });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) { scheduleDiscovery(); schedulePanelPosition(); } });
-    // React Router usa pushState / replaceState y puede no emitir popstate.
+    document.addEventListener('focusin', schedulePanelPosition, { passive: true, capture: true });
+    document.addEventListener('click', schedulePanelPosition, { passive: true, capture: true });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') schedulePanelPosition();
+    }, { passive: true, capture: true });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) { scheduleDiscovery(); schedulePanelPosition(); }
+    });
+    // React Router puede cambiar la ruta sin emitir popstate.
     let previousRoute = location.pathname;
     window.setInterval(() => {
       if (location.pathname !== previousRoute) {
@@ -548,9 +630,23 @@
         scheduleDiscovery();
       }
     }, 1200);
-    console.info(`[Central Loterías React] v${VERSION} instalado; modo pasivo, sin DataTables.`);
+    console.info(`[Central Loterías React] v${VERSION} · filtros integrados, sin posición fixed.`);
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
-  else initialize();
+  // @run-at document-start: esperar solo a que exista body (no al evento load).
+  if (document.body) initialize();
+  else if (document.documentElement) {
+    const bootstrapObserver = new MutationObserver(() => {
+      if (!document.body) return;
+      bootstrapObserver.disconnect();
+      initialize();
+    });
+    bootstrapObserver.observe(document.documentElement, { childList: true });
+    document.addEventListener('DOMContentLoaded', () => {
+      bootstrapObserver.disconnect();
+      initialize();
+    }, { once: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', initialize, { once: true });
+  }
 })();

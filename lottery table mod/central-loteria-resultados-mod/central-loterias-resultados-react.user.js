@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.4
+// @version      0.0.5
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,11 +16,20 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.4';
+  const VERSION = '0.0.5';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
   const WIDTH_STYLE_ID = `${PREFIX}-column-widths`;
+  // Anchos mínimos compactos medidos para el esquema de Central (FOTOS incluido).
+  // Son proporciones estables: el navegador distribuye el ancho extra en pantallas grandes.
+  const BASE_COLUMN_WIDTHS = Object.freeze({
+    LOTERIA: 200, FOTOS: 68, HORA: 100,
+    '1ERA': 65, '2DA': 65, '3RA': 65,
+    'PICK 3': 86, 'PICK 4': 86,
+    'PEND.': 64, 'PROC.': 64,
+    HISTORIAL: 88, STATUS: 70, ACCION: 82,
+  });
   const PANEL_ID = `${PREFIX}-panel`;
   const QA_KEY = '__CENTRAL_LOTERIAS_REACT_QA__';
   const ROW_REFRESH_DELAY = 50;
@@ -313,15 +322,18 @@
     if (state.scrollHost?.isConnected) state.scrollHost.removeAttribute('data-clr-scroll-host');
     state.scrollHost = null;
     if (!table) return;
-    // Reservar el mismo espacio para la barra, haya 189 filas o sólo 3.
+    // No confundir el scroll horizontal interior con el contenedor vertical real.
+    // En Central el padre inmediato overflow-x-auto NO tiene scroll vertical.
     for (let parent = table.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
-      if (/^(auto|scroll)$/.test(getComputedStyle(parent).overflowY)) {
-        state.scrollHost = parent;
-        parent.setAttribute('data-clr-scroll-host', 'true');
-        break;
-      }
+      const overflowY = getComputedStyle(parent).overflowY;
+      if (!/^(auto|scroll)$/.test(overflowY)) continue;
+      if (parent.scrollHeight <= parent.clientHeight + 2 && overflowY !== 'scroll') continue;
+      state.scrollHost = parent;
+      parent.setAttribute('data-clr-scroll-host', 'true');
+      break;
     }
   }
+
 
   function clearWidthLock() {
     state.widthLock = null;
@@ -333,10 +345,12 @@
     if (!state.table?.matches('table') || widths.length !== state.headers.length) return false;
     const total = widths.reduce((sum, width) => sum + width, 0);
     if (!Number.isFinite(total) || total <= 0) return false;
-    // Sólo estilos en <head>: no insertar colgroup ni modificar la estructura React.
+    // El código anterior fijaba max(100%,1495px) incluso con FOTOS y viewport
+    // pequeño. Ahora el mínimo corresponde al diseño compacto, no a una
+    // captura del ancho accidental de las filas.
     const selector = 'table[data-clr-table="true"][data-clr-width-locked="true"]';
-    const rules = widths.map((width, i) =>
-      `${selector} thead th:nth-child(${i + 1}) {width:${width.toFixed(2)}px!important;box-sizing:border-box!important;}`
+    const rules = widths.map((width, index) =>
+      `${selector} thead th:nth-child(${index + 1}) {width:${(width / total * 100).toFixed(5)}%!important;min-width:0!important;box-sizing:border-box!important;}`
     );
     let sheet = document.getElementById(WIDTH_STYLE_ID);
     if (!sheet) {
@@ -344,7 +358,7 @@
       sheet.id = WIDTH_STYLE_ID;
       document.head.appendChild(sheet);
     }
-    sheet.textContent = `${selector}{table-layout:fixed!important;width:max(100%,${Math.ceil(total)}px)!important;}\n` + rules.join('\n');
+    sheet.textContent = `${selector}{table-layout:fixed!important;width:100%!important;min-width:${Math.ceil(total)}px!important;}\n` + rules.join('\n');
     state.table.setAttribute('data-clr-width-locked', 'true');
     state.widthLock = widths.slice();
     state.widthSignature = signature;
@@ -353,25 +367,22 @@
     return true;
   }
 
+
   function lockColumnsBeforeFiltering() {
     const table = state.table;
-    if (!table?.matches('table') || !table.isConnected || state.widthLock) return;
+    if (!table?.matches('table') || !table.isConnected) return;
     const headers = [...table.querySelectorAll('thead tr:last-child > th')];
     const signature = state.headers.join('|');
-    if (!signature || headers.length < 9) return;
-    // Si React recompone la misma tabla mientras un filtro está activo, reutilizar
-    // la geometría original; nunca reaprender anchos desde un subconjunto filtrado.
-    if (state.widthCache?.signature === signature && state.widthCache.widths.length === headers.length) {
-      writeWidthLock(state.widthCache.widths, signature);
-      return;
-    }
-    if (state.filter !== 'all') return;
-    const rows = getRows(table);
-    if (!rows.some((row) => row.getClientRects().length > 0)) return;
-    const widths = headers.map((header) => header.getBoundingClientRect().width);
-    if (widths.some((width) => !Number.isFinite(width) || width < 15)) return;
+    if (!signature || headers.length < 9 || headers.length !== state.headers.length) return;
+    // Las proporciones dependen del ESQUEMA, no de las filas visibles.
+    // Así los anchos permanecen idénticos al filtrar, reconstruir o redimensionar.
+    if (state.widthLock && state.widthSignature === signature) return;
+    const widths = state.headers.map((name) =>
+      Object.prototype.hasOwnProperty.call(BASE_COLUMN_WIDTHS, name)
+        ? BASE_COLUMN_WIDTHS[name] : 76);
     writeWidthLock(widths, signature);
   }
+
 
   function bindTable(table) {
     if (table === state.table) return;
@@ -438,9 +449,14 @@
       table[data-clr-table="true"]{--clr-head:#576a8f;--clr-text:#464c54;--clr-line:#dce2e9;--clr-input:#57595b;}
       [data-clr-scroll-host="true"]{scrollbar-gutter:stable!important;}
       table[data-clr-table="true"] thead th{background:#576a8f!important;color:white!important;font-weight:600!important;font-size:14px!important;border-bottom:1px solid #d0d0d0!important;}
-      table[data-clr-table="true"] tbody td{border-bottom:1px solid #dce2e9!important;padding:11px 12px!important;vertical-align:middle!important;font-size:14px!important;color:var(--clr-text);}
+      /* Menor padding evita que el mínimo de 13 columnas crezca por contenidos. */
+      table[data-clr-table="true"] thead th{padding:8px 6px!important;white-space:nowrap!important;}
+      table[data-clr-table="true"] tbody td{border-bottom:1px solid #dce2e9!important;padding:8px 6px!important;vertical-align:middle!important;font-size:13px!important;color:var(--clr-text);}
+      table[data-clr-table="true"][data-clr-width-locked="true"] tbody td{overflow:hidden;}
+      table[data-clr-table="true"] tbody td:first-child{white-space:normal!important;overflow-wrap:anywhere;}
       table[data-clr-table="true"] tbody input:not([type="checkbox"]):not([type="radio"]),
       table[data-clr-table="true"] tbody select{min-height:36px;box-sizing:border-box;color:var(--clr-input);font-weight:500;font-variant-numeric:tabular-nums;}
+      table[data-clr-table="true"] tbody td input:not([type="checkbox"]):not([type="radio"]){width:100%!important;max-width:100%!important;min-width:0!important;}
       table[data-clr-table="true"] tbody td[data-clr-lottery]{font-weight:600;letter-spacing:.1px;}
       table[data-clr-table="true"] tbody td[data-clr-processed-status="no"]{color:#e36a6a;font-weight:700;}
       table[data-clr-table="true"] tbody td[data-clr-has-pending="true"]{font-weight:700;}
@@ -667,6 +683,7 @@
       tableTag: state.table?.tagName || null, headers: [...state.headers], columns: { ...state.columns },
       filter: state.filter, ...state.data,
       columnLock: { active: Boolean(state.widthLock), columns: state.widthLock?.length || 0,
+        totalMinWidth: state.widthLock?.reduce((sum, width) => sum + width, 0) || 0,
         stableScrollbar: Boolean(state.scrollHost?.isConnected) },
       panel: { mounted: Boolean(state.panel?.isConnected), mode: state.panelMode,
         inTableCard: Boolean(state.panelHost?.isConnected && state.panelHost.contains(state.panel)),

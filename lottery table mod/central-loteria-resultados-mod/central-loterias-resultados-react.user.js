@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.2
+// @version      0.0.3
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,7 +16,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.2';
+  const VERSION = '0.0.3';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
@@ -328,6 +328,7 @@
       mountPanel();
     } else {
       state.panel?.remove();
+      state.panelHost?.removeAttribute('data-clr-toolbar-host');
       state.panelHost = null;
       state.panelMode = null;
       state.data = { rows: 0, unprocessed: 0, processedPending: 0, other: 0, unknown: 0 };
@@ -396,7 +397,9 @@
       /* Los filtros forman parte de la tarjeta React: nunca son una capa fixed. */
       #${PANEL_ID}{all:initial;position:static!important;z-index:auto!important;inset:auto!important;float:none!important;box-sizing:border-box;display:inline-flex;flex:0 0 auto;align-items:center;justify-content:flex-start;gap:10px;padding:6px 9px;border:1px solid #dbe2eb;border-radius:8px;background:#fff;color:#454d59;box-shadow:none;font:500 12px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;white-space:nowrap;max-width:100%;}
       #${PANEL_ID}[hidden]{display:none!important;}
+      /* Mantener el panel junto a Search, sin cambiar de contenedor al filtrar. */
       #${PANEL_ID}[data-clr-placement="toolbar"]{margin:0 8px 0 auto;}
+      [data-clr-toolbar-host="true"]{flex-wrap:wrap!important;}
       #${PANEL_ID}[data-clr-placement="bar"]{display:flex;width:max-content;margin:4px 0 10px 0;flex-wrap:wrap;}
       #${PANEL_ID} label{display:inline-flex;gap:5px;align-items:center;cursor:pointer;white-space:nowrap;}
       #${PANEL_ID} input{margin:0;accent-color:#576a8f;width:15px;height:15px;cursor:pointer;}
@@ -474,13 +477,10 @@
             const rightChild = directChild(toolbar, automatic);
             const searchGroup = directChild(toolbar, search);
             if (rightChild && searchGroup && rightChild !== searchGroup) {
-              const leftSiblings = [...toolbar.children].filter((child) =>
-                child !== rightChild && child !== state.panel &&
-                [...toolbar.children].indexOf(child) < [...toolbar.children].indexOf(rightChild));
-              const leftEdge = Math.max(...leftSiblings.map((child) => child.getBoundingClientRect().right), 0);
-              const space = rightChild.getBoundingClientRect().left - leftEdge;
-              // Si no cabe a la derecha de Buscar, usar una fila normal sobre la tabla.
-              if (space >= 315) return { host: toolbar, before: rightChild, mode: 'toolbar' };
+              // Anclaje estable: elegir por estructura DOM, no por espacios calculados.
+              // El ancho del bloque varía al filtrar filas o cambiar el scrollbar;
+              // el antiguo umbral de 315px provocaba saltos entre 'bar' y 'toolbar'.
+              return { host: toolbar, before: rightChild, mode: 'toolbar' };
             }
           }
         }
@@ -521,6 +521,7 @@
     const placement = findPanelPlacement();
     if (!placement) {
       panel.remove();
+      state.panelHost?.removeAttribute('data-clr-toolbar-host');
       state.panelHost = null;
       state.panelMode = null;
       return;
@@ -529,6 +530,10 @@
     if (panel.parentElement !== placement.host || panel.nextSibling !== placement.before) {
       placement.host.insertBefore(panel, placement.before);
     }
+    if (state.panelHost !== placement.host && state.panelHost?.isConnected) {
+      state.panelHost.removeAttribute('data-clr-toolbar-host');
+    }
+    if (placement.mode === 'toolbar') placement.host.setAttribute('data-clr-toolbar-host', 'true');
     if (state.panelMode !== placement.mode) panel.dataset.clrPlacement = placement.mode;
     state.panelHost = placement.host;
     state.panelMode = placement.mode;

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.5
+// @version      0.0.6
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,7 +16,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.5';
+  const VERSION = '0.0.6';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
@@ -63,7 +63,8 @@
     headers: [],
     columns: {},
     data: { rows: 0, unprocessed: 0, processedPending: 0, other: 0, unknown: 0 },
-    stats: { scans: 0, rowPasses: 0, rowsInspected: 0, mutationBatches: 0, widthLocks: 0 },
+    stats: { scans: 0, rowPasses: 0, rowsInspected: 0, mutationBatches: 0, widthLocks: 0, immediateDiscoveries: 0, immediateRowRefreshes: 0 },
+    timings: { lastBindDurationMs: null, lastMutationRefreshMs: null },
   };
 
   function onTargetPage() {
@@ -301,11 +302,13 @@
 
   function onTableMutations(records) {
     state.stats.mutationBatches++;
+    if (!state.table?.isConnected) return;
     const rows = new Set();
     let full = false;
     for (const record of records) {
-      const node = record.target.nodeType === Node.ELEMENT_NODE ? record.target : record.target.parentElement;
-      const row = node?.closest?.('tr, [role="row"]');
+      const target = record.target.nodeType === Node.ELEMENT_NODE
+        ? record.target : record.target.parentElement;
+      const row = target?.closest?.('tr, [role="row"]');
       if (row && state.table.contains(row)) rows.add(row);
       else if (record.type === 'childList') full = true;
       for (const child of record.addedNodes) {
@@ -314,8 +317,20 @@
         else if (child.querySelector?.('tr, [role="row"]')) full = true;
       }
     }
-    if (full) scheduleRows();
-    else if (rows.size) scheduleRows(rows);
+    if (!full && !rows.size) return;
+    // MutationObserver se ejecuta al finalizar el commit DOM de React,
+    // antes del siguiente pintado. No posponer la primera decoración 50 ms.
+    const started = performance.now();
+    const total = full ? getRows(state.table).length : rows.size;
+    if (total > 400) {
+      if (full) scheduleRows();
+      else scheduleRows([...rows]);
+      return;
+    }
+    if (full) refreshRows();
+    else refreshRows([...rows].filter((row) => row.isConnected && state.table.contains(row)));
+    state.stats.immediateRowRefreshes++;
+    state.timings.lastMutationRefreshMs = Number((performance.now() - started).toFixed(2));
   }
 
   function attachStableScrollbar(table) {
@@ -386,6 +401,7 @@
 
   function bindTable(table) {
     if (table === state.table) return;
+    const started = performance.now();
     state.tableObserver?.disconnect();
     attachStableScrollbar(null);
     clearWidthLock();
@@ -401,11 +417,13 @@
       attachStableScrollbar(table);
       table.setAttribute('data-clr-table', 'true');
       table.setAttribute('data-clr-filter', state.filter);
-      state.tableObserver = new MutationObserver(onTableMutations);
-      state.tableObserver.observe(table, { subtree: true, childList: true, characterData: true });
-      scheduleRows();
       ensurePanel();
       mountPanel();
+      // Aplicar clases, filtros y anchos en este mismo turno. El observador
+      // se conecta después para no reaccionar a nuestras propias anotaciones.
+      refreshRows();
+      state.tableObserver = new MutationObserver(onTableMutations);
+      state.tableObserver.observe(table, { subtree: true, childList: true, characterData: true });
     } else {
       state.panel?.remove();
       state.panelHost?.removeAttribute('data-clr-toolbar-host');
@@ -413,6 +431,7 @@
       state.panelMode = null;
       state.data = { rows: 0, unprocessed: 0, processedPending: 0, other: 0, unknown: 0 };
     }
+    state.timings.lastBindDurationMs = Number((performance.now() - started).toFixed(2));
   }
 
   function scheduleDiscovery() {
@@ -643,12 +662,35 @@
       (node.matches?.(modalSelector) || node.querySelector?.(modalSelector))));
   }
 
+  function findNewResultsTable(records) {
+    const candidates = new Set();
+    const selector = 'table, [role="grid"], [role="table"]';
+    for (const record of records) {
+      const target = record.target.nodeType === Node.ELEMENT_NODE
+        ? record.target : record.target.parentElement;
+      const ancestor = target?.closest?.(selector);
+      if (ancestor) candidates.add(ancestor);
+      for (const node of record.addedNodes) {
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+        if (node.matches?.(selector)) candidates.add(node);
+        // React puede insertar una tarjeta entera que ya contiene la tabla.
+        // Evitar consultar subárboles en cada edición de un input o badge.
+        if (node.matches?.('main, section, article, div, [role="main"]') &&
+            node.querySelector?.(selector)) {
+          node.querySelectorAll(selector).forEach((table) => candidates.add(table));
+        }
+      }
+    }
+    for (const candidate of candidates) {
+      if (candidate.isConnected && looksLikeLotteryTable(candidate) > 0) return candidate;
+    }
+    return null;
+  }
+
   function onShellMutation(records) {
     if (state.table && !state.table.isConnected) {
-      // Retirar ya el filtro, sin esperar a que el nuevo React termine de montar.
       bindTable(null);
-      scheduleDiscovery();
-      return;
+      // La tabla nueva puede estar en el MISMO lote de mutaciones.
     }
     if (!onTargetPage()) {
       if (state.table) bindTable(null);
@@ -659,9 +701,17 @@
       if (hasDialogNode(records)) schedulePanelPosition();
       return;
     }
+    const table = findNewResultsTable(records);
+    if (table) {
+      state.stats.immediateDiscoveries++;
+      bindTable(table);
+      return;
+    }
+    // Respaldo para cambios de ruta o estructuras sin una tabla insertada
+    // explícitamente. El descubrimiento habitual ya no depende del timer.
     for (const record of records) {
-      if ([...record.addedNodes].some((node) => node.nodeType === Node.ELEMENT_NODE &&
-        (node.matches?.('table, [role="grid"], [role="table"], main, section, #root') ||
+      if ([...record.addedNodes].some((node) => node.nodeType === 1 &&
+        (node.matches?.('main, section, #root') ||
          node.querySelector?.('table, [role="grid"], [role="table"]')))) {
         scheduleDiscovery();
         return;
@@ -689,6 +739,7 @@
         inTableCard: Boolean(state.panelHost?.isConnected && state.panelHost.contains(state.panel)),
         hidden: state.panel?.hidden ?? null },
       performance: { ...state.stats },
+      timings: { ...state.timings },
     }),
     rows: debugRows,
     refresh: () => { scheduleDiscovery(); scheduleRows(); schedulePanelPosition(); },

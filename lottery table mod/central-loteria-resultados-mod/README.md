@@ -43,3 +43,9 @@ El script no procesa sorteos, no introduce peticiones de red y no modifica los v
 Se comprobó la sintaxis con Node y se ejecutaron pruebas de Playwright/Chromium sobre una página simulada con la estructura de 12 columnas observada en Central. Queda pendiente validar el comportamiento completo sobre la sesión autenticada de producción.
 
 El mod anterior `Rs-loteria-res-tabla-mod.user.js`, ubicado en el directorio padre, permanece independiente e intacto.
+
+## Cambios recientes
+
+- **v0.0.3:** panel de filtros anclado siempre a la barra de búsqueda; elimina el umbral de ancho que lo movía a otra fila al cambiar los resultados. El contenedor admite ajuste de línea en pantallas estrechas. Pruebas locales con Playwright en varios anchos, modales y reconstrucciones de React.
+- **v0.0.2:** filtros integrados en la tarjeta de tabla (no `position: fixed`), observación de cambios y retirada al abrir un modal.
+- **v0.0.1:** primera adaptación a Central.

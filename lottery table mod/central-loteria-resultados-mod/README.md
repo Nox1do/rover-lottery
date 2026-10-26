@@ -3,7 +3,7 @@
 Userscript independiente para la pantalla React de resultados de loterías de Rover Central.
 
 - **Script:** `central-loterias-resultados-react.user.js`
-- **Versión actual:** `0.0.4` (inicial: `0.0.1`)
+- **Versión actual:** `0.0.5` (inicial: `0.0.1`)
 - **Página objetivo:** `https://central.roversport.net/loteria/resultados/ver`
 - **Navegadores:** Firefox y Opera con Tampermonkey
 
@@ -46,6 +46,7 @@ El mod anterior `Rs-loteria-res-tabla-mod.user.js`, ubicado en el directorio pad
 
 ## Cambios recientes
 
+- **v0.0.5:** la tabla de 13 columnas, incluida **FOTOS**, usa anchos mínimos compactos por encabezado y proporciones que ocupan el ancho disponible; se retira el mínimo rígido de 1,495 px medido con viewport estrecho. La reserva de scrollbar se coloca únicamente en el contenedor con desplazamiento vertical real. Conserva las columnas alineadas al filtrar sin ocultar resultados. En anchuras inferiores a ~1,103 px se conserva el desplazamiento horizontal por legibilidad. Pruebas locales de geometría con Playwright/Chromium (731, 1220 y 1580 px) sin deriva entre estados; la validación final en Firefox/Opera autenticados sigue pendiente. **QA:** `columnLock.totalMinWidth`.
 - **v0.0.4:** captura de anchuras con la tabla completa antes de ocultar filas, algoritmo `table-layout: fixed` con anchos originales, `scrollbar-gutter: stable` y recuperación del bloqueo tras reconstrucción React. Reconocimiento estricto de 12 columnas para descartar tablas internas de modales. Pruebas de regresión en Chromium: 189 filas, filtros que muestran 126 o 1 fila, cuatro resoluciones, modales y reconstrucción de tabla sin desplazamiento horizontal de columnas. Pendiente comprobar en Firefox/Opera autenticados.
 - **v0.0.3:** panel de filtros anclado siempre a la barra de búsqueda; elimina el umbral de ancho que lo movía a otra fila al cambiar los resultados. El contenedor admite ajuste de línea en pantallas estrechas. Pruebas locales con Playwright en varios anchos, modales y reconstrucciones de React.
 - **v0.0.2:** filtros integrados en la tarjeta de tabla (no `position: fixed`), observación de cambios y retirada al abrir un modal.

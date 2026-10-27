@@ -53,6 +53,8 @@ En 0.0.13 se eliminan las pausas entre entradas: Pick 3/4 y sus premios se compl
 
 El informe de consola añade **Fuente (ms)**, **Cola (ms)**, **Formulario (ms)** y **Total (ms)**. Permite distinguir la espera del proveedor de la escritura; no mide el tiempo de pintura de la GPU ni garantiza la fluidez del equipo real.
 
+Para registrar automáticamente un clic móvil, eventos de llenado, verde, scroll y pausas de la página sin modificar el userscript, usar el [snippet de diagnóstico de consola](diagnostics/README.md). Indica expresamente si no puede observar los tiempos internos desde el sandbox de Tampermonkey; no presenta la espera previa al llenado como una medición de red GM.
+
 La reproducción incluye 241 filas reales de React (1205 inputs controlados) y una fila filtrada, con llenado inicial y repetido. Ver [RENDIMIENTO.md](RENDIMIENTO.md) para el método, contadores y límites: los tiempos de la reproducción no garantizan la fluidez de la sesión real de Rover.
 
 ## Pruebas reproducibles

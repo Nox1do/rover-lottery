@@ -11,7 +11,7 @@ const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 let browser, server, origin;
 
-async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = false, deviceScaleFactor = 1, rows = 5 } = {}) {
+async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = false, deviceScaleFactor = 1, rows = 5, privateConsole = false } = {}) {
   const page = await browser.newPage({ ...(viewport ? { viewport } : {}), hasTouch, deviceScaleFactor });
   page.setDefaultTimeout(5000);
   page.setDefaultNavigationTimeout(10000);
@@ -54,7 +54,7 @@ async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = fal
       return { abort() {} };
     };
   }, { mode, version: require('../metadata.json').version });
-  await page.addScriptTag({ content: script });
+  await page.addScriptTag({ content: privateConsole ? `((console) => {${script}\n})({info: console.info.bind(console), error: console.error.bind(console), table: console.table.bind(console)});` : script });
   const bar = page.locator('#rlur-bar');
   await bar.waitFor({ state: 'attached', timeout: 3000 });
   await page.locator('#rlur-toggle').click();
@@ -67,6 +67,59 @@ async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = fal
     async close() { assert.deepEqual(requests, [], 'El userscript no debe llamar APIs de Rover'); assert.equal(await page.evaluate(() => window.processClicks || 0), 0); await page.close(); }
   };
 }
+
+for (const privateConsole of [false, true]) test(`QA móvil: clic, llenado y límites de consola (${privateConsole ? 'aislada' : 'compartida'})`, async () => {
+  const r = await setup({ mode: 'slow', rows: 241, privateConsole }); try {
+    await r.bind();
+    await r.page.evaluate(() => { window.qaOriginalFetch = window.fetch; window.qaOriginalGM = window.GM_xmlhttpRequest; });
+    await r.page.addScriptTag({ content: fs.readFileSync(path.join(root, 'diagnostics/usa-mobile-console-qa.js'), 'utf8') });
+    assert.deepEqual(await r.values('GE-MD'), ['', '', '', '', ''], 'Instalar el QA no debe editar campos');
+    await r.click('ga-am');
+    await r.page.waitForFunction(() => window.__USA_MOBILE_QA__.reports.length === 1);
+    const report = await r.page.evaluate(() => JSON.parse(window.__USA_MOBILE_QA__.json())[0]);
+    assert.equal(report.code, 'GE-MD'); assert.equal(report.status, 'success'); assert.equal(report.tableRows, 241);
+    assert.ok(report.phaseMs.clickToFirstInput >= 150); assert.equal(report.inputEvents.length, 2);
+    assert.ok(report.inputEvents.every(e => Number.isFinite(e.observedPropagationMs)));
+    assert.ok(report.phaseMs.clickToGreen !== null);
+    if (privateConsole) {
+      assert.equal(report.internalTimings, null, 'No inventar tiempos internos fuera del sandbox');
+      assert.equal(report.gmNetworkMs, null);
+    } else assert.ok(report.internalTimings.sourceMs >= 150);
+    assert.equal(await r.page.evaluate(() => window.fetch === window.qaOriginalFetch && window.GM_xmlhttpRequest === window.qaOriginalGM), true);
+    assert.deepEqual(await r.values('GE-MD'), ['27', '09', '87', '027', '0987']);
+    await r.page.evaluate(() => window.__USA_MOBILE_QA__.stop());
+  } finally { await r.close(); }
+});
+test('QA móvil: mide propagación lenta y se reinstala/desactiva sin dejar ganchos propios', async () => {
+  const r = await setup(); try {
+    await r.bind(); await r.page.evaluate(() => {
+      window.qaOriginalTable = console.table;
+      document.addEventListener('input', event => {
+        if (!event.target.closest('tr[data-code="GE-MD"]')) return;
+        const until = performance.now() + 85; while (performance.now() < until) {} // Carga conocida de la fixture.
+      });
+    });
+    const qa = fs.readFileSync(path.join(root, 'diagnostics/usa-mobile-console-qa.js'), 'utf8');
+    await r.page.addScriptTag({ content: qa }); await r.page.addScriptTag({ content: qa });
+    await r.click('ga-am'); await r.page.waitForFunction(() => window.__USA_MOBILE_QA__.reports.length === 1);
+    const report = await r.page.evaluate(() => window.__USA_MOBILE_QA__.reports[0]);
+    assert.ok(report.inputEvents.some(e => e.observedPropagationMs >= 80), 'Debe distinguir trabajo síncrono tras input de espera previa');
+    await r.page.evaluate(() => window.__USA_MOBILE_QA__.stop());
+    assert.equal(await r.page.evaluate(() => console.table === window.qaOriginalTable), true);
+    await r.click('ga-am');
+    assert.equal(await r.page.evaluate(() => window.__USA_MOBILE_QA__.reports.length), 1, 'Desactivar elimina los listeners propios');
+  } finally { await r.close(); }
+});
+test('QA móvil: fallo de red sin inputs no se confunde con llenado lento', async () => {
+  const r = await setup({ mode: 'network' }); try {
+    await r.bind(); await r.page.addScriptTag({ content: fs.readFileSync(path.join(root, 'diagnostics/usa-mobile-console-qa.js'), 'utf8') });
+    await r.click('ga-am'); await r.page.waitForFunction(() => window.__USA_MOBILE_QA__.reports.length === 1);
+    const report = await r.page.evaluate(() => window.__USA_MOBILE_QA__.reports[0]);
+    assert.equal(report.status, 'network'); assert.equal(report.phaseMs.clickToFirstInput, null);
+    assert.equal(report.inputEvents.length, 0); assert.equal(report.gmNetworkMs, null);
+    await r.page.evaluate(() => window.__USA_MOBILE_QA__.stop());
+  } finally { await r.close(); }
+});
 
 test('Barra nativa independiente: 75 botones, versión y categoría', async () => {
   const r = await setup(); try {

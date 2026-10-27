@@ -52,3 +52,23 @@ El mod anterior `Rs-loteria-res-tabla-mod.user.js`, ubicado en el directorio pad
 - **v0.0.3:** panel de filtros anclado siempre a la barra de búsqueda; elimina el umbral de ancho que lo movía a otra fila al cambiar los resultados. El contenedor admite ajuste de línea en pantallas estrechas. Pruebas locales con Playwright en varios anchos, modales y reconstrucciones de React.
 - **v0.0.2:** filtros integrados en la tarjeta de tabla (no `position: fixed`), observación de cambios y retirada al abrir un modal.
 - **v0.0.1:** primera adaptación a Central.
+
+## Diagnóstico de inicialización React (solo lectura)
+
+Para investigar si la tabla se muestra antes de que los estilos del mod estén listos, usar el
+[React Timing QA](https://github.com/Nox1do/rover-lottery/blob/main/lottery%20table%20mod/central-loteria-resultados-mod/central-loterias-react-timing-qa-readonly.js).
+No es una nueva versión del userscript principal.
+
+1. Abrir el [RAW](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/lottery%20table%20mod/central-loteria-resultados-mod/central-loterias-react-timing-qa-readonly.js), copiarlo en F12 > Consola de Firefox **antes de pulsar Buscar**.
+2. Pulsar Buscar. Repetir una vez cuando la tabla ya exista, para comprobar si React reemplaza solo las filas.
+3. Tras la segunda consulta, ejecutar `__CENTRAL_TIMING_QA__.finish(); __CENTRAL_TIMING_QA__.report();`.
+4. Exportar el informe con `console.log(__CENTRAL_TIMING_QA__.exportJson())`. Opcional: `__CENTRAL_TIMING_QA__.stop()` para retirar el observador.
+
+La herramienta mide timestamps relativos al clic, primera mutación del DOM, presencia de tabla,
+atributos del mod, aplicación de widths, anotaciones de filas, panel y métricas QA de la v0.0.6.
+Evita leer valores de loterías, emails, tokens, URLs de red o datos de los formularios.
+
+**Limitación:** la consola abierta después de cargar la página no puede medir la inyección
+original del userscript al navegar. requestAnimationFrame se ejecuta antes del repintado, y
+su timestamp no representa el instante exacto de visualización. Validar Firefox Content Script
+API desde ajustes de Tampermonkey si el problema se limita a la primera carga de documento.

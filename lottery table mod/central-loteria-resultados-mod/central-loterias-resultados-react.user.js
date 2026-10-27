@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.6
+// @version      0.0.7
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,7 +16,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.6';
+  const VERSION = '0.0.7';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
@@ -64,7 +64,10 @@
     columns: {},
     data: { rows: 0, unprocessed: 0, processedPending: 0, other: 0, unknown: 0 },
     stats: { scans: 0, rowPasses: 0, rowsInspected: 0, mutationBatches: 0, widthLocks: 0, immediateDiscoveries: 0, immediateRowRefreshes: 0 },
-    timings: { lastBindDurationMs: null, lastMutationRefreshMs: null },
+    timings: {
+      lastBindDurationMs: null, lastMutationRefreshMs: null,
+      lastDiscoveryDurationMs: null, lastBindStagesMs: null, lastRowStagesMs: null,
+    },
   };
 
   function onTargetPage() {
@@ -271,7 +274,9 @@
 
   function refreshRows(rows = null) {
     if (!state.table?.isConnected || !onTargetPage()) return;
+    const start = performance.now();
     const targets = rows || getRows(state.table);
+    const rowsReady = performance.now();
     if (!rows) {
       const latestHeaders = getHeaders(state.table);
       if (latestHeaders.join('\u001f') !== state.headers.join('\u001f')) {
@@ -279,11 +284,24 @@
         state.columns = mapColumns(latestHeaders);
       }
     }
+    const headersReady = performance.now();
     state.stats.rowPasses++;
     state.stats.rowsInspected += targets.length;
     targets.forEach(annotateRow);
+    const annotationsReady = performance.now();
     lockColumnsBeforeFiltering();
+    const lockReady = performance.now();
     summary();
+    const done = performance.now();
+    state.timings.lastRowStagesMs = {
+      rowCount: targets.length,
+      getRows: Number((rowsReady - start).toFixed(2)),
+      headers: Number((headersReady - rowsReady).toFixed(2)),
+      annotation: Number((annotationsReady - headersReady).toFixed(2)),
+      columnLock: Number((lockReady - annotationsReady).toFixed(2)),
+      summary: Number((done - lockReady).toFixed(2)),
+      total: Number((done - start).toFixed(2)),
+    };
   }
 
   function scheduleRows(rows = null) {
@@ -401,10 +419,18 @@
 
   function bindTable(table) {
     if (table === state.table) return;
-    const started = performance.now();
+    const start = performance.now();
+    const stages = {};
+    let previous = start;
+    const checkpoint = (phase) => {
+      const tick = performance.now();
+      stages[phase] = Number((tick - previous).toFixed(2));
+      previous = tick;
+    };
     state.tableObserver?.disconnect();
     attachStableScrollbar(null);
     clearWidthLock();
+    checkpoint('disconnectAndCleanup');
     if (state.table?.isConnected) {
       state.table.removeAttribute('data-clr-table');
       state.table.removeAttribute('data-clr-filter');
@@ -413,25 +439,34 @@
     state.table = table;
     state.headers = table ? getHeaders(table) : [];
     state.columns = mapColumns(state.headers);
+    checkpoint('headersAndColumns');
     if (table) {
       attachStableScrollbar(table);
       table.setAttribute('data-clr-table', 'true');
       table.setAttribute('data-clr-filter', state.filter);
+      checkpoint('scrollHostAndAttributes');
       ensurePanel();
       mountPanel();
-      // Aplicar clases, filtros y anchos en este mismo turno. El observador
-      // se conecta después para no reaccionar a nuestras propias anotaciones.
+      checkpoint('panelPlacement');
+      // La decoración sigue siendo síncrona: esta versión solo añade
+      // mediciones exactas por fase, sin alterar la funcionalidad.
       refreshRows();
+      checkpoint('rowProcessing');
       state.tableObserver = new MutationObserver(onTableMutations);
       state.tableObserver.observe(table, { subtree: true, childList: true, characterData: true });
+      checkpoint('observerSetup');
     } else {
       state.panel?.remove();
       state.panelHost?.removeAttribute('data-clr-toolbar-host');
       state.panelHost = null;
       state.panelMode = null;
       state.data = { rows: 0, unprocessed: 0, processedPending: 0, other: 0, unknown: 0 };
+      checkpoint('unmount');
     }
-    state.timings.lastBindDurationMs = Number((performance.now() - started).toFixed(2));
+    const elapsed = performance.now() - start;
+    stages.total = Number(elapsed.toFixed(2));
+    state.timings.lastBindDurationMs = stages.total;
+    state.timings.lastBindStagesMs = stages;
   }
 
   function scheduleDiscovery() {
@@ -701,7 +736,9 @@
       if (hasDialogNode(records)) schedulePanelPosition();
       return;
     }
+    const discoveryStart = performance.now();
     const table = findNewResultsTable(records);
+    state.timings.lastDiscoveryDurationMs = Number((performance.now() - discoveryStart).toFixed(2));
     if (table) {
       state.stats.immediateDiscoveries++;
       bindTable(table);

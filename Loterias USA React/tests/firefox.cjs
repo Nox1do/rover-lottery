@@ -11,7 +11,7 @@ const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 let browser, server, origin;
 
-async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = false, deviceScaleFactor = 1 } = {}) {
+async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = false, deviceScaleFactor = 1, rows = 5 } = {}) {
   const page = await browser.newPage({ ...(viewport ? { viewport } : {}), hasTouch, deviceScaleFactor });
   page.setDefaultTimeout(5000);
   page.setDefaultNavigationTimeout(10000);
@@ -20,6 +20,7 @@ async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = fal
   page.on('request', request => {
     if (request.url().includes('/api/')) requests.push(request.url());
   });
+  await page.addInitScript(rows => window.fixtureRowCount = rows, rows);
   await page.goto(origin + '/loteria/resultados/ver', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window.fixtureDate === 'function');
   if (date !== '24 oct 2026') await page.evaluate(date => window.fixtureDate(date), date);
@@ -392,6 +393,104 @@ test('Fila visible: una fila ya descubierta no provoca saltos', async () => {
     const before = await r.page.evaluate(() => window.scrollY);
     await r.click('ga-am'); await assertRowClear(r.page, false);
     assert.equal(await r.page.evaluate(() => window.scrollY), before);
+  } finally { await r.close(); }
+});
+for (const filtered of [false, true]) test(`Rendimiento: ${filtered ? 'una fila filtrada' : '241 filas React sin filtrar'}`, async () => {
+  const r = await setup({ rows: 241 }); try {
+    await r.bind();
+    if (filtered) await r.page.getByPlaceholder('Buscar lotería', { exact: true }).fill('GE-MD');
+    assert.equal(await r.page.locator('#root tbody tr').count(), filtered ? 1 : 241);
+    await r.page.evaluate(() => {
+      const table = document.querySelector('#root table'), wrap = document.createElement('div');
+      wrap.id = 'fixture-scroll'; Object.assign(wrap.style, { overflow: 'auto', maxHeight: '72vh' });
+      table.before(wrap); wrap.append(table);
+      const stats = { fullRowScans: 0, rowsVisited: 0, inputWidthReads: 0, scrollWrites: 0, frameGaps: [] };
+      const all = Element.prototype.querySelectorAll;
+      Element.prototype.querySelectorAll = function(selector) {
+        const result = all.call(this, selector);
+        if (this.tagName === 'TABLE' && selector === 'tbody tr') { stats.fullRowScans++; stats.rowsVisited += result.length; }
+        return result;
+      };
+      const width = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+      Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { ...width, get() {
+        if (this.tagName === 'INPUT' && this.closest('#root')) stats.inputWidthReads++;
+        return width.get.call(this);
+      } });
+      const scroll = Element.prototype.scrollTo;
+      Element.prototype.scrollTo = function(...args) { stats.scrollWrites++; return scroll.apply(this, args); };
+      window.fixturePerf = async () => {
+        stats.fullRowScans = stats.rowsVisited = stats.inputWidthReads = stats.scrollWrites = 0; stats.frameGaps = [];
+        let active = true, previous = performance.now();
+        const frame = now => { stats.frameGaps.push(now - previous); previous = now; if (active) requestAnimationFrame(frame); };
+        requestAnimationFrame(frame);
+        const start = performance.now(), button = document.querySelector('[data-lottery-id="ga-am"]');
+        button.click();
+        while (button.dataset.statusCode === 'loading') await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        active = false;
+        return { ...stats, durationMs: performance.now() - start, maxFrameGapMs: Math.max(0, ...stats.frameGaps), status: button.dataset.statusCode };
+      };
+    });
+    const samples = [];
+    for (let run = 0; run < 3; run++) {
+      const stats = await r.page.evaluate(() => window.fixturePerf());
+      samples.push(stats);
+      console.log('PERF', JSON.stringify({ filtered, run, ...stats, frameGaps: undefined }));
+      assert.equal(stats.status, 'success');
+      await assertRowClear(r.page, false);
+      assert.deepEqual(await r.values('GE-MD'), ['27', '09', '87', '027', '0987']);
+    }
+    await r.page.evaluate(() => window.fixtureRender());
+    assert.deepEqual(await r.values('GE-MD'), ['27', '09', '87', '027', '0987']);
+    for (const stats of samples) {
+      assert.ok(stats.fullRowScans <= 2, 'Evitar recorrer la tabla en cada validación: ' + stats.fullRowScans);
+      assert.equal(stats.inputWidthReads, 0, 'El verde no debe forzar lecturas de ancho de los inputs');
+    }
+  } finally { await r.close(); }
+});
+test('Índice: detecta duplicados añadidos después de un llenado', async () => {
+  const r = await setup({ rows: 241 }); try {
+    await r.bind(); await r.click('ga-am');
+    const requests = await r.page.evaluate(() => window.externalRequests.length);
+    await r.page.evaluate(() => {
+      const row = document.querySelector('tr[data-code="GE-MD"]'); row.after(row.cloneNode(true));
+      // Consultar en la misma tarea, antes de entregar el MutationObserver.
+      document.querySelector('[data-lottery-id="ga-am"]').click();
+    });
+    const button = r.page.locator('[data-lottery-id="ga-am"]');
+    assert.equal(await button.getAttribute('data-status-code'), 'row_duplicate');
+    assert.equal(await r.page.evaluate(() => window.externalRequests.length), requests);
+  } finally { await r.close(); }
+});
+test('Índice: valida identidad y reconstrucción tras filtrar', async () => {
+  const r = await setup({ rows: 241 }); try {
+    await r.bind(); await r.click('ga-am');
+    await r.page.locator('tr[data-code="GE-MD"] [data-slot="badge"]').evaluate(el => el.removeAttribute('data-slot'));
+    const button = await r.click('ga-am');
+    assert.equal(await button.getAttribute('data-status-code'), 'row_missing');
+    await r.page.getByPlaceholder('Buscar lotería', { exact: true }).fill('WASHINGTON');
+    await r.page.getByPlaceholder('Buscar lotería', { exact: true }).fill('');
+    assert.deepEqual(await r.values('GE-MD'), ['27', '09', '87', '027', '0987']);
+    await r.page.locator('tr[data-code="GE-MD"] input').nth(3).fill('123');
+    await r.click('ga-am');
+    assert.equal(await button.getAttribute('data-status-code'), 'success');
+    assert.deepEqual(await r.values('GE-MD'), ['27', '09', '87', '027', '0987']);
+    const requests = await r.page.evaluate(() => window.externalRequests.length);
+    await r.page.locator('tr[data-code="GE-MD"] input').last().evaluate(el => el.readOnly = true);
+    await r.click('ga-am');
+    assert.equal(await button.getAttribute('data-status-code'), 'fields_locked');
+    assert.equal(await r.page.evaluate(() => window.externalRequests.length), requests);
+  } finally { await r.close(); }
+});
+test('Resaltado: movimiento reducido conserva verde y restaura el tema', async () => {
+  const r = await setup(); try {
+    await r.bind(); await r.page.emulateMedia({ reducedMotion: 'reduce' });
+    const inputs = r.page.locator('tr[data-code="GE-MD"] input');
+    const colors = () => inputs.evaluateAll(nodes => nodes.map(el => getComputedStyle(el).backgroundColor));
+    const original = await colors(); await r.click('ga-am'); await r.page.waitForTimeout(550);
+    assert.deepEqual(await colors(), Array(5).fill('rgb(209, 250, 229)'));
+    await r.page.waitForFunction(() => !document.querySelector('input.rlur-fill-flash'), null, { timeout: 1800 });
+    assert.deepEqual(await colors(), original);
   } finally { await r.close(); }
 });
 test('Móvil: compacto, controles táctiles, cuadrícula y ajuste con el dedo', async () => {

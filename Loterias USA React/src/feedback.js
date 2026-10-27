@@ -3,30 +3,31 @@ function createFillFeedback() {
     const style = document.createElement('style');
     style.textContent = `
       #root input.rlur-filled { font-weight: 700; }
-      #root input.rlur-fill-flash { animation: rlur-filled-flash 2s ease-out; }
-      @keyframes rlur-filled-flash {
-        0%, 50% { background-color: #d1fae5; color: #065f46; }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        #root input.rlur-fill-flash { animation-duration: 1s; animation-timing-function: steps(1, end); }
-      }
     `;
     document.head.append(style);
-    const marked = new Set(), timers = new WeakMap();
+    const marked = new Set(), timers = new WeakMap(), animations = new WeakMap();
     function remove(input) {
+        if (!marked.has(input)) return;
         clearTimeout(timers.get(input)); timers.delete(input);
+        animations.get(input)?.cancel(); animations.delete(input);
         input.classList.remove('rlur-filled', 'rlur-fill-flash'); marked.delete(input);
     }
     function clear() { for (const input of marked) remove(input); }
     function highlight(inputs) {
         for (const input of marked) if (!input.isConnected) remove(input);
+        for (const input of inputs) remove(input);
+        // Reiniciar el verde sin leer geometría ni forzar el diseño de la tabla.
+        // La última clave usa el estilo del tema como valor subyacente.
+        const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches, duration = reduced ? 1000 : 2000;
+        const green = { backgroundColor: '#d1fae5', color: '#065f46' };
+        const frames = reduced ? [green, green] : [{ ...green, offset: 0 }, { ...green, offset: .5, easing: 'ease-out' }, { offset: 1 }];
         for (const input of inputs) {
-            remove(input);
-            // Reiniciar el pulso incluso si se vuelve a consultar la misma fila.
-            void input.offsetWidth;
             input.classList.add('rlur-filled', 'rlur-fill-flash'); marked.add(input);
-            const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1000 : 2000;
-            timers.set(input, setTimeout(() => { input.classList.remove('rlur-fill-flash'); timers.delete(input); }, duration));
+            const animation = input.animate(frames, { duration }); animations.set(input, animation);
+            timers.set(input, setTimeout(() => {
+                animation.cancel(); animations.delete(input);
+                input.classList.remove('rlur-fill-flash'); timers.delete(input);
+            }, duration));
         }
     }
     document.addEventListener('input', event => {

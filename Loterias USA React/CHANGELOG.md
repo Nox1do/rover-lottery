@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.0.12 — 2026-10-26
+
+- Optimiza el llenado con la tabla completa: reutiliza un índice por nombre/código en vez de recorrer todas las filas 8–10 veces por consulta. Invalida el índice al reconstruir/filtrar o cambiar la identidad/cabeceras y procesa mutaciones pendientes antes de usarlo.
+- Reinicia el verde mediante Web Animations sin lecturas forzadas de ancho, conservando negrita, duración, tema y movimiento reducido. Evita cambios de clase en campos que no estaban marcados.
+- Agrupa las mediciones del desplazamiento y aplica los movimientos después, evitando releer la geometría tras cada scroll. Conserva la fila por encima de la barra.
+- Añade reproducción de 241 filas React frente a una filtrada, presupuestos de recorridos/lecturas y regresiones de caché, duplicados síncronos, reconstrucción, bloqueo y movimiento reducido. Detalles en RENDIMIENTO.md.
+
 ## 0.0.11 — 2026-10-26
 
 - Retira el pie de mensajes de fecha/carga y llenado; envía los detalles a consola y conserva iconos, tooltips, etiquetas accesibles e informes de resultados.

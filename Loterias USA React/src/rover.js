@@ -3,7 +3,23 @@
 function createRoverAdapter(onChange) {
     const path = '/loteria/resultados/ver';
     const columns = { primera: '1ERA', segunda: '2DA', tercera: '3RA', pick3: 'PICK3', pick4: 'PICK4' };
+    const rowIdentity = (name, code) => `${normalizeLabel(name)}\0${String(code || '').trim()}`;
     let epoch = 0, confirmed = null, candidate = null, pending = false, timer = null, lastView = '';
+    let tableCache = null;
+
+    function invalidateTable(records) {
+        if (!tableCache) return;
+        const table = tableCache.table;
+        if (!table.isConnected || records.some(record => {
+            if (record.type === 'attributes') {
+                if (!['class', 'data-slot'].includes(record.attributeName)) return false;
+                const cell = record.target.closest('td');
+                return cell && table.contains(cell) && cell === cell.parentElement.firstElementChild;
+            }
+            return table.contains(record.target) || [...record.addedNodes, ...record.removedNodes].some(node =>
+                node.nodeType === 1 && (node.tagName === 'TABLE' || node.querySelector('table')));
+        })) tableCache = null;
+    }
 
     function screen() {
         const form = [...document.querySelectorAll('#root form')].find(form =>
@@ -17,11 +33,17 @@ function createRoverAdapter(onChange) {
     }
 
     function resultTable() {
+        // Procesar también mutaciones aún no entregadas antes de reutilizar
+        // identidades. Un filtro, reconstrucción o duplicado invalida el índice.
+        invalidateTable(observer.takeRecords());
+        if (tableCache?.table.isConnected) return tableCache.table;
         const tables = [...document.querySelectorAll('#root table')].filter(table => {
             const headers = [...table.querySelectorAll('thead th')].map(th => normalizeLabel(th.textContent));
             return Object.values(columns).every(key => headers.filter(h => h === key).length === 1) && headers.includes('LOTERIA');
         });
-        return tables.length === 1 ? tables[0] : null;
+        if (tables.length !== 1) return null;
+        tableCache = { table: tables[0], headers: [...tables[0].querySelectorAll('thead th')].map(th => normalizeLabel(th.textContent)), rows: null };
+        return tableCache.table;
     }
 
     function invalidate() { if (confirmed) { confirmed = null; epoch++; } }
@@ -57,8 +79,8 @@ function createRoverAdapter(onChange) {
         candidate = current.date && current.server ? { dateKey: formatLocalDateKey(current.date), server: current.server, notBefore: Date.now() + 20 } : null;
         pending = !!candidate; schedule();
     }, true);
-    const observer = new MutationObserver(schedule);
-    observer.observe(document.getElementById('root') || document.body, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+    const observer = new MutationObserver(records => { invalidateTable(records); schedule(); });
+    observer.observe(document.getElementById('root') || document.body, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'class', 'data-slot'] });
     window.addEventListener('popstate', schedule);
     sync();
 
@@ -83,13 +105,17 @@ function createRoverAdapter(onChange) {
     function findFields(config) {
         const table = resultTable();
         if (!table) throw statusError('table_missing', 'No se reconoce la tabla de resultados. Pulsa Buscar en Rover.');
-        const headers = [...table.querySelectorAll('thead th')].map(th => normalizeLabel(th.textContent));
-        const rows = [...table.querySelectorAll('tbody tr')].filter(row => {
-            const first = row.querySelector('td');
-            const name = first?.querySelector('.font-medium')?.textContent;
-            const code = first?.querySelector('[data-slot="badge"]')?.textContent;
-            return normalizeLabel(name) === normalizeLabel(config.nombreFila) && String(code || '').trim() === config.codigo;
-        });
+        const { headers } = tableCache;
+        if (!tableCache.rows) {
+            const index = new Map();
+            for (const row of table.querySelectorAll('tbody tr')) {
+                const first = row.firstElementChild;
+                const key = rowIdentity(first?.querySelector('.font-medium')?.textContent, first?.querySelector('[data-slot="badge"]')?.textContent);
+                const matches = index.get(key) || []; matches.push(row); index.set(key, matches);
+            }
+            tableCache.rows = index;
+        }
+        const rows = tableCache.rows.get(rowIdentity(config.nombreFila, config.codigo)) || [];
         if (rows.length !== 1) throw statusError(rows.length ? 'row_duplicate' : 'row_missing', rows.length ? 'Hay más de una fila para esta lotería. Revisa la tabla.' : 'La lotería no está visible. Revisa la fecha y el filtro de Rover.');
         const cells = [...rows[0].children];
         const fields = Object.fromEntries(Object.entries(columns).map(([name, header]) => [name, cells[headers.indexOf(header)]?.querySelector('input')]));

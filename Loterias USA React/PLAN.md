@@ -72,3 +72,7 @@ La captura de 0.0.7 todavía muestra un margen inferior y recorte lateral. Elimi
 ## 0.0.10 — Fila fuera de la barra
 
 Causa contrastada en el código público actual de Rover: completar Pick 3 programa un foco en Pick 4. El navegador desplaza sus scrollports sin descontar la barra fija. Reproducir ese foco en React y casos rojos para últimas filas de página y contenedor anidado, móvil y barra ampliada. Un módulo de visibilidad reserva espacio inferior restaurable y corrige solo el scroll vertical según el alto real de la barra; se invoca al consultar/confirmar y al cambiar el tamaño. No mueve filas ya visibles. Publicar después de la suite completa, sin cambios de proveedores ni escrituras nuevas en datos de Rover.
+
+## 0.0.12 — Menos trabajo por consulta con 241 filas
+
+Reproducir la diferencia entre tabla completa y una fila filtrada en Firefox con 241 filas React. Antes: 8 recorridos completos en llenado inicial, 10 al repetir, cinco lecturas de ancho intercaladas con estilos. Reutilizar un índice invalidado por mutaciones estructurales/identidad (también pendientes de entregar), sustituir el reinicio forzado de CSS por Web Animations y agrupar mediciones de scroll antes de aplicarlo. Verificar duplicados tras usar el índice, identidad, reconstrucción, bloqueo, verde/reduced-motion, fila visible y suite completa antes de publicar.

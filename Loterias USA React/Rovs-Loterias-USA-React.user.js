@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterias USA React 0.0.1
 // @namespace    https://github.com/Nox1do/rover-lottery/Loterias-USA-React
-// @version      0.0.11
+// @version      0.0.12
 // @description  Barra manual de loterías USA para la tabla React de Rover. Solo llenado de formulario.
 // @author       noeg
 // @match        https://central.roversport.net/*
@@ -26,7 +26,7 @@
 
 (function () {
 'use strict';
-const APP_VERSION = "0.0.11";
+const APP_VERSION = "0.0.12";
 
 // --- src/config.js ---
     const LOTERIAS = [
@@ -1354,7 +1354,23 @@ function statusError(code, message) {
 function createRoverAdapter(onChange) {
     const path = '/loteria/resultados/ver';
     const columns = { primera: '1ERA', segunda: '2DA', tercera: '3RA', pick3: 'PICK3', pick4: 'PICK4' };
+    const rowIdentity = (name, code) => `${normalizeLabel(name)}\0${String(code || '').trim()}`;
     let epoch = 0, confirmed = null, candidate = null, pending = false, timer = null, lastView = '';
+    let tableCache = null;
+
+    function invalidateTable(records) {
+        if (!tableCache) return;
+        const table = tableCache.table;
+        if (!table.isConnected || records.some(record => {
+            if (record.type === 'attributes') {
+                if (!['class', 'data-slot'].includes(record.attributeName)) return false;
+                const cell = record.target.closest('td');
+                return cell && table.contains(cell) && cell === cell.parentElement.firstElementChild;
+            }
+            return table.contains(record.target) || [...record.addedNodes, ...record.removedNodes].some(node =>
+                node.nodeType === 1 && (node.tagName === 'TABLE' || node.querySelector('table')));
+        })) tableCache = null;
+    }
 
     function screen() {
         const form = [...document.querySelectorAll('#root form')].find(form =>
@@ -1368,11 +1384,17 @@ function createRoverAdapter(onChange) {
     }
 
     function resultTable() {
+        // Procesar también mutaciones aún no entregadas antes de reutilizar
+        // identidades. Un filtro, reconstrucción o duplicado invalida el índice.
+        invalidateTable(observer.takeRecords());
+        if (tableCache?.table.isConnected) return tableCache.table;
         const tables = [...document.querySelectorAll('#root table')].filter(table => {
             const headers = [...table.querySelectorAll('thead th')].map(th => normalizeLabel(th.textContent));
             return Object.values(columns).every(key => headers.filter(h => h === key).length === 1) && headers.includes('LOTERIA');
         });
-        return tables.length === 1 ? tables[0] : null;
+        if (tables.length !== 1) return null;
+        tableCache = { table: tables[0], headers: [...tables[0].querySelectorAll('thead th')].map(th => normalizeLabel(th.textContent)), rows: null };
+        return tableCache.table;
     }
 
     function invalidate() { if (confirmed) { confirmed = null; epoch++; } }
@@ -1408,8 +1430,8 @@ function createRoverAdapter(onChange) {
         candidate = current.date && current.server ? { dateKey: formatLocalDateKey(current.date), server: current.server, notBefore: Date.now() + 20 } : null;
         pending = !!candidate; schedule();
     }, true);
-    const observer = new MutationObserver(schedule);
-    observer.observe(document.getElementById('root') || document.body, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+    const observer = new MutationObserver(records => { invalidateTable(records); schedule(); });
+    observer.observe(document.getElementById('root') || document.body, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'class', 'data-slot'] });
     window.addEventListener('popstate', schedule);
     sync();
 
@@ -1434,13 +1456,17 @@ function createRoverAdapter(onChange) {
     function findFields(config) {
         const table = resultTable();
         if (!table) throw statusError('table_missing', 'No se reconoce la tabla de resultados. Pulsa Buscar en Rover.');
-        const headers = [...table.querySelectorAll('thead th')].map(th => normalizeLabel(th.textContent));
-        const rows = [...table.querySelectorAll('tbody tr')].filter(row => {
-            const first = row.querySelector('td');
-            const name = first?.querySelector('.font-medium')?.textContent;
-            const code = first?.querySelector('[data-slot="badge"]')?.textContent;
-            return normalizeLabel(name) === normalizeLabel(config.nombreFila) && String(code || '').trim() === config.codigo;
-        });
+        const { headers } = tableCache;
+        if (!tableCache.rows) {
+            const index = new Map();
+            for (const row of table.querySelectorAll('tbody tr')) {
+                const first = row.firstElementChild;
+                const key = rowIdentity(first?.querySelector('.font-medium')?.textContent, first?.querySelector('[data-slot="badge"]')?.textContent);
+                const matches = index.get(key) || []; matches.push(row); index.set(key, matches);
+            }
+            tableCache.rows = index;
+        }
+        const rows = tableCache.rows.get(rowIdentity(config.nombreFila, config.codigo)) || [];
         if (rows.length !== 1) throw statusError(rows.length ? 'row_duplicate' : 'row_missing', rows.length ? 'Hay más de una fila para esta lotería. Revisa la tabla.' : 'La lotería no está visible. Revisa la fecha y el filtro de Rover.');
         const cells = [...rows[0].children];
         const fields = Object.fromEntries(Object.entries(columns).map(([name, header]) => [name, cells[headers.indexOf(header)]?.querySelector('input')]));
@@ -1493,30 +1519,31 @@ function createFillFeedback() {
     const style = document.createElement('style');
     style.textContent = `
       #root input.rlur-filled { font-weight: 700; }
-      #root input.rlur-fill-flash { animation: rlur-filled-flash 2s ease-out; }
-      @keyframes rlur-filled-flash {
-        0%, 50% { background-color: #d1fae5; color: #065f46; }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        #root input.rlur-fill-flash { animation-duration: 1s; animation-timing-function: steps(1, end); }
-      }
     `;
     document.head.append(style);
-    const marked = new Set(), timers = new WeakMap();
+    const marked = new Set(), timers = new WeakMap(), animations = new WeakMap();
     function remove(input) {
+        if (!marked.has(input)) return;
         clearTimeout(timers.get(input)); timers.delete(input);
+        animations.get(input)?.cancel(); animations.delete(input);
         input.classList.remove('rlur-filled', 'rlur-fill-flash'); marked.delete(input);
     }
     function clear() { for (const input of marked) remove(input); }
     function highlight(inputs) {
         for (const input of marked) if (!input.isConnected) remove(input);
+        for (const input of inputs) remove(input);
+        // Reiniciar el verde sin leer geometría ni forzar el diseño de la tabla.
+        // La última clave usa el estilo del tema como valor subyacente.
+        const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches, duration = reduced ? 1000 : 2000;
+        const green = { backgroundColor: '#d1fae5', color: '#065f46' };
+        const frames = reduced ? [green, green] : [{ ...green, offset: 0 }, { ...green, offset: .5, easing: 'ease-out' }, { offset: 1 }];
         for (const input of inputs) {
-            remove(input);
-            // Reiniciar el pulso incluso si se vuelve a consultar la misma fila.
-            void input.offsetWidth;
             input.classList.add('rlur-filled', 'rlur-fill-flash'); marked.add(input);
-            const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1000 : 2000;
-            timers.set(input, setTimeout(() => { input.classList.remove('rlur-fill-flash'); timers.delete(input); }, duration));
+            const animation = input.animate(frames, { duration }); animations.set(input, animation);
+            timers.set(input, setTimeout(() => {
+                animation.cancel(); animations.delete(input);
+                input.classList.remove('rlur-fill-flash'); timers.delete(input);
+            }, duration));
         }
     }
     document.addEventListener('input', event => {
@@ -1585,18 +1612,34 @@ function createRowVisibility(bar) {
         reserve(ports, window.innerHeight - bottom);
         const header = row.closest('table')?.tHead;
         const stickyHeight = header && getComputedStyle(header).position === 'sticky' ? header.offsetHeight : 0;
-        // Una primera pasada mueve el contenedor exterior; la segunda corrige
-        // los límites interiores ya visibles. Se conserva el scroll horizontal.
-        for (let pass = 0; pass < 2; pass++) for (const port of ports) {
+        const target = row.getBoundingClientRect();
+        // Medir todo antes de desplazar: cada scroll puede invalidar el diseño
+        // de cientos de filas. Los contenedores exteriores no se mueven al
+        // desplazar sus hijos; basta ajustar virtualmente la posición de la fila.
+        const measurements = ports.map(port => {
             const box = port.getBoundingClientRect();
-            const portTop = port === root ? top : Math.max(top, box.top + port.clientTop + gap);
-            const portBottom = port === root ? bottom : Math.min(bottom, box.top + port.clientTop + port.clientHeight - gap);
-            const safeTop = portTop + (port === ports[0] ? stickyHeight : 0);
-            if (portBottom <= safeTop) continue;
-            const target = row.getBoundingClientRect();
-            const delta = target.top < safeTop ? target.top - safeTop : target.bottom > portBottom ? target.bottom - portBottom : 0;
-            if (Math.abs(delta) > .5) port.scrollTo({ top: port.scrollTop + delta, left: port.scrollLeft, behavior: 'instant' });
+            return { port, start: box.top + port.clientTop, height: port.clientHeight,
+                y: port.scrollTop, x: port.scrollLeft, max: Math.max(0, port.scrollHeight - port.clientHeight) };
+        });
+        let rowTop = target.top, rowBottom = target.bottom;
+        const moves = [];
+        for (const { port, start, height, y, x, max } of measurements) {
+            let safeTop = port === root ? top : Math.max(top, start + gap);
+            let safeBottom = port === root ? bottom : Math.min(bottom, start + height - gap);
+            const head = port === ports[0] ? stickyHeight : 0;
+            if (safeBottom <= safeTop + head && port !== root) {
+                // Preparar también una tabla cuyo contenedor está fuera de la
+                // pantalla; después el scroll exterior la coloca en su sitio.
+                safeTop = start + gap; safeBottom = start + height - gap;
+            }
+            safeTop += head;
+            if (safeBottom <= safeTop) continue;
+            const delta = rowTop < safeTop ? rowTop - safeTop : rowBottom > safeBottom ? rowBottom - safeBottom : 0;
+            const next = Math.max(0, Math.min(max, y + delta)), shift = next - y;
+            if (Math.abs(shift) <= .5) continue;
+            moves.push({ port, top: next, left: x }); rowTop -= shift; rowBottom -= shift;
         }
+        for (const { port, ...position } of moves) port.scrollTo({ ...position, behavior: 'instant' });
     }
 
     function schedule() {

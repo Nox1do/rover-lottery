@@ -7,6 +7,10 @@ const definitions = [
   ['GEORGIA MIDDAY MARIAGE PALE', 'GE-MD-MR'],
   ['WASHINGTON NIGHT', 'WST-NG'], ['WASHINGTON D.C NIGHT', 'DC-NG']
 ];
+if (window.fixtureRowCount > definitions.length) {
+  const target = definitions.shift(), count = window.fixtureRowCount - definitions.length - 1;
+  definitions.push(...Array.from({ length: count }, (_, i) => [`LOTTERY FIXTURE ${i}`, `FIX-${i}`]), target);
+}
 const keys = ['primera', 'segunda', 'tercera', 'pick3', 'pick4'];
 const initial = () => Object.fromEntries(definitions.map(([, code]) => [code, blank()]));
 
@@ -48,7 +52,7 @@ function App() {
     </form>
     {loaded && <section><input placeholder="Buscar lotería" value={filter} onChange={e => setFilter(e.target.value)} />
       <table><thead><tr>{['LOTERÍA', 'HORA', '1ERA', '2DA', '3RA', 'PICK 3', 'PICK 4', 'PEND.', 'PROC.', 'ACCIÓN'].map(h => <th key={h}>{h}</th>)}</tr></thead>
-        <tbody>{definitions.filter(([name]) => name.includes(filter.toUpperCase())).map(([name, code]) => <tr key={code} data-code={code}>
+        <tbody>{definitions.filter(([name, code]) => name.includes(filter.toUpperCase()) || code === filter.toUpperCase()).map(([name, code]) => <tr key={code} data-code={code}>
           <td><div className="font-medium">{name}</div><span data-slot="badge">{code}</span></td><td>1:00 PM</td>
           {keys.map(key => <td key={key}><input data-slot="input" value={values[code][key]} onChange={event => change(code, key, event.target.value)} /></td>)}
           <td>0</td><td>—</td><td><button title="Procesar" onClick={() => { window.processClicks = (window.processClicks || 0) + 1; }}>Procesar</button></td>

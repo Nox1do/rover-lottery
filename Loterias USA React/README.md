@@ -1,4 +1,4 @@
-# Rovs Loterias USA React 0.0.11
+# Rovs Loterias USA React 0.0.12
 
 [Instalar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA%20React/Rovs-Loterias-USA-React.user.js)
 
@@ -44,6 +44,12 @@ El script no realiza llamadas a APIs internas de Rover, no guarda ni procesa res
 La versión instalada aparece debajo del buscador. Las URLs `.user.js` y `.meta.js` de esta carpeta son estables y permiten actualizaciones de Tampermonkey. El `@name` inicial es exactamente `Rovs Loterias USA React 0.0.1`; se conserva como identidad de instalación para evitar copias duplicadas. El número instalado se obtiene de `GM_info.script.version`.
 
 `src/config.js`: loterías y códigos; `src/providers.js`: fuentes y parsers; `src/rover.js`: fecha, identidad y escritura del formulario; `src/ui.js`: barra; `src/status.js`: catálogo de estados, SVG y códigos de error; `src/feedback.js`: resaltado y limpieza visual; `src/visibility.js`: espacio de la barra y posición visible de la fila; `src/main.js`: consultas manuales y estados. `tools/build.cjs` genera un único userscript sin dependencias de ejecución.
+
+## Rendimiento con la tabla completa
+
+Desde 0.0.12 se reutiliza un índice de filas por nombre/código en vez de recorrer toda la tabla durante cada validación del llenado. Se invalida al cambiar su estructura, cabeceras o identidad de filas, incluidos los cambios todavía pendientes de entregar al MutationObserver. Las validaciones de fecha, duplicados y campos bloqueados siguen activas. El resaltado usa Web Animations sin lecturas de ancho para reiniciarlo; el desplazamiento mide primero y aplica después los movimientos, sin alternar lecturas/escrituras por cada contenedor.
+
+La reproducción incluye 241 filas reales de React (1205 inputs controlados) y una fila filtrada, con llenado inicial y repetido. Ver [RENDIMIENTO.md](RENDIMIENTO.md) para el método, contadores y límites: los tiempos de la reproducción no garantizan la fluidez de la sesión real de Rover.
 
 ## Pruebas reproducibles
 

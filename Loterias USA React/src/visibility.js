@@ -55,18 +55,34 @@ function createRowVisibility(bar) {
         reserve(ports, window.innerHeight - bottom);
         const header = row.closest('table')?.tHead;
         const stickyHeight = header && getComputedStyle(header).position === 'sticky' ? header.offsetHeight : 0;
-        // Una primera pasada mueve el contenedor exterior; la segunda corrige
-        // los límites interiores ya visibles. Se conserva el scroll horizontal.
-        for (let pass = 0; pass < 2; pass++) for (const port of ports) {
+        const target = row.getBoundingClientRect();
+        // Medir todo antes de desplazar: cada scroll puede invalidar el diseño
+        // de cientos de filas. Los contenedores exteriores no se mueven al
+        // desplazar sus hijos; basta ajustar virtualmente la posición de la fila.
+        const measurements = ports.map(port => {
             const box = port.getBoundingClientRect();
-            const portTop = port === root ? top : Math.max(top, box.top + port.clientTop + gap);
-            const portBottom = port === root ? bottom : Math.min(bottom, box.top + port.clientTop + port.clientHeight - gap);
-            const safeTop = portTop + (port === ports[0] ? stickyHeight : 0);
-            if (portBottom <= safeTop) continue;
-            const target = row.getBoundingClientRect();
-            const delta = target.top < safeTop ? target.top - safeTop : target.bottom > portBottom ? target.bottom - portBottom : 0;
-            if (Math.abs(delta) > .5) port.scrollTo({ top: port.scrollTop + delta, left: port.scrollLeft, behavior: 'instant' });
+            return { port, start: box.top + port.clientTop, height: port.clientHeight,
+                y: port.scrollTop, x: port.scrollLeft, max: Math.max(0, port.scrollHeight - port.clientHeight) };
+        });
+        let rowTop = target.top, rowBottom = target.bottom;
+        const moves = [];
+        for (const { port, start, height, y, x, max } of measurements) {
+            let safeTop = port === root ? top : Math.max(top, start + gap);
+            let safeBottom = port === root ? bottom : Math.min(bottom, start + height - gap);
+            const head = port === ports[0] ? stickyHeight : 0;
+            if (safeBottom <= safeTop + head && port !== root) {
+                // Preparar también una tabla cuyo contenedor está fuera de la
+                // pantalla; después el scroll exterior la coloca en su sitio.
+                safeTop = start + gap; safeBottom = start + height - gap;
+            }
+            safeTop += head;
+            if (safeBottom <= safeTop) continue;
+            const delta = rowTop < safeTop ? rowTop - safeTop : rowBottom > safeBottom ? rowBottom - safeBottom : 0;
+            const next = Math.max(0, Math.min(max, y + delta)), shift = next - y;
+            if (Math.abs(shift) <= .5) continue;
+            moves.push({ port, top: next, left: x }); rowTop -= shift; rowBottom -= shift;
         }
+        for (const { port, ...position } of moves) port.scrollTo({ ...position, behavior: 'instant' });
     }
 
     function schedule() {

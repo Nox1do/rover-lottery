@@ -45,3 +45,7 @@ Las pruebas usan una reproducción aislada y un puente GM simulado. No sustituye
 ## Actualización 0.0.11: mensajes en consola y menú más bajo
 
 Por petición del usuario se retira el pie de mensajes. Se conservan iconos individuales, etiquetas accesibles, tooltips e informes de consola; la carga/confirmación de fecha también se registra con console.info. La reducción de 2 px de los botones conserva el tamaño de las letras. La barra compacta baja a 144–168 px en escritorio y 242 px en móvil; los botones táctiles bajan de 44 a 42 px según lo solicitado. Se mantienen el anclaje inferior y la fila visible por encima de la barra.
+
+## Actualización 0.0.12: rendimiento
+
+El verde se conserva con Web Animations (1 s fijo y 1 s de desvanecimiento; movimiento reducido 1 s sin transición) para reiniciarlo sin forzar medidas de los inputs. Se mantiene la negrita y limpieza de marcas. El índice de filas solo evita búsquedas repetidas: no elimina controles de fecha, identidad, duplicados o bloqueo ni cambia las entradas nativas de React o los proveedores. La fila sigue mostrándose sobre la barra y el tamaño/tipografía permanecen iguales.

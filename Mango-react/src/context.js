@@ -1,4 +1,10 @@
-import { parseDate, todayInZone, fields, equalFields } from "./helpers.js";
+import {
+  parseDate,
+  todayInZone,
+  fields,
+  equalFields,
+  trimCode,
+} from "./helpers.js";
 // A load response proves persisted data; a settled DOM proves which table is visible.
 export function createContext({ today = todayInZone, now = Date.now } = {}) {
   let epoch = 0,
@@ -41,23 +47,25 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
       return;
     }
     for (const row of data.filas) {
+      const code = trimCode(row?.abrev);
       if (
-        !row?.abrev ||
-        map.has(row.abrev) ||
+        !code ||
+        map.has(code) ||
         ![true, false, 0, 1].includes(row.procesado)
       ) {
         invalidate("Respuesta de Central no reconocida.");
         return;
       }
-      map.set(row.abrev, {
+      map.set(code, {
         ...fields(row),
-        abrev: row.abrev,
+        abrev: code,
         nombre: String(row.nombre ?? ""),
         procesado: row.procesado === true || row.procesado === 1,
       });
     }
     candidate = { ...request, date, persisted: map, readyAt: now() + 100 };
     request = null;
+    message = "Respuesta recibida; verificando la tabla de Central…";
   }
   function fail(id) {
     if (request?.id === id) {
@@ -110,6 +118,12 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
           !stored ||
           stored.procesado !== row.processed
         ) {
+          const reason = codes.has(row.code)
+            ? "código duplicado"
+            : !stored
+              ? "código no encontrado en la respuesta"
+              : "PROC diferente o desconocido";
+          message = `No se pudo verificar ${row.code}: ${reason}.`;
           matches = false;
           break;
         }
@@ -123,6 +137,7 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
           old &&
           equalFields(old, stored);
         if (!equalFields(stored, row.fields) && !knownDirty) {
+          message = `No se pudo verificar ${row.code}: campos distintos a los guardados en Central.`;
           matches = false;
           break;
         }

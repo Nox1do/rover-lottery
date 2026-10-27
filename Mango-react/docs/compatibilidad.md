@@ -46,6 +46,14 @@ El cliente ahora sincroniza el azul desde la caché ya recibida, vinculada a la 
 
 Referencia primaria: [React: conservación y reinicio de estado](https://react.dev/learn/preserving-and-resetting-state). Las pruebas Firefox reconstruyen las filas por filtro y comprueban que el azul vuelva antes de 700 ms, sin solicitudes adicionales ni cambios numéricos, también con una solicitud retenida y una tabla temporalmente sin coincidencias.
 
+## Códigos y contexto de 0.1.3
+
+La QA del usuario recibió HTTP 200, fecha 2026-10-27, PRINCIPAL y 118 filas tanto en respuesta como en DOM. Solo `BRAZIL03PM` aparecía como código sin coincidencia. Esa salida no incluía la cadena original de `abrev`, por lo que no acredita qué carácter concreto contenía. La revisión encontró una asimetría verificable: el adaptador recortaba el texto del badge, mientras el contexto indexaba `abrev` sin recortar. Una respuesta con espacios exteriores reproduce exactamente el bloqueo general, antes de consultar Mango.
+
+0.1.3 aplica únicamente `trim()` a códigos de resultados, DOM, reglas de dependientes y revisiones. No cambia mayúsculas, separadores ni espacios internos, no modifica las respuestas originales y no omite filas incompatibles para forzar una verificación. Rechaza vacíos y códigos que colisionan tras el recorte; los conflictos y el trabajo en dependientes siguen bloqueando el llenado. Ante una incompatibilidad real, el diagnóstico muestra el código de la fila y la condición que falla.
+
+Las regresiones Firefox verifican la consulta y el azul en 118 filas, el llenado de NICA/LA DIARIA con una fila BRAZIL cuyo código contiene espacios, y el bloqueo por conflictos, ediciones en dependientes e identidades realmente distintas. Falta confirmar la corrección en la sesión del usuario. Referencia primaria: [MDN: String.prototype.trim()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trim).
+
 ## Límites de pruebas
 
 La fixture reproduce los contratos comprobados, pero no es la aplicación privada de Central. La prueba de contexto aislado usa una extensión temporal y GM simulado, no una instalación personal de Tampermonkey. No se invocan publicaciones financieras ni se usan cookies de la sesión del usuario. Validación operativa posterior: instalar, configurar token, comprobar diagnóstico y revisar un llenado real antes de confirmar manualmente como siempre.

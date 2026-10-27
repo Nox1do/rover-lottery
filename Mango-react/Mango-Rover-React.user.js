@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mango/Rover React
 // @namespace    https://github.com/Nox1do/rover-lottery/Mango-react
-// @version      0.1.2
+// @version      0.1.3
 // @description  Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida.
 // @match        https://central.roversport.net/*
 // @connect      rover-lottery-api.loteriasrovers.workers.dev
@@ -29,6 +29,7 @@
     "pick4"
   ]);
   var API_BASE = "https://rover-lottery-api.loteriasrovers.workers.dev";
+  var trimCode = (value) => typeof value === "string" ? value.trim() : "";
   var normalizeLabel = (value) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
   var clean = (value) => /^[-—]+$/.test(String(value ?? "").trim()) ? "" : String(value ?? "").trim().toUpperCase();
   var fields = (row) => Object.fromEntries(FIELD_NAMES.map((k) => [k, clean(row?.[k])]));
@@ -118,19 +119,21 @@
         return;
       }
       for (const row of data.filas) {
-        if (!row?.abrev || map.has(row.abrev) || ![true, false, 0, 1].includes(row.procesado)) {
+        const code = trimCode(row?.abrev);
+        if (!code || map.has(code) || ![true, false, 0, 1].includes(row.procesado)) {
           invalidate("Respuesta de Central no reconocida.");
           return;
         }
-        map.set(row.abrev, {
+        map.set(code, {
           ...fields(row),
-          abrev: row.abrev,
+          abrev: code,
           nombre: String(row.nombre ?? ""),
           procesado: row.procesado === true || row.procesado === 1
         });
       }
       candidate = { ...request, date, persisted: map, readyAt: now() + 100 };
       request = null;
+      message = "Respuesta recibida; verificando la tabla de Central\u2026";
     }
     function fail(id) {
       if (request?.id === id) {
@@ -164,6 +167,8 @@
         for (const row of view.rows) {
           const stored = candidate.persisted.get(row.code);
           if (codes.has(row.code) || !stored || stored.procesado !== row.processed) {
+            const reason = codes.has(row.code) ? "c\xF3digo duplicado" : !stored ? "c\xF3digo no encontrado en la respuesta" : "PROC diferente o desconocido";
+            message = `No se pudo verificar ${row.code}: ${reason}.`;
             matches = false;
             break;
           }
@@ -171,6 +176,7 @@
           const old = candidate.previous?.persisted.get(row.code);
           const knownDirty = candidate.previous?.date === candidate.date && candidate.previous?.server === candidate.server && candidate.previous?.serverId === candidate.serverId && row.dirty && old && equalFields(old, stored);
           if (!equalFields(stored, row.fields) && !knownDirty) {
+            message = `No se pudo verificar ${row.code}: campos distintos a los guardados en Central.`;
             matches = false;
             break;
           }
@@ -257,7 +263,9 @@
       if (!t.index)
         t.index = [...t.el.querySelectorAll("tbody tr")].map((el) => {
           const first = el.cells[t.headers.indexOf("LOTERIA")];
-          const code = first?.querySelector('[data-slot="badge"]')?.textContent.trim();
+          const code = trimCode(
+            first?.querySelector('[data-slot="badge"]')?.textContent
+          );
           const name = first?.querySelector(".font-medium")?.textContent.trim();
           const inputs = Object.fromEntries(
             Object.entries(HEADERS).map(([k, h]) => [
@@ -394,7 +402,7 @@
       const data = revisionByDate.get(
         `${snap.server}|${snap.serverId}|${snap.date}`
       );
-      return !data || data.some((r) => r.loteria === code && r.estado === "conflicto");
+      return !data || data.some((r) => trimCode(r.loteria) === code && r.estado === "conflicto");
     }
     function canFill(code, expected, snap) {
       assert(snap);
@@ -416,10 +424,14 @@
         ([k, value]) => row.fields[k] && row.fields[k] !== value
       ))
         return false;
-      for (const rule of rules.filter((r) => r.activo && r.principal === code)) {
-        if (!snap.persisted.has(rule.dependiente)) continue;
-        const dependent = find(rule.dependiente);
-        if (locked(dependent) || touched.has(touchKey(rule.dependiente, v)) || Object.values(dependent.fields).some(Boolean))
+      for (const rule of rules.filter(
+        (r) => r.activo && trimCode(r.principal) === code
+      )) {
+        const dependentCode = trimCode(rule.dependiente);
+        if (!dependentCode) return false;
+        if (!snap.persisted.has(dependentCode)) continue;
+        const dependent = find(dependentCode);
+        if (locked(dependent) || touched.has(touchKey(dependentCode, v)) || Object.values(dependent.fields).some(Boolean))
           return false;
       }
       return true;
@@ -1015,7 +1027,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.1.2";
+  var VERSION = "0.1.3";
   var KEYS = {
     token: "mango_react_token",
     client: "mango_react_client",

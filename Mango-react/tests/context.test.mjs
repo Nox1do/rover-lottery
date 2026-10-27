@@ -56,6 +56,52 @@ test("solo confirma carga fresca cuyo DOM coincide con persistencia", () => {
   load();
   assert.equal(c.snapshot(view).date, day);
 });
+for (const code of [" BRAZIL03PM ", "BRAZIL03PM\t", "\u00a0BRAZIL03PM\u00a0"])
+  test(`código con espacios exteriores conserva identidad: ${JSON.stringify(code)}`, () => {
+    const { c, view, load } = setup();
+    view.rows[0] = {
+      code: "BRAZIL03PM",
+      fields: fields({ primera: "05" }),
+      processed: true,
+    };
+    const incoming = row({ abrev: code, procesado: true, primera: "05" });
+    load({ fecha: day, filas: [incoming] });
+    const snap = c.snapshot(view);
+    assert.equal(snap?.date, day);
+    assert.equal(snap.persisted.get("BRAZIL03PM").primera, "05");
+    assert.equal(snap.persisted.size, 1);
+    assert.equal(incoming.abrev, code, "no modifica la respuesta original");
+  });
+test("códigos que colisionan al recortar espacios bloquean la carga", () => {
+  const { c, view, load } = setup();
+  load({ fecha: day, filas: [row(), row({ abrev: " REAL " })] });
+  assert.equal(c.snapshot(view), null);
+});
+test("recortar espacios no equipara códigos con diferencias internas", () => {
+  const { c, view, load } = setup();
+  view.rows[0].code = "BRAZIL03PM";
+  load({ fecha: day, filas: [row({ abrev: " BRAZIL 03PM " })] });
+  assert.equal(c.snapshot(view), null);
+});
+test("edición local conserva persistencia al cambiar solo el relleno del código", () => {
+  const { c, view, load } = setup();
+  view.rows[0].fields = fields({ primera: "05" });
+  load({ fecha: day, filas: [row({ abrev: " REAL ", primera: "05" })] });
+  assert.ok(c.snapshot(view));
+  view.rows[0].fields.primera = "98";
+  view.rows[0].dirty = true;
+  c.prepareSearch(view);
+  load({ fecha: day, filas: [row({ primera: "05" })] });
+  assert.equal(c.snapshot(view).persisted.get("REAL").primera, "05");
+  assert.equal(view.rows[0].fields.primera, "98");
+});
+test("contexto bloqueado identifica la fila incompatible en diagnóstico", () => {
+  const { c, view, load } = setup();
+  view.rows[0].code = "DESCONOCIDA";
+  load();
+  assert.equal(c.snapshot(view), null);
+  assert.match(c.message, /DESCONOCIDA/);
+});
 test("ignora carga anterior al último request y no recupera después de error", () => {
   const { c, view, advance } = setup();
   const a = c.begin({ date: day, server: "PRINCIPAL" }),

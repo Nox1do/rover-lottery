@@ -1,5 +1,14 @@
 # Verificación
 
+## 0.1.3 — 27/10/2026
+
+- Antes de implementar: 15/21 pruebas de contexto aprobadas; seis regresiones fallaron por códigos con espacios, colisiones, retención de edición y diagnóstico. La suite Firefox dio 27/32: fallaron las dos reproducciones con BRAZIL, las protecciones de dependientes/revisiones con códigos rodeados de espacios y el diagnóstico de una fila ajena.
+- Después de la corrección, `npm test`: 37 pruebas Node, 32 escenarios React/Firefox y una extensión Firefox aislada; cero fallos.
+- Las pruebas incluyen espacios, tabulación y NBSP exteriores; colisiones; diferencias internas que siguen rechazadas; persistencia frente a edición; 118 filas con consulta y azul; llenado NICA/LA DIARIA; dependientes editadas; conflictos e identidad ajena indicada en diagnóstico.
+- `npm run check` y `git diff --check`: aprobados. Históricos 0.1.0, 0.1.1 y 0.1.2 conservados sin cambios.
+
+El diagnóstico de la sesión identificó la fila incompatible, pero no mostró el valor crudo recibido de su código. Se reprodujo y corrigió la asimetría entre recorte DOM y respuesta; no se afirma haber observado el carácter exacto en esa sesión. Se mantienen servicios/GM simulados y publicación manual. Falta confirmar 0.1.3 en Firefox/Tampermonkey del usuario; no se cambió el backend ni se publicaron resultados reales.
+
 ## 0.1.2 — 27/10/2026
 
 - Regresión reproducida antes del cambio: 23/27 escenarios Firefox aprobados; fallaron la recuperación del azul tras ocultar la fila, tras dejar cero coincidencias, durante una consulta pendiente y tras filtrar una fila con edición manual. Los cuatro fallos esperaron el indicador sin recibirlo antes de 700 ms. La prueba unitaria nueva también falló antes de implementar la sincronización visual.

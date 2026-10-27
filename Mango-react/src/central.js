@@ -7,6 +7,7 @@ import {
   normalizeLabel,
   sleep,
   validExpected,
+  trimCode,
 } from "./helpers.js";
 import { createContext } from "./context.js";
 const HEADERS = {
@@ -63,9 +64,9 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       t.index = [...t.el.querySelectorAll("tbody tr")]
         .map((el) => {
           const first = el.cells[t.headers.indexOf("LOTERIA")];
-          const code = first
-            ?.querySelector('[data-slot="badge"]')
-            ?.textContent.trim();
+          const code = trimCode(
+            first?.querySelector('[data-slot="badge"]')?.textContent,
+          );
           const name = first?.querySelector(".font-medium")?.textContent.trim();
           const inputs = Object.fromEntries(
             Object.entries(HEADERS).map(([k, h]) => [
@@ -222,7 +223,8 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       `${snap.server}|${snap.serverId}|${snap.date}`,
     );
     return (
-      !data || data.some((r) => r.loteria === code && r.estado === "conflicto")
+      !data ||
+      data.some((r) => trimCode(r.loteria) === code && r.estado === "conflicto")
     );
   }
   function canFill(code, expected, snap) {
@@ -259,13 +261,17 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       )
     )
       return false;
-    for (const rule of rules.filter((r) => r.activo && r.principal === code)) {
+    for (const rule of rules.filter(
+      (r) => r.activo && trimCode(r.principal) === code,
+    )) {
+      const dependentCode = trimCode(rule.dependiente);
+      if (!dependentCode) return false;
       // An absent dependent may be hidden by a filter. Never write it blindly.
-      if (!snap.persisted.has(rule.dependiente)) continue;
-      const dependent = find(rule.dependiente);
+      if (!snap.persisted.has(dependentCode)) continue;
+      const dependent = find(dependentCode);
       if (
         locked(dependent) ||
-        touched.has(touchKey(rule.dependiente, v)) ||
+        touched.has(touchKey(dependentCode, v)) ||
         Object.values(dependent.fields).some(Boolean)
       )
         return false;

@@ -6,6 +6,9 @@ export const FIELD_NAMES = Object.freeze([
   "pick4",
 ]);
 export const API_BASE = "https://rover-lottery-api.loteriasrovers.workers.dev";
+// Match the badge's textContent.trim() without changing code spelling.
+export const trimCode = (value) =>
+  typeof value === "string" ? value.trim() : "";
 export const normalizeLabel = (value) =>
   String(value ?? "")
     .normalize("NFD")

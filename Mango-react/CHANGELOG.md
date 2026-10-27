@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.1.3 — 2026-10-27
+
+- Compara los códigos nativos de resultados, tabla, dependientes y revisiones con el mismo recorte de espacios exteriores. Corrige el bloqueo reproducido con una fila `BRAZIL03PM` cuyo código recibido tiene espacios, sin alterar números ni identificadores en Central.
+- Rechaza códigos vacíos y colisiones tras el recorte; conserva diferencias internas, PROC, campos persistidos y protección del trabajo local.
+- El diagnóstico identifica la fila y la condición que no permiten verificar la tabla, en lugar de conservar el mensaje genérico de carga después de recibir la respuesta.
+- Añade siete regresiones unitarias y cinco escenarios Firefox, incluidos 118 filas, consulta/azul, llenado NICA/LA DIARIA, conflictos y dependientes con códigos rodeados de espacios.
+
 ## 0.1.2 — 2026-10-27
 
 - Restaura el azul de vigilancia al volver a mostrar una fila filtrada, incluso si el filtro dejó la tabla vacía o hay una consulta pendiente.

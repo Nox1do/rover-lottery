@@ -234,6 +234,108 @@ async function waitingRuntime(r) {
     .first()
     .waitFor();
 }
+test("118 filas: código BRAZIL con espacios no bloquea consultas ni azul", async () => {
+  const r = await setup({
+    rows: 118,
+    overrides: {
+      "NY-BP": {
+        abrev: " BRAZIL03PM ",
+        nombre: "BRAZIL 03PM",
+        procesado: true,
+        primera: "05",
+      },
+    },
+  });
+  try {
+    await waitingRuntime(r);
+    assert.equal(await r.page.locator("tbody tr").count(), 118);
+    assert.equal(await r.page.evaluate(() => gmCalls.length), 2);
+    assert.equal(
+      await r.page.evaluate(
+        () => adapter.snapshot().persisted.get("BRAZIL03PM").primera,
+      ),
+      "05",
+    );
+  } finally {
+    await r.close();
+  }
+});
+test("BRAZIL con espacios permite llenar NICA y LA DIARIA sin modificar BRAZIL", async () => {
+  const r = await setup({
+    overrides: {
+      REAL: { abrev: "NICA-3PM", nombre: "NICA 3PM" },
+      "NY-AM": { abrev: "LD03", nombre: "LA DIARIA 03PM" },
+      "NY-BP": {
+        abrev: " BRAZIL03PM ",
+        nombre: "BRAZIL 03PM",
+        procesado: true,
+        primera: "05",
+      },
+    },
+  });
+  try {
+    await r.load();
+    assert.equal(await r.fill("NICA-3PM", { primera: "12" }), true);
+    assert.equal(await r.fill("LD03", { primera: "34" }), true);
+    assert.deepEqual(await r.vals("NICA-3PM"), ["12", "", "", "", ""]);
+    assert.deepEqual(await r.vals("LD03"), ["34", "", "", "", ""]);
+    assert.deepEqual(await r.vals(" BRAZIL03PM "), ["05", "", "", "", ""]);
+  } finally {
+    await r.close();
+  }
+});
+test("códigos con espacios en reglas conservan el bloqueo por dependiente editada", async () => {
+  const r = await setup();
+  try {
+    r.state.rules[0].principal = " NY-AM ";
+    r.state.rules[0].dependiente = " NY-BP ";
+    await r.page.evaluate(() =>
+      fetch("/api/loteria/resultadosLoteria2/dependientes", {
+        headers: { "X-Servidor": "1" },
+      }),
+    );
+    await r.load();
+    await r.page.locator('tr[data-code="NY-BP"] input').first().fill("99");
+    assert.equal(await r.fill("NY-AM", { pick4: "0123" }), false);
+    assert.deepEqual(await r.vals("NY-AM"), ["", "", "", "", ""]);
+    assert.equal((await r.vals("NY-BP"))[0], "99");
+  } finally {
+    await r.close();
+  }
+});
+test("código con espacios en revisiones no omite un conflicto", async () => {
+  const r = await setup();
+  try {
+    r.state.revision = [{ loteria: " REAL ", estado: "conflicto" }];
+    await r.page.evaluate(() =>
+      fetch("/api/loteria/resultadosLoteria2/revision?fecha=10/27/2026", {
+        headers: { "X-Servidor": "1" },
+      }),
+    );
+    await r.load();
+    assert.equal(await r.fill("REAL", { primera: "05" }), false);
+    assert.deepEqual(await r.vals("REAL"), ["", "", "", "", ""]);
+  } finally {
+    await r.close();
+  }
+});
+test("código realmente ajeno bloquea y muestra su identidad en diagnóstico", async () => {
+  const r = await setup();
+  try {
+    await r.load();
+    await r.page
+      .locator('tr[data-code="REAL"] [data-slot="badge"]')
+      .evaluate((badge) => (badge.textContent = "DESCONOCIDA"));
+    await r.page.locator('form button[type="submit"]').click();
+    await r.page.waitForFunction(() => !adapter.view().busy);
+    await r.page.waitForTimeout(150);
+    assert.equal(await r.page.evaluate(() => adapter.snapshot()), null);
+    assert.match(await r.page.evaluate(() => adapter.message), /DESCONOCIDA/);
+    assert.equal(await r.fill("NY-AM", { pick3: "005" }), "context_changed");
+  } finally {
+    await r.close();
+  }
+});
 for (const filter of ["NEW YORK", "NO EXISTE"])
   test(`azul vuelve tras filtro ${filter} sin nuevas consultas ni llenado`, async () => {
     const r = await setup();

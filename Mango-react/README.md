@@ -1,4 +1,4 @@
-# Mango/Rover React · 0.1.2
+# Mango/Rover React · 0.1.3
 
 Versión independiente para **Firefox + Tampermonkey**, en https://central.roversport.net/loteria/resultados/ver. Trabaja únicamente con **PRINCIPAL** y la fecha de hoy en **America/Santo_Domingo**. Conserva el contrato 1.0 del servicio Mango existente; no requiere instalar React ni modifica el Worker.
 
@@ -21,7 +21,7 @@ Las actualizaciones utilizan los archivos `.meta.js` y `.user.js` de esta carpet
 - Si Mango dice procesado y Central sigue pendiente, se conserva todo y se muestra la discordancia en diagnóstico. No se resetea el estado compartido.
 - Se respetan ediciones, limpiezas y otros scripts. Ante trabajo local o dependencias con números se omite el llenado; no se restaura indiscriminadamente un campo vacío. Recargar Central inicia una nueva sesión de edición.
 - Picks conservan ceros iniciales y actualizan premios mediante los eventos normales de Central. Las reglas nativas siguen calculando dependientes; Mango no procesa las dependientes.
-- Filtros y orden no definen identidad. Se exige coincidencia única por nombre/código/alias exacto; filas ocultas o duplicadas se omiten.
+- Filtros y orden no definen identidad. Se exige coincidencia única por nombre/código/alias exacto; filas ocultas o duplicadas se omiten. Los códigos nativos se comparan recortando espacios exteriores de forma consistente; una colisión tras el recorte bloquea la verificación.
 - Se suspenden efectos mientras hay diálogos, publicación, carga, servidor distinto, fecha histórica, lectura o permisos insuficientes.
 - Buscar puede refrescar como máximo cada dos minutos, únicamente con contexto verificado y sin trabajo pendiente. Esto permite descubrir loterías que Central agrega diez minutos antes del sorteo. Nunca elimina filtros.
 
@@ -29,11 +29,11 @@ El sondeo Mango utiliza 5 segundos cuando hay entregas activas, 120 segundos cua
 
 ## Diagnóstico
 
-Tampermonkey ofrece **Configurar token**, **Pausar/reanudar**, **Diagnóstico** y **Regenerar identificador de PC**. El diagnóstico indica si el observador funciona, fecha verificada, servidor, última consulta y filas coincidentes, sin imprimir el token. Si falta contexto o falló Buscar, repetir Buscar después de revisar fecha y servidor. Si faltan reglas/revisiones nativas, Mango omite el llenado y no las configura ni las consulta por su cuenta.
+Tampermonkey ofrece **Configurar token**, **Pausar/reanudar**, **Diagnóstico** y **Regenerar identificador de PC**. El diagnóstico indica si el observador funciona, fecha verificada, servidor, última consulta y filas coincidentes, sin imprimir el token. Si la respuesta llegó pero la tabla no coincide, identifica la fila y si falla el código, PROC o los campos persistidos. Si falta contexto o falló Buscar, repetir Buscar después de revisar fecha y servidor. Si faltan reglas/revisiones nativas, Mango omite el llenado y no las configura ni las consulta por su cuenta.
 
 ## Alcance de la verificación
 
-30 pruebas de Node y 28 escenarios en Firefox 153 con React real/contexto aislado, incluidas tabla de 241 filas, cambio de fecha/servidor, PROC con edición, picks, dependientes, intervención externa, foco/scroll y contrato de entrega. Cubren los nombres actuales y anteriores del icono PROC, una tabla de 14 filas con 13 procesadas, el bloqueo de iconos desconocidos y la recuperación del azul después de filtrar, sin consultas adicionales. Una extensión temporal de Firefox comprueba el límite real de `exportFunction`/Xrays y que la página no acceda al GM simulado. **Las APIs GM están simuladas; no se ha probado una publicación real ni un llenado en la sesión personal de Tampermonkey.** El usuario confirmó en 0.1.1 fecha/servidor verificados, token válido, siete filas API coincidentes y ausencia de errores.
+37 pruebas de Node y 33 escenarios en Firefox 153 con React real/contexto aislado, incluidas tabla de 241 filas, cambio de fecha/servidor, PROC con edición, picks, dependientes, intervención externa, foco/scroll y contrato de entrega. Cubren iconos PROC, recuperación del azul al filtrar y códigos con espacios exteriores, incluidas colisiones y una tabla de 118 filas. Una extensión temporal de Firefox comprueba el límite real de `exportFunction`/Xrays y que la página no acceda al GM simulado. **Las APIs GM están simuladas; no se ha probado una publicación real ni un llenado en la sesión personal de Tampermonkey.** El usuario confirmó en 0.1.1 fecha/servidor verificados, token válido, siete filas API coincidentes y ausencia de errores; en 0.1.2 detectó un nuevo bloqueo de contexto por `BRAZIL03PM`, descrito en el reporte de compatibilidad.
 
 La compatibilidad se basa en la pantalla auditada el 27/10/2026; si Central cambia la estructura, se detienen las operaciones que no pueden verificarse. No usa Fiber, propiedades privadas de React ni sustituye los manejadores de publicación.
 

@@ -214,7 +214,12 @@ function App() {
                     <td>0</td>
                     <td>
                       {r.procesado ? (
-                        <svg className="lucide lucide-circle-check-big text-emerald-600" />
+                        <svg
+                          className={
+                            window.fxProcessedIcon ||
+                            "lucide lucide-circle-check lucide-check-circle-2 text-emerald-600"
+                          }
+                        />
                       ) : (
                         <svg className="lucide lucide-circle-x text-destructive" />
                       )}

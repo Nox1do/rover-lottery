@@ -90,7 +90,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         Object.fromEntries(FIELD_NAMES.map((k) => [k, r.inputs[k].value])),
       ),
       processed: r.procCell?.querySelector(
-        ".lucide-circle-check-big, .lucide-circle-check-2",
+        ".lucide-circle-check, .lucide-check-circle-2, .lucide-circle-check-big, .lucide-circle-check-2",
       )
         ? true
         : r.procCell?.querySelector(".lucide-circle-x")

@@ -30,6 +30,14 @@ Fuentes públicas comprobadas:
 
 El tiempo mínimo de asentamiento se combina con igualdad de identidad, PROC y campos persistidos; un retraso, error o contexto incompatible suspende efectos. Una respuesta fuera de orden no sustituye la última solicitud. Si no se observó la carga inicial se requiere Buscar de nuevo. Una discordancia entre servicios se diagnostica y no se repara automáticamente.
 
+## Corrección PROC de 0.1.1
+
+El diagnóstico de la sesión del usuario recibió HTTP 200, fecha 2026-10-27, servidor PRINCIPAL y 14 filas con números coincidentes; 13 diferencias estaban limitadas a PROC. Los assets públicos vigentes `index-CXAjh0_O.js` y `VerResultados-DSPp5D3p.js` usan el icono Lucide `circle-check`, con alias `check-circle-2`. El adaptador 0.1.0 buscaba otros nombres y devolvía un estado desconocido para las filas procesadas, dejando el contexto en «Central está cargando resultados…».
+
+0.1.1 reconoce esos dos nombres y conserva `circle-check-big` y `circle-check-2`. Solo inspecciona la celda PROC; el color verde y los iconos de Status no acreditan publicación. Un icono desconocido sigue bloqueando la verificación. No se cambian el protocolo Mango ni las condiciones que exigen fecha, servidor y valores persistidos.
+
+Referencias primarias: [Lucide React](https://lucide.dev/guide/react/), [alias de iconos](https://lucide.dev/guide/react/advanced/aliased-names) y los dos assets públicos de Central mencionados. Los nombres de assets son evidencia de esta inspección, no rutas permanentes.
+
 ## Límites de pruebas
 
 La fixture reproduce los contratos comprobados, pero no es la aplicación privada de Central. La prueba de contexto aislado usa una extensión temporal y GM simulado, no una instalación personal de Tampermonkey. No se invocan publicaciones financieras ni se usan cookies de la sesión del usuario. Validación operativa posterior: instalar, configurar token, comprobar diagnóstico y revisar un llenado real antes de confirmar manualmente como siempre.

@@ -2,6 +2,8 @@
 
 Actualizada el **27 de octubre de 2026**. Sirve para retomar el proyecto en otra conversación sin reconstruir sus decisiones ni confundirlo con USA React. Antes de trabajar, contrastar esta guía con la rama `main`: puede haber cambios posteriores.
 
+**Versión vigente: 0.1.1.** Corrige la detección del icono PROC actual de Central (`circle-check` / `check-circle-2`). En la sesión del usuario, la carga respondía correctamente y los números coincidían, pero 13 de 14 filas no superaban la comparación de PROC; Mango quedaba en «Central está cargando resultados…». La corrección conserva los iconos anteriores y bloquea estados desconocidos. Se verificó con 29 pruebas Node, 21 escenarios React/Firefox y una extensión Firefox aislada; aún requiere confirmación en la sesión personal del usuario. Ver [CHANGELOG](CHANGELOG.md) y [verificación](docs/verificacion.md). Los datos de entrega inicial 0.1.0 que siguen se conservan como referencia histórica; sus contratos continúan vigentes.
+
 ## 1. Estado de partida confirmado
 
 | Proyecto | Carpeta | Versión de referencia | Commit |

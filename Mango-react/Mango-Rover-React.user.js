@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mango/Rover React
 // @namespace    https://github.com/Nox1do/rover-lottery/Mango-react
-// @version      0.1.0
+// @version      0.1.1
 // @description  Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida.
 // @match        https://central.roversport.net/*
 // @connect      rover-lottery-api.loteriasrovers.workers.dev
@@ -281,7 +281,7 @@
           Object.fromEntries(FIELD_NAMES.map((k) => [k, r.inputs[k].value]))
         ),
         processed: r.procCell?.querySelector(
-          ".lucide-circle-check-big, .lucide-circle-check-2"
+          ".lucide-circle-check, .lucide-check-circle-2, .lucide-circle-check-big, .lucide-circle-check-2"
         ) ? true : r.procCell?.querySelector(".lucide-circle-x") ? false : null
       }));
     }
@@ -986,7 +986,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.1.0";
+  var VERSION = "0.1.1";
   var KEYS = {
     token: "mango_react_token",
     client: "mango_react_client",

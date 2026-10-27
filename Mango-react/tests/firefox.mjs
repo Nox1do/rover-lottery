@@ -46,7 +46,7 @@ const origin = `http://127.0.0.1:${server.address().port}`,
   });
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
-async function setup({ overrides = {}, rows = 3 } = {}) {
+async function setup({ overrides = {}, rows = 3, processedIcon } = {}) {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 800 },
   });
@@ -72,6 +72,11 @@ async function setup({ overrides = {}, rows = 3 } = {}) {
     ],
   };
   await page.addInitScript((rows) => (window.fxRowCount = rows), rows);
+  if (processedIcon)
+    await page.addInitScript(
+      (value) => (window.fxProcessedIcon = value),
+      processedIcon,
+    );
   await page.route("**/api/**", async (route) => {
     const url = new URL(route.request().url());
     let body;
@@ -155,6 +160,87 @@ async function setup({ overrides = {}, rows = 3 } = {}) {
   };
   return r;
 }
+for (const icon of [
+  "circle-check",
+  "check-circle-2",
+  "circle-check-big",
+  "circle-check-2",
+])
+  test(`PROC ${icon}: verifica persistencia y no rellena la procesada`, async () => {
+    const r = await setup({
+      overrides: { REAL: { procesado: true, primera: "05" } },
+      processedIcon: `lucide lucide-${icon} text-emerald-600`,
+    });
+    try {
+      await r.load();
+      assert.deepEqual(
+        await r.page.evaluate(() => ({
+          date: adapter.snapshot().date,
+          processed: adapter.find("REAL").processed,
+          persisted: adapter.snapshot().persisted.get("REAL").primera,
+          pending: adapter.find("NY-AM").processed,
+        })),
+        {
+          date: "2026-10-27",
+          processed: true,
+          persisted: "05",
+          pending: false,
+        },
+      );
+      assert.equal(await r.fill("REAL", { primera: "77" }), false);
+      assert.equal((await r.vals("REAL"))[0], "05");
+    } finally {
+      await r.close();
+    }
+  });
+test("PROC actual: 13 procesadas no bloquean la entrega a la pendiente", async () => {
+  const processed = [
+    "NY-AM",
+    "NY-BP",
+    ...Array.from({ length: 11 }, (_, i) => `FIX${i}`),
+  ];
+  const r = await setup({
+    rows: 14,
+    overrides: Object.fromEntries(
+      processed.map((code) => [code, { procesado: true }]),
+    ),
+  });
+  try {
+    await r.load();
+    assert.equal(
+      await r.page.evaluate(
+        () => adapter.rows().filter((row) => row.processed === true).length,
+      ),
+      13,
+    );
+    assert.equal(await r.fill("REAL", { primera: "05" }), true);
+    assert.deepEqual(await r.vals("REAL"), ["05", "", "", "", ""]);
+  } finally {
+    await r.close();
+  }
+});
+test("PROC desconocido bloquea aunque el color y Status indiquen éxito", async () => {
+  const r = await setup({
+    overrides: { REAL: { procesado: true, primera: "05" } },
+    processedIcon: "lucide lucide-circle-help text-emerald-600",
+  });
+  try {
+    await r.page.locator('form button[type="submit"]').click();
+    await r.page.waitForFunction(
+      () => adapter.rows().length === 3 && !adapter.view().busy,
+    );
+    await r.page.waitForTimeout(150);
+    assert.equal(
+      await r.page.evaluate(() => adapter.find("REAL").processed),
+      null,
+    );
+    assert.equal(await r.page.evaluate(() => adapter.snapshot()), null);
+    assert.equal(await r.fill("NY-AM", { pick3: "005" }), "context_changed");
+    assert.deepEqual(await r.vals("NY-AM"), ["", "", "", "", ""]);
+  } finally {
+    await r.close();
+  }
+});
 test("carga real React: fecha verificada, ceros, persistencia tras rerender", async () => {
   const r = await setup();
   try {
@@ -315,7 +401,9 @@ test("241 filas: no roba foco ni scroll al llenar, solo cambios propios", async 
   }
 });
 test("userscript completo: contrato Mango, GM privado y presented sin Procesar", async () => {
-  const r = await setup();
+  const r = await setup({
+    overrides: { "NY-AM": { procesado: true } },
+  });
   try {
     const { readFile } = await import("node:fs/promises");
     const runtime = await readFile("Mango-Rover-React.user.js", "utf8");

@@ -354,7 +354,6 @@ SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
   }
   // Coincidencias completas únicamente: nunca coincidencias parciales del código.
   const PHOTO_EXCLUSION_NAMES = new Set(PHOTO_EXCLUSION_ROWS.map(([name]) => photoIdentityKey(name)));
-  const PHOTO_EXCLUSION_CODES = new Set(PHOTO_EXCLUSION_ROWS.map(([, code]) => photoIdentityKey(code)));
   const PHOTO_EXCLUSION_PAIRS = new Set(PHOTO_EXCLUSION_ROWS.map(([name, code]) =>
     photoIdentityKey(name) + photoIdentityKey(code)));
   const PHOTO_EXCLUSION_REVERSED_PAIRS = new Set(PHOTO_EXCLUSION_ROWS.map(([name, code]) =>
@@ -365,7 +364,7 @@ SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
     const fullKey = photoIdentityKey(lotteryCell.textContent);
     if (!fullKey) return false;
     if (PHOTO_EXCLUSION_PAIRS.has(fullKey) || PHOTO_EXCLUSION_REVERSED_PAIRS.has(fullKey) ||
-        PHOTO_EXCLUSION_NAMES.has(fullKey) || PHOTO_EXCLUSION_CODES.has(fullKey)) return true;
+        PHOTO_EXCLUSION_NAMES.has(fullKey)) return true;
     // En la interfaz React el nombre y el código suelen vivir en <span>/<div>
     // separados. Comprobar los valores hoja exactos, no el texto de toda la fila.
     const fragments = new Set();
@@ -375,11 +374,10 @@ SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
       if (key) fragments.add(key);
     }
     if ([...fragments].some((key) => PHOTO_EXCLUSION_NAMES.has(key))) return true;
-    // Si un nombre visible no está en la lista, NO ocultar por un código de
-    // otra lotería. El caso NEW YORK AM (NEW YORK PM) se resuelve por nombre.
-    if (fragments.size > 1) return false;
-    return fragments.size === 1 && PHOTO_EXCLUSION_CODES.has([...fragments][0]) &&
-      fullKey === [...fragments][0];
+    // No basarse nunca exclusivamente en códigos: NEW YORK AM se suministró
+    // con el código NEW YORK PM. Una coincidencia de código aislada podría
+    // ocultar por error los botones de un sorteo que NO está en la lista.
+    return false;
   }
 
   function annotatePhotoCell(row, cells) {

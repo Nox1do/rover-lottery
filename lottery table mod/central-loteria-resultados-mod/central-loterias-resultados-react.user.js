@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.8
+// @version      0.0.9
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,7 +16,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.8';
+  const VERSION = '0.0.9';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
@@ -113,6 +113,7 @@
       pending: firstMatch(/^PEND\.?$|PENDIENT|PENDING/),
       processed: firstMatch(/^PROC\.?$|PROCESAD|PROCESAM|PROCESO|PROCESSED/),
       hour: firstMatch(/^HORA$|^HORARIO$|^TIME$/),
+      photos: firstMatch(/^FOTOS?$/),
     };
   }
 
@@ -232,11 +233,181 @@
     return 'unknown';
   }
 
+  // Lista solicitada: ocultar los dos controles exclusivamente en FOTOS.
+  // Separador | preserva literalmente nombres y códigos suministrados.
+  const PHOTO_EXCLUSION_ROWS = `SP-ANG9AM-ANG5PM|SP-ANG9AM-ANG5PM
+QUEEN LOTTERY MORNING|QLT-MORNING
+EL QUEMAITO MAYOR|EQM
+SP ANGUILLA2PM - LOTEDOM|SP-ANG2PM-LOT
+EL QUINIELON AM|EQN-AM
+SP PRIM-REAL|SP-RP
+SP PRIM-SUERTE|SP-PS
+SP PRIM-GMAS|SP PR-GM
+SP-ANG1PM-REAL|SP-ANG1PM-REAL
+SP ANGUILLA1PM-REAL|SP ANG1PM-REAL
+S.PALE TARDE|SPT
+SP SUERTEAM-KING LOTTERY AM|SP-STAM-KINGAM
+SP SUERTE-REAL|SP-RS
+SP REAL-NYAM|R-NYAM
+SP REAL-FLORIDA AM|SP REAL-FLAM
+NUEVA YOL REAL|NYREAL
+GEORGIA MIDDAY MARIAGE PALE|GE-MD-MR
+QUEEN LOTTERY MIDDAY|QLT-MIDDAY
+NEW JERSEY AM MARIAGE PALE|NJ-AM-MR
+LA CHICA|LA-CHICA
+TEST LD|TEST-LD
+NEW YORK AM|NEW YORK PM
+TEST LD 2|TESTLD-2
+VERMONT DAY|VT-DAY
+LA DIARIA|LchD
+VERMONT EVENING|VT-EVEN
+2PICKNY AM|2PICKNY - AM
+PRUEBAS FELIX|PB-FELIX
+2PICKNY PM|2PICKNY - PM
+PRUEB|PRUEB
+BOLIDO 9PM|BLD-9PM
+SP-NYPM-GENT|SP-NYPM-GENT
+SP-FLPM-GENT|SP-FLPM-GENT
+SP NYPM-FLPM|NYPM-FLPM
+SP-FLPM-NYPM|SP-FLPM-NYPM
+SP FLPM-NAC|SP FLPM-NAC
+SP QPALE-ANGUILLA9PM|SP QPALE-ANG9PM
+SP-QPL-ANG9PM|SP-QPL-ANG9PM
+SP NAC-ANGUILLA9PM|SP NAC-ANG9PM
+SP NYPM-NAC|SP NYPM-NC
+S.PALE NOCHE|SPN
+SP NYPM-QUIN|SP NYPM-QP
+SP LTK-NYPM|LTK-NYPM
+SP LOTEK-NAC|SP LK-NC
+SP LOTEK- QUIN|SP LK-QP
+SP KINGPM-LOTEKA|SP KINGPM-LOTEKA
+SP LOTEKA-PRIPM|SP LOTEKA-PRIPM
+SP KINGPM-PRIPM|SP-KLPM-PRIPM
+SP-ANG6PM-SUERTE-PM|SP-ANG6PM-SUERTEPM
+SP FLAM-NYAM|SP FLAM-NYAM
+SP NYAM-GMAS|SP NYAM-GM
+SP FLAM-GMAS|SP FLAM-GM
+SP-FLAM-NYAM|SP-FLAM-NYAM
+SP PRIPM-SUERTEPM|SP PRPM-SUPM
+SP SUERTEPM-ANGUILLA6PM|SP SUERTPM-ANG6PM
+SP SUERTPM-KING PM|SP-STPM-KINGPM
+QUEEN LOTTERY NIGHT|QLT-NIGHT
+QUEEN LOTTERY AFTN|QLT-AFTN
+QUEEN LOTTERY EVENING|QLT-EVENING
+FLORIDA AM MARIAGE PALE|FL-AM-MR
+PENNSYLV AM MARIAGE|PA-AM-MR
+CONNECT AM MARIAGE PALE|CT-AM-MR
+NEW YORK AM MARIAGE PALE|NY-AM-MR
+PENNSYLV PM MARIAGE|PA-PM-MR
+GEORGIA EVENING MARIAGE PALE|GE-EV-MR
+FLORIDA PM MARIAGE PALE|FL-PM-MR
+CONNECT PM MARIAGE PALE|CT-PM-MR
+NEW YORK PM MARIAGE PALE|NY-PM-MR
+EXTRA MARIAGE PALE|EXTRA-MR
+NEW JERSEY PM MARIAGE PALE|NJ-PM-MR
+GEORGIA NIGHT MARIAGE PALE|GE-NT-MR
+VENEZUELA PM|VLA-PM
+VENEZUELA AM|VLA-AM
+NY-BK PM|NYBK-PM
+NY-BK AM|NYBK-AM
+EXTRA NIGHT|EX - NG
+EXTRA MIDDAY|EX - MD
+NY-BP PM|NYBP-PM
+NY-BP AM|NYBP-AM
+NY-FP PM|NYFP-PM
+NY-FP AM|NYFP-AM
+FL PICK 2 PM|FLPK2PM
+FL PICK5 PM|FLPK5PM
+MASS EV P3F|MA-EV-P3F
+MASS EV P3B|MA-EV-P3B
+NEW HAMPSHIRE PM|NH-PM
+NEW HAMPSHIRE AM|NH-AM
+EL QUINIELON PM|EQN-PM
+MASS MD P3B|MA-MD-P3B
+MASS MD P3F|MA-MD-P3F
+FL PICK5 AM|FLPK5AM
+FL PICK2 AM|FLPK2AM
+FASTWIN 12PM|FW-12PM
+FASTWIN 2PM|FW-2PM
+FASTWIN 4PM|FW-4PM
+FASTWIN 6PM|FW-6PM
+FASTWIN 8PM|FW-8PM
+SALV 3PM|SALV-3PM
+PICK AND WIN 9:30AM|WIN-9-30AM
+PICK AND WIN 10:00PM|WIN-10-00PM
+PICK AND WIN 7:30PM|WIN-7-30PM
+PICK AND WIN 5:30PM|WIN-5-30PM
+PICK AND WIN 11:00AM|WIN-11-00AM
+PICK AND WIN 1:00PM|WIN-1-00PM
+RAPID LOTTERY 11AM|RPL-11AM
+RAPID LOTTERY 1PM|RPL-1PM
+RAPID LOTTERY 5PM|RPL-5PM
+RAPID LOTTERY 3PM|RPL-3PM
+RAPID LOTTERY 7PM|RPL-7PM
+RAPID LOTTERY 9PM|RPL-9PM
+SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
+    const delimiter = line.lastIndexOf('|');
+    return [line.slice(0, delimiter).trim(), line.slice(delimiter + 1).trim()];
+  });
+  function photoIdentityKey(value) {
+    return normalize(value).replace(/[^A-Z0-9]/g, '');
+  }
+  // Coincidencias completas únicamente: nunca coincidencias parciales del código.
+  const PHOTO_EXCLUSION_NAMES = new Set(PHOTO_EXCLUSION_ROWS.map(([name]) => photoIdentityKey(name)));
+  const PHOTO_EXCLUSION_CODES = new Set(PHOTO_EXCLUSION_ROWS.map(([, code]) => photoIdentityKey(code)));
+  const PHOTO_EXCLUSION_PAIRS = new Set(PHOTO_EXCLUSION_ROWS.map(([name, code]) =>
+    photoIdentityKey(name) + photoIdentityKey(code)));
+  const PHOTO_EXCLUSION_REVERSED_PAIRS = new Set(PHOTO_EXCLUSION_ROWS.map(([name, code]) =>
+    photoIdentityKey(code) + photoIdentityKey(name)));
+
+  function isPhotoExcluded(lotteryCell) {
+    if (!lotteryCell) return false;
+    const fullKey = photoIdentityKey(lotteryCell.textContent);
+    if (!fullKey) return false;
+    if (PHOTO_EXCLUSION_PAIRS.has(fullKey) || PHOTO_EXCLUSION_REVERSED_PAIRS.has(fullKey) ||
+        PHOTO_EXCLUSION_NAMES.has(fullKey) || PHOTO_EXCLUSION_CODES.has(fullKey)) return true;
+    // En la interfaz React el nombre y el código suelen vivir en <span>/<div>
+    // separados. Comprobar los valores hoja exactos, no el texto de toda la fila.
+    const fragments = new Set();
+    for (const node of lotteryCell.querySelectorAll('span, small, strong, b, div, p, [data-code]')) {
+      if (node.childElementCount > 0 && !node.hasAttribute('data-code')) continue;
+      const key = photoIdentityKey(node.textContent);
+      if (key) fragments.add(key);
+    }
+    if ([...fragments].some((key) => PHOTO_EXCLUSION_NAMES.has(key))) return true;
+    // Si un nombre visible no está en la lista, NO ocultar por un código de
+    // otra lotería. El caso NEW YORK AM (NEW YORK PM) se resuelve por nombre.
+    if (fragments.size > 1) return false;
+    return fragments.size === 1 && PHOTO_EXCLUSION_CODES.has([...fragments][0]) &&
+      fullKey === [...fragments][0];
+  }
+
+  function annotatePhotoCell(row, cells) {
+    const photosIndex = state.columns.photos;
+    const lotteryIndex = state.columns.lottery;
+    const photoCell = photosIndex >= 0 ? cells[photosIndex] : null;
+    const lotteryCell = lotteryIndex >= 0 ? cells[lotteryIndex] : null;
+    const shouldHide = Boolean(photoCell && lotteryCell && isPhotoExcluded(lotteryCell));
+    if (shouldHide) {
+      if (row.getAttribute('data-clr-no-photos') !== 'true')
+        row.setAttribute('data-clr-no-photos', 'true');
+      if (photoCell.getAttribute('data-clr-photo-cell') !== 'true')
+        photoCell.setAttribute('data-clr-photo-cell', 'true');
+    } else {
+      if (row.hasAttribute('data-clr-no-photos')) row.removeAttribute('data-clr-no-photos');
+      // Sólo marcar la celda FOTOS actual. Si React reutiliza un TD para otra
+      // columna, la regla requiere además el encabezado identificado.
+      if (photoCell?.hasAttribute('data-clr-photo-cell'))
+        photoCell.removeAttribute('data-clr-photo-cell');
+    }
+  }
+
   function annotateRow(row) {
     const cells = getCells(row);
     if (!cells.length) return;
     const highlight = highlightFor(row, cells);
     const category = classify(row, cells);
+    annotatePhotoCell(row, cells);
     if (row.getAttribute('data-clr-highlight') !== highlight) row.setAttribute('data-clr-highlight', highlight);
     if (row.getAttribute('data-clr-state') !== category) row.setAttribute('data-clr-state', category);
     if (state.columns.lottery >= 0 && cells[state.columns.lottery]) {
@@ -521,6 +692,12 @@
       table[data-clr-table="true"] tbody tr[data-clr-highlight="blue"]>td{background:#e8f2ff!important;}
       table[data-clr-table="true"] tbody tr[data-clr-highlight="blue"]:hover>td{background:#d9eaff!important;}
       table[data-clr-table="true"] tbody tr[data-clr-highlight="blue"]>td:first-child{box-shadow:inset 4px 0 #8bb6e8;}
+      /* FOTOS: ocultar solo sus dos botones en loterías excluidas.
+         No afectar ACCION, inputs, columnas ni eventos/react state. */
+      table[data-clr-table="true"] tbody tr[data-clr-no-photos="true"] > td[data-clr-photo-cell="true"] button,
+      table[data-clr-table="true"] tbody tr[data-clr-no-photos="true"] > td[data-clr-photo-cell="true"] [role="button"],
+      [role="grid"][data-clr-table="true"] [role="row"][data-clr-no-photos="true"] [role="cell"][data-clr-photo-cell="true"] button,
+      [role="table"][data-clr-table="true"] [role="row"][data-clr-no-photos="true"] [role="cell"][data-clr-photo-cell="true"] button{display:none!important;}
       table[data-clr-table="true"][data-clr-filter="unprocessed"] tbody tr[data-clr-state="processed-pending"],
       table[data-clr-table="true"][data-clr-filter="unprocessed"] tbody tr[data-clr-state="other"],
       table[data-clr-table="true"][data-clr-filter="processed-pending"] tbody tr[data-clr-state="unprocessed"],
@@ -777,6 +954,21 @@
     }));
   }
 
+  function photoAudit(limit = 30) {
+    const rows = getRows(state.table);
+    return rows.slice(0, Math.max(0, Math.min(500, Number(limit) || 0))).map((row) => {
+      const cells = getCells(row);
+      const photo = state.columns.photos >= 0 ? cells[state.columns.photos] : null;
+      const lottery = state.columns.lottery >= 0 ? cells[state.columns.lottery] : null;
+      return {
+        lottery: lottery?.textContent?.trim().slice(0, 100) || '',
+        excluded: row.getAttribute('data-clr-no-photos') === 'true',
+        buttonsInPhotos: photo?.querySelectorAll('button, [role="button"]').length || 0,
+        photoColumnFound: Boolean(photo),
+      };
+    });
+  }
+
   window[QA_KEY] = Object.freeze({
     version: VERSION,
     status: () => ({
@@ -789,10 +981,16 @@
       panel: { mounted: Boolean(state.panel?.isConnected), mode: state.panelMode,
         inTableCard: Boolean(state.panelHost?.isConnected && state.panelHost.contains(state.panel)),
         hidden: state.panel?.hidden ?? null },
+      photoExclusions: {
+        configured: PHOTO_EXCLUSION_ROWS.length,
+        columnIndex: state.columns.photos,
+        matchedRows: getRows(state.table).filter((row) => row.getAttribute('data-clr-no-photos') === 'true').length,
+      },
       performance: { ...state.stats },
       timings: { ...state.timings },
     }),
     rows: debugRows,
+    photoAudit,
     refresh: () => { scheduleDiscovery(); scheduleRows(); schedulePanelPosition(); },
     filter: (name) => setFilter(name),
     resetPerformance: () => { Object.keys(state.stats).forEach((key) => { state.stats[key] = 0; }); },

@@ -3,7 +3,7 @@ import { firefox } from "playwright";
 import { build } from "esbuild";
 import { createServer } from "node:http";
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 const fixture = (
   await build({
     entryPoints: ["tests/fixture.jsx"],
@@ -160,6 +160,203 @@ async function setup({ overrides = {}, rows = 3, processedIcon } = {}) {
   };
   return r;
 }
+async function waitingRuntime(r) {
+  await r.page.evaluate(() => {
+    window.gmCalls = [];
+    window.gmMenus = {};
+    window.gmWaitingState = "awaiting_result";
+    window.gmHoldVersion = false;
+    window.gmHeldRequests = [];
+    const storage = { mango_react_token: "test-secret" };
+    window.GM_getValue = (key, fallback) => storage[key] ?? fallback;
+    window.GM_setValue = (key, value) => (storage[key] = value);
+    window.GM_addValueChangeListener = () => {};
+    window.GM_registerMenuCommand = (name, fn) => (gmMenus[name] = fn);
+    window.unsafeWindow = window;
+    window.exportFunction = (fn) => fn;
+    window.alert = () => {};
+    window.GM_xmlhttpRequest = (options) => {
+      gmCalls.push({ url: options.url, body: options.data });
+      let data;
+      if (options.url.includes("/version?"))
+        data = {
+          ok: true,
+          date: "2026-10-27",
+          revision: gmWaitingState === "awaiting_result" ? 2 : 3,
+        };
+      else if (options.url.includes("/rows?"))
+        data = {
+          contract_version: "1.0",
+          date: "2026-10-27",
+          rows: [
+            {
+              lottery_id: "real",
+              row_key: "real|2026-10-27",
+              name: "REAL",
+              aliases: ["REAL"],
+              draw_date: "2026-10-27",
+              revision: gmWaitingState === "awaiting_result" ? 2 : 3,
+              proc_state:
+                gmWaitingState === "processed" ? "processed" : "pending",
+              owned_fields: ["primera", "segunda", "tercera"],
+              expected_fields: {},
+              components: [{ state: gmWaitingState, expected_fields: {} }],
+              visual: {
+                state: gmWaitingState === "awaiting_result" ? "blue" : null,
+              },
+            },
+          ],
+        };
+      else throw Error("Unexpected Mango request: " + options.url);
+      const finish = () =>
+        options.onload({ status: 200, responseText: JSON.stringify(data) });
+      if (gmHoldVersion && options.url.includes("/version?"))
+        gmHeldRequests.push(finish);
+      else setTimeout(finish, 0);
+    };
+  });
+  await r.page.addScriptTag({
+    content: await readFile("Mango-Rover-React.user.js", "utf8"),
+  });
+  await r.page.evaluate(() =>
+    Promise.all([
+      fetch("/api/loteria/resultadosLoteria2/dependientes", {
+        headers: { "X-Servidor": "1" },
+      }),
+      fetch("/api/loteria/resultadosLoteria2/revision?fecha=10/27/2026", {
+        headers: { "X-Servidor": "1" },
+      }),
+    ]),
+  );
+  await r.load();
+  await r.page
+    .locator('tr[data-code="REAL"] input[data-mango-react-visual="blue"]')
+    .first()
+    .waitFor();
+}
+for (const filter of ["NEW YORK", "NO EXISTE"])
+  test(`azul vuelve tras filtro ${filter} sin nuevas consultas ni llenado`, async () => {
+    const r = await setup();
+    try {
+      await waitingRuntime(r);
+      const before = await r.page.evaluate(() => gmCalls.length);
+      const search = r.page.locator('input[placeholder="Buscar lotería"]');
+      await search.fill(filter);
+      await r.page
+        .locator('tr[data-code="REAL"]')
+        .waitFor({ state: "detached" });
+      await r.page.waitForTimeout(250);
+      await search.fill("REAL");
+      await r.page
+        .locator('tr[data-code="REAL"] input[data-mango-react-visual="blue"]')
+        .first()
+        .waitFor({ timeout: 700 });
+      assert.equal(await r.page.evaluate(() => gmCalls.length), before);
+      assert.deepEqual(await r.vals("REAL"), ["", "", "", "", ""]);
+      await search.fill("");
+      assert.equal(
+        await r.page.locator('input[data-mango-react-visual="blue"]').count(),
+        3,
+      );
+    } finally {
+      await r.close();
+    }
+  });
+test("azul se restaura mientras la siguiente consulta sigue en curso", async () => {
+  const r = await setup();
+  try {
+    await waitingRuntime(r);
+    await r.page.evaluate(() => {
+      gmHoldVersion = true;
+      const OldDate = Date;
+      window.Date = class extends OldDate {
+        static now() {
+          return OldDate.now() + 6000;
+        }
+      };
+      fx.render();
+    });
+    await r.page.waitForFunction(() => gmHeldRequests.length === 1);
+    const before = await r.page.evaluate(() => gmCalls.length);
+    const search = r.page.locator('input[placeholder="Buscar lotería"]');
+    await search.fill("NEW YORK");
+    await r.page.locator('tr[data-code="REAL"]').waitFor({ state: "detached" });
+    await search.fill("REAL");
+    await r.page
+      .locator('tr[data-code="REAL"] input[data-mango-react-visual="blue"]')
+      .first()
+      .waitFor({ timeout: 700 });
+    assert.equal(await r.page.evaluate(() => gmCalls.length), before);
+    assert.deepEqual(await r.vals("REAL"), ["", "", "", "", ""]);
+  } finally {
+    await r.close();
+  }
+});
+test("azul al filtrar respeta números manuales y contexto no verificado", async () => {
+  const r = await setup();
+  try {
+    await waitingRuntime(r);
+    const first = r.page.locator('tr[data-code="REAL"] input').first();
+    await first.fill("77");
+    const search = r.page.locator('input[placeholder="Buscar lotería"]');
+    await search.fill("NEW YORK");
+    await r.page.locator('tr[data-code="REAL"]').waitFor({ state: "detached" });
+    await search.fill("REAL");
+    await r.page
+      .locator('tr[data-code="REAL"] input[data-mango-react-visual="blue"]')
+      .first()
+      .waitFor({ timeout: 700 });
+    assert.equal(await first.getAttribute("data-mango-react-visual"), null);
+    assert.deepEqual(await r.vals("REAL"), ["77", "", "", "", ""]);
+    await r.page.evaluate(() => fx.setDate("26 oct 2026"));
+    await r.page.waitForTimeout(250);
+    await search.fill("NEW YORK");
+    await search.fill("REAL");
+    await r.page.waitForTimeout(250);
+    assert.equal(
+      await r.page.locator("input[data-mango-react-visual]").count(),
+      0,
+    );
+    assert.equal(await r.page.evaluate(() => gmCalls.length), 2);
+  } finally {
+    await r.close();
+  }
+});
+for (const state of ["exhausted", "processed"])
+  test(`filtro no restaura azul después de recibir ${state}`, async () => {
+    const r = await setup();
+    try {
+      await waitingRuntime(r);
+      await r.page.evaluate((state) => {
+        gmWaitingState = state;
+        const OldDate = Date;
+        window.Date = class extends OldDate {
+          static now() {
+            return OldDate.now() + 6000;
+          }
+        };
+        fx.render();
+      }, state);
+      await r.page.waitForFunction(
+        () =>
+          gmCalls.filter((c) => c.url.includes("/rows?")).length === 2 &&
+          !document.querySelector('input[data-mango-react-visual="blue"]'),
+      );
+      const before = await r.page.evaluate(() => gmCalls.length);
+      const search = r.page.locator('input[placeholder="Buscar lotería"]');
+      await search.fill("NEW YORK");
+      await search.fill("REAL");
+      await r.page.waitForTimeout(250);
+      assert.equal(
+        await r.page.locator("input[data-mango-react-visual]").count(),
+        0,
+      );
+      assert.equal(await r.page.evaluate(() => gmCalls.length), before);
+      assert.deepEqual(await r.vals("REAL"), ["", "", "", "", ""]);
+    } finally {
+      await r.close();
+    }
+  });
 for (const icon of [
   "circle-check",
   "check-circle-2",

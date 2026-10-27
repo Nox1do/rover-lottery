@@ -1,15 +1,18 @@
 export function createVisuals(central) {
   const timers = new Map(),
     tracked = new Set();
+  function remove(input) {
+    clearTimeout(timers.get(input));
+    timers.delete(input);
+    tracked.delete(input);
+    input.removeAttribute("data-mango-react-visual");
+  }
   function clear(code, state) {
     const row = central.find(code);
     if (!row) return;
     for (const input of Object.values(row.inputs)) {
       if (!state || input.dataset.mangoReactVisual === state) {
-        clearTimeout(timers.get(input));
-        timers.delete(input);
-        tracked.delete(input);
-        input.removeAttribute("data-mango-react-visual");
+        remove(input);
       }
     }
   }
@@ -35,15 +38,32 @@ export function createVisuals(central) {
         );
     }
   }
-  function clearAll() {
-    for (const input of tracked) {
-      input.removeAttribute("data-mango-react-visual");
-      clearTimeout(timers.get(input));
+  // Filtering may replace inputs. Restore only authorized waiting indicators;
+  // green is tied to the original fill and must keep its existing deadline.
+  function syncBlue(plans) {
+    const waiting = new Set();
+    for (const { code, names } of plans) {
+      const row = central.find(code);
+      if (!row) continue;
+      for (const name of names)
+        if (row.inputs[name]) waiting.add(row.inputs[name]);
     }
-    tracked.clear();
-    timers.clear();
+    for (const input of tracked)
+      if (
+        input.isConnected === false ||
+        (input.dataset.mangoReactVisual === "blue" && !waiting.has(input))
+      )
+        remove(input);
+    for (const input of waiting) {
+      if (["blue", "green"].includes(input.dataset.mangoReactVisual)) continue;
+      tracked.add(input);
+      input.setAttribute("data-mango-react-visual", "blue");
+    }
   }
-  return { paint, clear, clearAll };
+  function clearAll() {
+    for (const input of tracked) remove(input);
+  }
+  return { paint, clear, clearAll, syncBlue };
 }
 export function installStyle(doc) {
   if (doc.getElementById("mango-react-style")) return;

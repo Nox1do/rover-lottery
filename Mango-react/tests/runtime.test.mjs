@@ -45,3 +45,34 @@ test("azul pendiente se limpia al agotar y verde solo dura su plazo", async () =
   await new Promise((r) => setTimeout(r, 25));
   assert.equal(attr, null);
 });
+test("reponer azul libera inputs desmontados y conserva el plazo del verde", async () => {
+  const input = () => ({
+    isConnected: true,
+    dataset: {},
+    setAttribute(name, value) {
+      this.dataset.mangoReactVisual = value;
+    },
+    removeAttribute() {
+      delete this.dataset.mangoReactVisual;
+    },
+  });
+  const old = input(),
+    next = input(),
+    green = input();
+  let row = { inputs: { primera: old, segunda: green } };
+  const visuals = createVisuals({ find: () => row });
+  visuals.paint("REAL", ["primera"], "blue");
+  visuals.paint("REAL", ["segunda"], "green", 40);
+  old.isConnected = false;
+  row = { inputs: { primera: next, segunda: green } };
+  visuals.syncBlue([{ code: "REAL", names: ["primera", "segunda"] }]);
+  assert.equal(old.dataset.mangoReactVisual, undefined);
+  assert.equal(next.dataset.mangoReactVisual, "blue");
+  assert.equal(green.dataset.mangoReactVisual, "green");
+  visuals.syncBlue([{ code: "REAL", names: ["primera"] }]);
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.equal(green.dataset.mangoReactVisual, undefined);
+  assert.equal(next.dataset.mangoReactVisual, "blue");
+  visuals.syncBlue([]);
+  assert.equal(next.dataset.mangoReactVisual, undefined);
+});

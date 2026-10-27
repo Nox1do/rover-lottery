@@ -10,7 +10,7 @@ export function createDelivery({
   central,
   api,
   clientId,
-  visuals = { paint() {}, clear() {} },
+  visuals = { paint() {}, clear() {}, syncBlue() {} },
 }) {
   const operations = new Map(),
     acknowledged = new Set(),
@@ -44,6 +44,38 @@ export function createDelivery({
         ? row.owned_fields
         : Object.keys(row.expected_fields || {});
     return list.filter((k) => FIELD_NAMES.includes(k));
+  }
+  function matchingRows(rows, snap) {
+    const visible = central.rows(),
+      matches = rows
+        .filter((row) => row.draw_date === snap.date)
+        .map((row) => ({ row, visible: match(row, visible) }));
+    const counts = new Map();
+    for (const x of matches)
+      if (x.visible)
+        counts.set(x.visible.code, (counts.get(x.visible.code) || 0) + 1);
+    return matches.filter((x) => x.visible && counts.get(x.visible.code) === 1);
+  }
+  function updateWaiting(matches, snap) {
+    visuals.syncBlue(
+      matches
+        .filter(
+          ({ row, visible }) =>
+            row.visual?.state === "blue" &&
+            row.proc_state !== "processed" &&
+            visible.processed === false &&
+            snap.persisted.get(visible.code)?.procesado === false,
+        )
+        .map(({ row, visible }) => ({
+          code: visible.code,
+          names: names(row).filter((key) => !visible.fields[key]),
+        })),
+    );
+  }
+  // This path updates presentation only: no reservations, fills, ACKs or API calls.
+  function syncVisuals(rows, snap) {
+    central.assert(snap);
+    updateWaiting(matchingRows(rows, snap), snap);
   }
   function assertReservation(row, response) {
     const operation = response?.operation;
@@ -180,13 +212,6 @@ export function createDelivery({
       }
     }
     const owned = names(row);
-    if (row.visual?.state === "blue")
-      visuals.paint(
-        code,
-        owned.filter((k) => !visible.fields[k]),
-        "blue",
-      );
-    else visuals.clear(code, "blue");
     const expected = row.expected_fields || {};
     if (!validExpected(expected) || !central.canFill(code, expected, snap))
       return;
@@ -230,16 +255,10 @@ export function createDelivery({
       requestIds.clear();
       lastEpoch = snap.epoch;
     }
-    const visible = central.rows(),
-      matches = rows
-        .filter((row) => row.draw_date === snap.date)
-        .map((row) => ({ row, visible: match(row, visible) }));
-    const counts = new Map();
-    for (const x of matches)
-      if (x.visible)
-        counts.set(x.visible.code, (counts.get(x.visible.code) || 0) + 1);
+    central.assert(snap);
+    const matches = matchingRows(rows, snap);
+    updateWaiting(matches, snap);
     for (const x of matches) {
-      if (!x.visible || counts.get(x.visible.code) !== 1) continue;
       matched++;
       try {
         await process(x.row, x.visible.code, snap);
@@ -262,6 +281,7 @@ export function createDelivery({
   }
   return {
     cycle,
+    syncVisuals,
     diagnostics: () => ({
       matched,
       mismatches: [...mismatches],

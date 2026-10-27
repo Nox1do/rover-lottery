@@ -38,6 +38,14 @@ El diagnóstico de la sesión del usuario recibió HTTP 200, fecha 2026-10-27, s
 
 Referencias primarias: [Lucide React](https://lucide.dev/guide/react/), [alias de iconos](https://lucide.dev/guide/react/advanced/aliased-names) y los dos assets públicos de Central mencionados. Los nombres de assets son evidencia de esta inspección, no rutas permanentes.
 
+## Azul y filtros de 0.1.2
+
+Al desmontar una fila filtrada, React elimina sus inputs y sus atributos visuales. El cliente anterior solo volvía a pintar durante el sondeo Mango; si el filtro dejaba la tabla vacía, también se limpiaban los indicadores. Una consulta pendiente impedía atender esos cambios de pantalla hasta terminar.
+
+El cliente ahora sincroniza el azul desde la caché ya recibida, vinculada a la fecha y generación del contexto verificado, antes de comprobar si corresponde una nueva consulta. Esta ruta solo cambia indicadores: no reserva, llena, presenta ni reconoce resultados. Reutiliza las mismas coincidencias únicas del ciclo de entrega y los campos autorizados, excluye números existentes y estados procesados, y limpia inputs desmontados. El verde conserva su plazo original y no se reproduce al recrear la fila.
+
+Referencia primaria: [React: conservación y reinicio de estado](https://react.dev/learn/preserving-and-resetting-state). Las pruebas Firefox reconstruyen las filas por filtro y comprueban que el azul vuelva antes de 700 ms, sin solicitudes adicionales ni cambios numéricos, también con una solicitud retenida y una tabla temporalmente sin coincidencias.
+
 ## Límites de pruebas
 
 La fixture reproduce los contratos comprobados, pero no es la aplicación privada de Central. La prueba de contexto aislado usa una extensión temporal y GM simulado, no una instalación personal de Tampermonkey. No se invocan publicaciones financieras ni se usan cookies de la sesión del usuario. Validación operativa posterior: instalar, configurar token, comprobar diagnóstico y revisar un llenado real antes de confirmar manualmente como siempre.

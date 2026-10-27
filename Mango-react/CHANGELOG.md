@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.1.2 — 2026-10-27
+
+- Restaura el azul de vigilancia al volver a mostrar una fila filtrada, incluso si el filtro dejó la tabla vacía o hay una consulta pendiente.
+- La actualización visual usa los datos ya recibidos y el contexto verificado; no espera al siguiente sondeo ni provoca consultas, reservas, llenados o ACK. Omite campos con números, coincidencias ambiguas y estados procesados; elimina indicadores obsoletos.
+- Libera referencias a inputs desmontados y conserva el plazo original del verde. Se añaden seis escenarios Firefox y una regresión unitaria para filtros, intervención manual, contexto, estados finales y duración de indicadores.
+
 ## 0.1.1 — 2026-10-27
 
 - Reconoce los iconos PROC actuales de Central (`circle-check` y `check-circle-2`), conservando los nombres anteriores. Las filas procesadas ya no impiden verificar la carga y consultar Mango.

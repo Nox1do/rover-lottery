@@ -98,6 +98,7 @@ async function poll(snap) {
     };
     auth = "válido";
   }
+  cache.epoch = snap.epoch;
   await delivery.cycle(cache.rows, snap);
   central.assert(snap);
   lastCheck = new Date().toISOString();
@@ -111,7 +112,7 @@ async function poll(snap) {
   central.refreshIfSafe(snap);
 }
 async function tick() {
-  if (busy || paused || !observing) return;
+  if (paused || !observing) return;
   const snap = central.snapshot();
   if (!snap) {
     visuals.clearAll();
@@ -121,7 +122,10 @@ async function tick() {
     lastError = "Configura el token desde el menú de Tampermonkey.";
     return;
   }
-  if (Date.now() - lastApiAt < delay) return;
+  if (cache?.date === snap.date && cache.epoch === snap.epoch)
+    delivery.syncVisuals(cache.rows, snap);
+  else visuals.syncBlue([]);
+  if (busy || Date.now() - lastApiAt < delay) return;
   busy = true;
   lastApiAt = Date.now();
   try {

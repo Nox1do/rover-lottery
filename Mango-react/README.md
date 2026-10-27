@@ -1,4 +1,4 @@
-# Mango/Rover React · 0.1.1
+# Mango/Rover React · 0.1.2
 
 Versión independiente para **Firefox + Tampermonkey**, en https://central.roversport.net/loteria/resultados/ver. Trabaja únicamente con **PRINCIPAL** y la fecha de hoy en **America/Santo_Domingo**. Conserva el contrato 1.0 del servicio Mango existente; no requiere instalar React ni modifica el Worker.
 
@@ -14,6 +14,7 @@ Las actualizaciones utilizan los archivos `.meta.js` y `.user.js` de esta carpet
 ## Comportamiento
 
 - Azul: Mango está esperando el resultado para los campos vacíos que le corresponden.
+- Al ocultar y volver a mostrar filas mediante el filtro, el azul se recupera con los datos ya recibidos, sin nuevas consultas ni llenados. Requiere que la fecha y el servidor sigan verificados; no vuelve en campos con números ni después de recibir un estado que termine la vigilancia.
 - Verde durante dos segundos: el llenado quedó retenido por React. **No significa procesado.**
 - El estado procesado se confirma con fecha/servidor verificados, PROC de la fila y números persistidos recibidos de Central. Si se editaron los campos después de procesar, se confirman los números publicados, no la edición sin guardar.
 - Una publicación manual también se reconoce aunque el proveedor oficial todavía no tenga resultado.
@@ -32,7 +33,7 @@ Tampermonkey ofrece **Configurar token**, **Pausar/reanudar**, **Diagnóstico** 
 
 ## Alcance de la verificación
 
-29 pruebas de Node y 22 escenarios en Firefox 153 con React real/contexto aislado, incluidas tabla de 241 filas, cambio de fecha/servidor, PROC con edición, picks, dependientes, intervención externa, foco/scroll y contrato de entrega. Cubren los nombres actuales y anteriores del icono PROC, una tabla de 14 filas con 13 procesadas y el bloqueo de iconos desconocidos. Una extensión temporal de Firefox comprueba el límite real de `exportFunction`/Xrays y que la página no acceda al GM simulado. **Las APIs GM están simuladas; no se ha probado una publicación real ni la instalación en la sesión personal de Tampermonkey.**
+30 pruebas de Node y 28 escenarios en Firefox 153 con React real/contexto aislado, incluidas tabla de 241 filas, cambio de fecha/servidor, PROC con edición, picks, dependientes, intervención externa, foco/scroll y contrato de entrega. Cubren los nombres actuales y anteriores del icono PROC, una tabla de 14 filas con 13 procesadas, el bloqueo de iconos desconocidos y la recuperación del azul después de filtrar, sin consultas adicionales. Una extensión temporal de Firefox comprueba el límite real de `exportFunction`/Xrays y que la página no acceda al GM simulado. **Las APIs GM están simuladas; no se ha probado una publicación real ni un llenado en la sesión personal de Tampermonkey.** El usuario confirmó en 0.1.1 fecha/servidor verificados, token válido, siete filas API coincidentes y ausencia de errores.
 
 La compatibilidad se basa en la pantalla auditada el 27/10/2026; si Central cambia la estructura, se detienen las operaciones que no pueden verificarse. No usa Fiber, propiedades privadas de React ni sustituye los manejadores de publicación.
 

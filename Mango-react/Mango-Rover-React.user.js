@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mango/Rover React
 // @namespace    https://github.com/Nox1do/rover-lottery/Mango-react
-// @version      0.1.1
+// @version      0.1.2
 // @description  Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida.
 // @match        https://central.roversport.net/*
 // @connect      rover-lottery-api.loteriasrovers.workers.dev
@@ -709,6 +709,7 @@
     clientId,
     visuals: visuals2 = { paint() {
     }, clear() {
+    }, syncBlue() {
     } }
   }) {
     const operations = /* @__PURE__ */ new Map(), acknowledged = /* @__PURE__ */ new Set(), painted = /* @__PURE__ */ new Map(), requestIds = /* @__PURE__ */ new Map();
@@ -729,6 +730,28 @@
     function names(row) {
       const list = Array.isArray(row.owned_fields) && row.owned_fields.length ? row.owned_fields : Object.keys(row.expected_fields || {});
       return list.filter((k) => FIELD_NAMES.includes(k));
+    }
+    function matchingRows(rows, snap) {
+      const visible = central2.rows(), matches = rows.filter((row) => row.draw_date === snap.date).map((row) => ({ row, visible: match(row, visible) }));
+      const counts = /* @__PURE__ */ new Map();
+      for (const x of matches)
+        if (x.visible)
+          counts.set(x.visible.code, (counts.get(x.visible.code) || 0) + 1);
+      return matches.filter((x) => x.visible && counts.get(x.visible.code) === 1);
+    }
+    function updateWaiting(matches, snap) {
+      visuals2.syncBlue(
+        matches.filter(
+          ({ row, visible }) => row.visual?.state === "blue" && row.proc_state !== "processed" && visible.processed === false && snap.persisted.get(visible.code)?.procesado === false
+        ).map(({ row, visible }) => ({
+          code: visible.code,
+          names: names(row).filter((key) => !visible.fields[key])
+        }))
+      );
+    }
+    function syncVisuals(rows, snap) {
+      central2.assert(snap);
+      updateWaiting(matchingRows(rows, snap), snap);
     }
     function assertReservation(row, response) {
       const operation = response?.operation;
@@ -836,13 +859,6 @@
         }
       }
       const owned = names(row);
-      if (row.visual?.state === "blue")
-        visuals2.paint(
-          code,
-          owned.filter((k) => !visible.fields[k]),
-          "blue"
-        );
-      else visuals2.clear(code, "blue");
       const expected = row.expected_fields || {};
       if (!validExpected(expected) || !central2.canFill(code, expected, snap))
         return;
@@ -886,13 +902,10 @@
         requestIds.clear();
         lastEpoch = snap.epoch;
       }
-      const visible = central2.rows(), matches = rows.filter((row) => row.draw_date === snap.date).map((row) => ({ row, visible: match(row, visible) }));
-      const counts = /* @__PURE__ */ new Map();
-      for (const x of matches)
-        if (x.visible)
-          counts.set(x.visible.code, (counts.get(x.visible.code) || 0) + 1);
+      central2.assert(snap);
+      const matches = matchingRows(rows, snap);
+      updateWaiting(matches, snap);
       for (const x of matches) {
-        if (!x.visible || counts.get(x.visible.code) !== 1) continue;
         matched++;
         try {
           await process(x.row, x.visible.code, snap);
@@ -913,6 +926,7 @@
     }
     return {
       cycle,
+      syncVisuals,
       diagnostics: () => ({
         matched,
         mismatches: [...mismatches],
@@ -924,15 +938,18 @@
   // src/visuals.js
   function createVisuals(central2) {
     const timers = /* @__PURE__ */ new Map(), tracked = /* @__PURE__ */ new Set();
+    function remove(input) {
+      clearTimeout(timers.get(input));
+      timers.delete(input);
+      tracked.delete(input);
+      input.removeAttribute("data-mango-react-visual");
+    }
     function clear(code, state) {
       const row = central2.find(code);
       if (!row) return;
       for (const input of Object.values(row.inputs)) {
         if (!state || input.dataset.mangoReactVisual === state) {
-          clearTimeout(timers.get(input));
-          timers.delete(input);
-          tracked.delete(input);
-          input.removeAttribute("data-mango-react-visual");
+          remove(input);
         }
       }
     }
@@ -958,15 +975,27 @@
           );
       }
     }
-    function clearAll() {
-      for (const input of tracked) {
-        input.removeAttribute("data-mango-react-visual");
-        clearTimeout(timers.get(input));
+    function syncBlue(plans) {
+      const waiting = /* @__PURE__ */ new Set();
+      for (const { code, names } of plans) {
+        const row = central2.find(code);
+        if (!row) continue;
+        for (const name of names)
+          if (row.inputs[name]) waiting.add(row.inputs[name]);
       }
-      tracked.clear();
-      timers.clear();
+      for (const input of tracked)
+        if (input.isConnected === false || input.dataset.mangoReactVisual === "blue" && !waiting.has(input))
+          remove(input);
+      for (const input of waiting) {
+        if (["blue", "green"].includes(input.dataset.mangoReactVisual)) continue;
+        tracked.add(input);
+        input.setAttribute("data-mango-react-visual", "blue");
+      }
     }
-    return { paint, clear, clearAll };
+    function clearAll() {
+      for (const input of tracked) remove(input);
+    }
+    return { paint, clear, clearAll, syncBlue };
   }
   function installStyle(doc) {
     if (doc.getElementById("mango-react-style")) return;
@@ -986,7 +1015,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.1.1";
+  var VERSION = "0.1.2";
   var KEYS = {
     token: "mango_react_token",
     client: "mango_react_client",
@@ -1060,6 +1089,7 @@
       };
       auth = "v\xE1lido";
     }
+    cache.epoch = snap.epoch;
     await delivery.cycle(cache.rows, snap);
     central.assert(snap);
     lastCheck = (/* @__PURE__ */ new Date()).toISOString();
@@ -1069,7 +1099,7 @@
     central.refreshIfSafe(snap);
   }
   async function tick() {
-    if (busy || paused || !observing) return;
+    if (paused || !observing) return;
     const snap = central.snapshot();
     if (!snap) {
       visuals.clearAll();
@@ -1079,7 +1109,10 @@
       lastError = "Configura el token desde el men\xFA de Tampermonkey.";
       return;
     }
-    if (Date.now() - lastApiAt < delay) return;
+    if (cache?.date === snap.date && cache.epoch === snap.epoch)
+      delivery.syncVisuals(cache.rows, snap);
+    else visuals.syncBlue([]);
+    if (busy || Date.now() - lastApiAt < delay) return;
     busy = true;
     lastApiAt = Date.now();
     try {

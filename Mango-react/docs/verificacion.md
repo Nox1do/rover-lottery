@@ -1,5 +1,14 @@
 # Verificación
 
+## 0.1.2 — 27/10/2026
+
+- Regresión reproducida antes del cambio: 23/27 escenarios Firefox aprobados; fallaron la recuperación del azul tras ocultar la fila, tras dejar cero coincidencias, durante una consulta pendiente y tras filtrar una fila con edición manual. Los cuatro fallos esperaron el indicador sin recibirlo antes de 700 ms. La prueba unitaria nueva también falló antes de implementar la sincronización visual.
+- Después de la corrección, `npm test`: 30 pruebas Node, 27 escenarios React/Firefox y una extensión Firefox aislada; cero fallos.
+- Los escenarios del userscript generado comprueban la recuperación del azul antes del siguiente sondeo, el mismo número de solicitudes, ausencia de llenados, conservación de números manuales y suspensión ante fecha histórica. Otros dos escenarios impiden restaurar el azul después de recibir `exhausted` o `processed`. La prueba unitaria comprueba limpieza de inputs desmontados y que sincronizar azul no alargue el verde.
+- `npm run check` y `git diff --check`: aprobados. Históricos 0.1.0 y 0.1.1 conservados sin cambios.
+
+Los servicios y APIs GM siguen simulados. Falta confirmar el comportamiento de 0.1.2 al filtrar en la sesión personal del usuario; no se realizó ninguna publicación financiera ni se modificó el backend.
+
 ## 0.1.1 — 27/10/2026
 
 - Antes del cambio: la suite original aprobó 29 pruebas Node, 15 escenarios React/Firefox y una extensión aislada. Al actualizar la fixture al icono PROC actual y añadir las regresiones, Firefox reprodujo el bloqueo «Central está cargando resultados…»: 15/21 escenarios aprobados; fallaron `circle-check`, `check-circle-2`, la tabla de 14 filas, PROC con edición, el userscript completo y Buscar con edición manual.
@@ -7,7 +16,7 @@
 - Las regresiones comprueban iconos actuales y anteriores, persistencia de una fila procesada sin sobrescribirla, 14 filas con 13 procesadas y entrega a la pendiente, y bloqueo de PROC desconocido aunque tenga color verde y Status muestre éxito. El userscript generado también se prueba con una fila procesada presente.
 - `npm run check`: instalador, metadatos, versión y copia histórica reproducibles. `git diff --check`: sin problemas de espacios. Se conserva sin cambios el histórico 0.1.0.
 
-La corrección se verificó con React real en Firefox y servicios simulados. Sigue pendiente confirmar el funcionamiento de 0.1.1 en la sesión personal de Firefox/Tampermonkey. No se realizó una publicación financiera ni se modificó el backend.
+La corrección se verificó con React real en Firefox y servicios simulados. Después de instalar 0.1.1, el usuario confirmó en su sesión fecha/servidor verificados, token válido, siete filas API y siete coincidencias, sin errores ni discordancias. Falta validar un llenado real y su retención tras otro render. No se realizó una publicación financiera ni se modificó el backend.
 
 ## 0.1.0
 

@@ -23,6 +23,6 @@ Los símbolos son SVG propios y mantienen la misma forma en Firefox de Windows, 
 | Llenado no confirmado | Escudo con interrogación | Rover no conservó todos los valores; revisar antes de procesar |
 | Error inesperado | Octágono con exclamación | Fallo no clasificado; no se presenta como un error de red u otro motivo confirmado |
 
-El botón conserva su indicador individual y tooltip. El pie de la barra muestra el último aviso con nombre de lotería y detalle, visible en móvil y anunciado mediante `role="status"` sin robar el foco. Un cambio de contexto limpia los indicadores anteriores. El estado inicial no tiene icono.
+El botón conserva su indicador individual y tooltip. Desde 0.0.11, los mensajes de fecha/carga y consulta se registran en la consola con `console.info`; el informe de resultados conserva `console.table` y los errores conservan `console.error`. La barra no tiene un pie de mensajes y utiliza el espacio liberado para reducir su altura. Un cambio de contexto limpia los indicadores anteriores. El estado inicial no tiene icono.
 
 Los códigos se asignan donde ocurre el problema; cambiar la redacción de un mensaje no cambia su icono. Las validaciones y rechazos de escritura siguen activos. Esta actualización no agrega guardado ni procesamiento automático.

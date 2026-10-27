@@ -1,4 +1,4 @@
-# Rovs Loterias USA React 0.0.10
+# Rovs Loterias USA React 0.0.11
 
 [Instalar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA%20React/Rovs-Loterias-USA-React.user.js)
 
@@ -15,9 +15,9 @@ Userscript independiente para **Firefox + Tampermonkey** en `https://central.rov
 
 El propio Rover deriva 1era/2da/3ra y puede llenar las loterías dependientes que tenga configuradas, igual que al escribir manualmente. El userscript conserva ese comportamiento y no publica ninguna de esas filas.
 
-En móvil los controles se organizan en dos filas, tienen áreas de pulsación de al menos 44 px y abrir la barra no enfoca el buscador para evitar que aparezca el teclado. El tamaño se limita a la pantalla y se ajusta al girar el dispositivo o cambiar la ventana. Cada recarga vuelve al tamaño compacto; cerrar/abrir conserva el tamaño durante esa página. Los bordes también admiten las flechas del teclado. Al cambiar zoom o ventana la barra se mantiene anclada abajo: conserva el ancho completo si solo ajustaste la altura, o la proporción de ancho que elegiste. La altura elegida se conserva dentro de los límites de pantalla. La base queda pegada al borde inferior, sin margen, también al redimensionar; el ancho excluye la barra de desplazamiento de la página.
+En móvil los controles se organizan en dos filas, tienen botones de al menos 42 px y abrir la barra no enfoca el buscador para evitar que aparezca el teclado. El tamaño se limita a la pantalla y se ajusta al girar el dispositivo o cambiar la ventana. Cada recarga vuelve al tamaño compacto; cerrar/abrir conserva el tamaño durante esa página. Los bordes también admiten las flechas del teclado. Al cambiar zoom o ventana la barra se mantiene anclada abajo: conserva el ancho completo si solo ajustaste la altura, o la proporción de ancho que elegiste. La altura elegida se conserva dentro de los límites de pantalla. La base queda pegada al borde inferior, sin margen, también al redimensionar; el ancho excluye la barra de desplazamiento de la página.
 
-La tipografía usa fuentes del sistema (Segoe UI en Windows), peso medio, altura de línea 1.4 y tamaño adaptable de 14 a 18 px según el ancho CSS disponible. En una ventana 4K al 100 % llega a 18 px; con escalado del sistema al 200 % se respeta el tamaño que ya aplica el navegador, sin multiplicarlo otra vez por la densidad. Restablecer tamaño compacto devuelve también el ancho completo. Los botones de loterías tienen menos relleno, separación y anchura; las filas usan una altura fija adaptable al texto, sin estirarse para ocupar el espacio sobrante. En móvil conservan un área de pulsación de al menos 44 px.
+La tipografía usa fuentes del sistema (Segoe UI en Windows), peso medio, altura de línea 1.4 y tamaño adaptable de 14 a 18 px según el ancho CSS disponible. En una ventana 4K al 100 % llega a 18 px; con escalado del sistema al 200 % se respeta el tamaño que ya aplica el navegador, sin multiplicarlo otra vez por la densidad. Restablecer tamaño compacto devuelve también el ancho completo. Los botones se reducen 2 px en ancho/alto respecto a 0.0.10 manteniendo el tamaño y altura de línea del texto; las filas usan una altura fija adaptable al texto, sin estirarse para ocupar el espacio sobrante. En móvil conservan botones de al menos 42 px.
 
 La barra usa JavaScript vanilla y los colores, tipografía y variables del nuevo Rover, con tema claro/oscuro. «React» en el nombre identifica el sistema de destino; el producto no descarga ni monta una segunda copia de React.
 
@@ -29,7 +29,7 @@ El inventario de pruebas contrasta las 75 loterías contra una copia de la confi
 
 ## Avisos claros
 
-Cada motivo tiene su propio SVG y etiqueta, definidos en `src/status.js`: ver [ESTADOS.md](ESTADOS.md). El pie de la barra muestra la lotería, el motivo y el detalle de la consulta sin depender del color, del tooltip o de interpretar un emoji. El botón incluye la misma etiqueta accesible y el estado ocupado mientras consulta. La X queda únicamente para cerrar la barra.
+Cada motivo tiene su propio SVG y etiqueta, definidos en `src/status.js`: ver [ESTADOS.md](ESTADOS.md). Los botones conservan sus indicadores, tooltip y etiqueta accesible. Los mensajes de fecha/carga y el detalle de llenado se registran en la consola; la barra ya no tiene un pie de mensajes. El espacio liberado reduce su altura compacta de 172–196 px a 144–168 px en escritorio y de 270 a 242 px en móvil. La X queda únicamente para cerrar la barra.
 
 Los errores llevan un código estable desde el transporte, la validación o el adaptador; no se clasifican por coincidencias del texto. La fecha sin confirmar, fila no visible, campos bloqueados, timeout y error de red ya no comparten un «error» genérico. Estos códigos no cambian los endpoints, consultas, parsers, guardado ni el llenado de Rover.
 

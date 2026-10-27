@@ -26,8 +26,9 @@ async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = fal
   await page.evaluate(({ mode, version }) => {
     window.GM_info = { script: { version } };
     window.externalRequests = [];
-    window.queryReports = []; window.queryErrors = [];
-    const originalTable = console.table.bind(console), originalError = console.error.bind(console);
+    window.queryReports = []; window.queryErrors = []; window.contextReports = [];
+    const originalTable = console.table.bind(console), originalError = console.error.bind(console), originalInfo = console.info.bind(console);
+    console.info = message => { window.contextReports.push(message); originalInfo(message); };
     console.table = data => { window.queryReports.push(data); originalTable(data); };
     console.error = message => { window.queryErrors.push(message); originalError(message); };
     window.GM_xmlhttpRequest = options => {
@@ -59,7 +60,7 @@ async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = fal
   await page.waitForFunction(() => getComputedStyle(document.querySelector('#rlur-bar')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
   return {
     page, requests,
-    async bind() { await page.locator('form button[type="submit"]').click(); await page.waitForFunction(() => document.querySelector('#rlur-context')?.dataset.ready === 'true'); },
+    async bind() { await page.locator('form button[type="submit"]').click(); await page.waitForFunction(() => document.querySelector('#rlur-bar')?.dataset.ready === 'true'); },
     async click(id) { const b = page.locator(`[data-lottery-id="${id}"]`); await b.click(); await page.waitForFunction(id => document.querySelector(`[data-lottery-id="${id}"]`)?.dataset.status !== 'loading', id); return b; },
     async values(code) { return page.locator(`tr[data-code="${code}"] input`).evaluateAll(inputs => inputs.map(input => input.value)); },
     async close() { assert.deepEqual(requests, [], 'El userscript no debe llamar APIs de Rover'); assert.equal(await page.evaluate(() => window.processClicks || 0), 0); await page.close(); }
@@ -68,6 +69,7 @@ async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = fal
 
 test('Barra nativa independiente: 75 botones, versión y categoría', async () => {
   const r = await setup(); try {
+    assert.equal(await r.page.locator('#rlur-context').count(), 0, 'El pie no debe ocupar espacio para mensajes');
     assert.equal(await r.page.locator('[data-lottery-id]').count(), 75);
     assert.equal(await r.page.locator('.rlur-version').textContent(), 'v' + require('../metadata.json').version);
     assert.equal(await r.page.locator('[data-lottery-id="wa-night"]').isVisible(), false);
@@ -88,8 +90,8 @@ for (const [mode, code, label] of [
     assert.equal(await button.getAttribute('data-status-code'), code);
     assert.equal(await button.locator('.rlur-status svg').getAttribute('data-icon'), code);
     assert.match(await button.getAttribute('aria-label'), new RegExp(label));
-    assert.match(await r.page.locator('#rlur-context').textContent(), new RegExp('Georgia Midday.*' + label));
-    assert.equal(await r.page.locator('#rlur-context').getAttribute('role'), 'status');
+    assert.match(await button.getAttribute('title'), new RegExp(label));
+    assert.equal(await r.page.locator('#rlur-context').count(), 0);
     if (code === 'network') await r.page.locator('#rlur-bar').screenshot({ path: path.join(root, 'test-results', 'mensaje-red.png') });
   } finally { await r.close(); }
 });
@@ -111,7 +113,7 @@ for (const [code, label] of [
     } else await r.click('ga-am');
     assert.equal(await button.getAttribute('data-status-code'), code);
     assert.equal(await button.locator('.rlur-status svg').getAttribute('data-icon'), code);
-    assert.match(await r.page.locator('#rlur-context').textContent(), new RegExp(label));
+    assert.match(await button.getAttribute('aria-label'), new RegExp(label));
     assert.deepEqual(await r.values('GE-MD'), Array(['row_missing', 'date_required'].includes(code) ? 0 : code === 'row_duplicate' ? 10 : 5).fill(''));
   } finally { await r.close(); }
 });
@@ -120,13 +122,13 @@ test('Iconos claros: llenado no confirmado y tabla de Rover cargando', async () 
     await r.bind(); await r.page.evaluate(() => window.fixtureIgnoreInput = true);
     const button = await r.click('ga-am');
     assert.equal(await button.getAttribute('data-status-code'), 'unconfirmed');
-    assert.match(await r.page.locator('#rlur-context').textContent(), /Llenado no confirmado/);
+    assert.match(await button.getAttribute('title'), /Llenado no confirmado/);
     assert.equal(await r.page.locator('input.rlur-filled').count(), 0);
     await r.page.evaluate(() => { window.fixtureIgnoreInput = false; window.fixtureLoadDelay = 600; });
     await r.page.locator('form button[type="submit"]').click(); await r.click('ga-am');
     assert.equal(await button.getAttribute('data-status-code'), 'rover_loading');
-    await r.page.waitForFunction(() => document.querySelector('#rlur-context').dataset.ready === 'true');
-    assert.match(await r.page.locator('#rlur-context').textContent(), /Listo/);
+    await r.page.waitForFunction(() => document.querySelector('#rlur-bar').dataset.ready === 'true');
+    assert.ok(await r.page.evaluate(() => window.contextReports.some(message => /2026-10-24.*Listo/.test(message))));
     assert.equal(await button.getAttribute('data-status-code'), 'idle');
   } finally { await r.close(); }
 });
@@ -135,12 +137,12 @@ test('Iconos claros: carga visible y limpieza al cambiar la fecha', async () => 
     await r.bind(); const button = r.page.locator('[data-lottery-id="ga-am"]'); await button.tap();
     assert.equal(await button.getAttribute('data-status-code'), 'loading');
     assert.equal(await button.getAttribute('aria-busy'), 'true');
-    assert.match(await r.page.locator('#rlur-context').textContent(), /Consultando sorteo/);
+    assert.match(await button.getAttribute('title'), /Consultando sorteo/);
     await r.page.waitForFunction(() => document.querySelector('[data-lottery-id="ga-am"]').dataset.statusCode === 'success');
     await r.page.locator('#rlur-bar').screenshot({ path: path.join(root, 'test-results', 'mensaje-mobile.png') });
     await r.page.evaluate(() => window.fixtureDate('23 oct 2026'));
     await r.page.waitForFunction(() => document.querySelector('[data-lottery-id="ga-am"]').dataset.statusCode === 'idle');
-    assert.match(await r.page.locator('#rlur-context').textContent(), /Pulsa Buscar/);
+    assert.ok(await r.page.evaluate(() => /Pulsa Buscar/.test(window.contextReports.at(-1))));
     assert.equal(await button.locator('.rlur-status svg').count(), 0);
   } finally { await r.close(); }
 });
@@ -230,7 +232,7 @@ function assertInside(box, width, height) {
 test('Tamaño: compacto inicial, borde superior y Compactar', async () => {
   const r = await setup(); try {
     const initial = await panelBox(r.page);
-    assert.ok(initial.height <= 190, 'La barra debe abrir compacta');
+    assert.ok(initial.height <= 150, 'El espacio del pie debe reducir la altura compacta');
     assert.ok(initial.x <= 1 && initial.width >= 1279, 'La barra ocupa toda la ventana de izquierda a derecha');
     const visibleCount = () => r.page.locator('[data-lottery-id]:not([hidden])').evaluateAll(nodes => nodes.filter(n => {
       const b = n.getBoundingClientRect(), g = n.parentElement.getBoundingClientRect(); return b.top >= g.top && b.bottom <= g.bottom && b.left >= g.left && b.right <= g.right;
@@ -394,10 +396,10 @@ test('Fila visible: una fila ya descubierta no provoca saltos', async () => {
 });
 test('Móvil: compacto, controles táctiles, cuadrícula y ajuste con el dedo', async () => {
   const r = await setup({ viewport: { width: 390, height: 844 }, hasTouch: true }); try {
-    const initial = await panelBox(r.page); assertInside(initial, 390, 844); assert.ok(initial.height <= 280);
+    const initial = await panelBox(r.page); assertInside(initial, 390, 844); assert.ok(initial.height <= 250);
     assert.notEqual(await r.page.evaluate(() => document.activeElement?.id), 'rlur-search', 'Abrir no debe activar el teclado móvil');
     for (const selector of ['#rlur-search', '[data-category="DIA"]', '[data-lottery-id="ga-am"]', '.rlur-close']) {
-      assert.ok((await r.page.locator(selector).boundingBox()).height >= 44, `${selector} debe admitir pulsación táctil`);
+      assert.ok((await r.page.locator(selector).boundingBox()).height >= 42, `${selector} debe admitir pulsación táctil`);
     }
     assert.equal(await r.page.locator('#rlur-search').evaluate(el => getComputedStyle(el).fontSize), '16px');
     await r.page.locator('[data-category="NOCHE"]').tap();

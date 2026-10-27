@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.0.11 — 2026-10-26
+
+- Retira el pie de mensajes de fecha/carga y llenado; envía los detalles a consola y conserva iconos, tooltips, etiquetas accesibles e informes de resultados.
+- Aprovecha la fila liberada para reducir la altura compacta a 144–168 px en escritorio y 242 px en móvil.
+- Reduce los botones 2 px sin cambiar tipografía, tamaño de letras ni iconos; mantiene ajuste por bordes, anclaje al pie y corrección de visibilidad de filas.
+- Adapta las pruebas existentes a los mensajes en consola, botones de 42 px en móvil y ausencia de pie, conservando la suite completa de Firefox.
+
 ## 0.0.10 — 2026-10-26
 
 - Evita que la barra tape la fila consultada cuando el foco automático de Rover desplaza la página hacia Pick 4.

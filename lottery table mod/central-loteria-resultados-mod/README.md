@@ -3,7 +3,7 @@
 Userscript independiente para la pantalla React de resultados de loterías de Rover Central.
 
 - **Script:** `central-loterias-resultados-react.user.js`
-- **Versión actual:** `0.0.6` (inicial: `0.0.1`)
+- **Versión actual:** `0.0.7` (inicial: `0.0.1`)
 - **Página objetivo:** `https://central.roversport.net/loteria/resultados/ver`
 - **Navegadores:** Firefox y Opera con Tampermonkey
 
@@ -46,6 +46,7 @@ El mod anterior `Rs-loteria-res-tabla-mod.user.js`, ubicado en el directorio pad
 
 ## Cambios recientes
 
+- **v0.0.7 (instrumentación):** no cambia el diseño ni la estrategia de búsqueda de v0.0.6. Añade tiempos por fase reales a `__CENTRAL_LOTERIAS_REACT_QA__.status().timings`: `lastDiscoveryDurationMs`, `lastBindStagesMs` (cleanup, headers, scroll, panel, filas, observer) y `lastRowStagesMs` (obtención de filas, anotación, bloqueo de columnas, resumen). Para analizar un Buscar real en Firefox, ejecutar después de cargar `console.table(__CENTRAL_LOTERIAS_REACT_QA__.status().timings.lastBindStagesMs)` y `console.table(__CENTRAL_LOTERIAS_REACT_QA__.status().timings.lastRowStagesMs)`. No contiene datos de lotería; no realiza peticiones de red.
 - **v0.0.6:** detección inmediata mediante `MutationObserver` al insertar la tabla tras **Buscar**, sin la espera habitual de descubrimiento (45 ms) ni la cola inicial de decoración de filas (50 ms). Al reemplazar `tbody` se actualizan las filas en el propio callback para tablas de hasta 400 filas; tablas mayores conservan la ruta diferida por seguridad. Nuevas métricas `performance.immediateDiscoveries`, `performance.immediateRowRefreshes`, `timings.lastBindDurationMs` y `timings.lastMutationRefreshMs`. Verificación de sintaxis de la versión publicada y prueba aislada de inserción DOM en Chromium con 13 columnas, 130 filas, modal y búsqueda repetida; la sesión real Firefox sigue pendiente.
 - **v0.0.5:** la tabla de 13 columnas, incluida **FOTOS**, usa anchos mínimos compactos por encabezado y proporciones que ocupan el ancho disponible; se retira el mínimo rígido de 1,495 px medido con viewport estrecho. La reserva de scrollbar se coloca únicamente en el contenedor con desplazamiento vertical real. Conserva las columnas alineadas al filtrar sin ocultar resultados. En anchuras inferiores a ~1,103 px se conserva el desplazamiento horizontal por legibilidad. Pruebas locales de geometría con Playwright/Chromium (731, 1220 y 1580 px) sin deriva entre estados; la validación final en Firefox/Opera autenticados sigue pendiente. **QA:** `columnLock.totalMinWidth`.
 - **v0.0.4:** captura de anchuras con la tabla completa antes de ocultar filas, algoritmo `table-layout: fixed` con anchos originales, `scrollbar-gutter: stable` y recuperación del bloqueo tras reconstrucción React. Reconocimiento estricto de 12 columnas para descartar tablas internas de modales. Pruebas de regresión en Chromium: 189 filas, filtros que muestran 126 o 1 fila, cuatro resoluciones, modales y reconstrucción de tabla sin desplazamiento horizontal de columnas. Pendiente comprobar en Firefox/Opera autenticados.

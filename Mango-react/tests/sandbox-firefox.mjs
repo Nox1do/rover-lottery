@@ -190,6 +190,62 @@ try {
   console.log(
     "PASS Firefox isolated extension: exportFunction, original fetch response, React retained fill, presented; privileged GM/token unavailable to page",
   );
+  const interrupted = await browser.newPage();
+  interrupted.on("pageerror", (error) => errors.push(error.message));
+  await interrupted.goto(
+    "http://127.0.0.1:" + server.address().port + "/loteria/resultados/ver",
+  );
+  await interrupted.waitForFunction(() => !!window.fx);
+  await interrupted.evaluate(() => {
+    let fired = false;
+    document.addEventListener("input", (event) => {
+      if (!fired && event.target.closest("tr")?.dataset.code === "REAL") {
+        fired = true;
+        queueMicrotask(() => {
+          const input = document.querySelector(
+            'tr[data-code="REAL"] td:nth-child(6) input',
+          );
+          Object.getOwnPropertyDescriptor(
+            HTMLInputElement.prototype,
+            "value",
+          ).set.call(input, "77");
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      }
+    });
+  });
+  await interrupted.locator('form button[type="submit"]').click();
+  await interrupted.waitForFunction(
+    () => {
+      document.dispatchEvent(new Event("mango-test-diagnostic"));
+      const raw = document.documentElement.dataset.mangoDiagnostic;
+      return (
+        raw &&
+        JSON.parse(raw).errors.some(
+          (error) => error.error === "write_not_retained",
+        )
+      );
+    },
+    null,
+    { timeout: 6000 },
+  );
+  assert.deepEqual(
+    await interrupted
+      .locator('tr[data-code="REAL"] input')
+      .evaluateAll((inputs) => inputs.map((input) => input.value)),
+    ["05", "", "77", "", ""],
+  );
+  assert.equal(
+    await interrupted.evaluate(
+      () => document.documentElement.dataset.mangoSandboxPresented,
+    ),
+    undefined,
+  );
+  assert.equal(await interrupted.evaluate(() => window.processClicks || 0), 0);
+  assert.deepEqual(errors, []);
+  console.log(
+    "PASS Firefox isolated extension: page microtask intervention stops remaining fields and prevents presented",
+  );
 } finally {
   socket?.destroy();
   await browser.close();

@@ -1,5 +1,23 @@
 # Verificación
 
+## 0.1.4 — 27/10/2026
+
+- Contra 0.1.3, las cuatro regresiones de presentación fallaron: tres casos de tabla completa/filtrada y un caso de picks cuyo foco nativo encontraba valores parciales. Resultado inicial: 34/38 escenarios Firefox aprobados. Otra regresión unitaria reprodujo la relectura de campos en un guard ya confirmado.
+- Versión final: `npm test` aprobó 38 pruebas Node, 38 escenarios React/Firefox y dos escenarios en extensión Firefox aislada; cero fallos.
+- Las pruebas muestrean los valores en frames y en el primer temporizador nativo: cero frames parciales al completar tres premios con 3 filas, 241 filas completas y 241 filas filtradas. Picks conservan ceros y dependientes; el foco nativo encuentra ambos picks completos.
+- Se conserva la cancelación entre entradas mediante microtarea y se prueba una intervención tardía a los 10 ms con el userscript generado: no informa `presented`, no pinta verde y conserva el valor ajeno. El segundo escenario de extensión verifica la intervención entre página y sandbox real. Una reserva invalidada en microtarea detiene entradas restantes y conserva el foco original.
+- La comparación completa de una nueva respuesta sigue siendo obligatoria aunque el conteo coincida. `npm run check` y `git diff --check` aprobados; históricos 0.1.0–0.1.3 conservados sin cambios.
+
+Trazas de una ejecución de la fixture Firefox 153 (incluyen la comprobación final y un frame de muestreo):
+
+| Filas | Filtro | Intervalo entre primera y última entrada | Tiempo total observado | Frames parciales |
+| --- | --- | --- | --- | --- |
+| 3 | No | 11 ms | 63 ms | 0 |
+| 241 | No | 149 ms | 255 ms | 0 |
+| 241 | Una fila | 5 ms | 51 ms | 0 |
+
+La agrupación elimina la presentación escalonada reproducida, pero la tabla completa todavía tiene coste de renderizado. Reducir lecturas propias no demuestra por sí solo menor latencia total; estas cifras no predicen el rendimiento en la sesión del usuario. Se mantienen GM/servicios simulados, token privado y publicación manual.
+
 ## 0.1.3 — 27/10/2026
 
 - Antes de implementar: 15/21 pruebas de contexto aprobadas; seis regresiones fallaron por códigos con espacios, colisiones, retención de edición y diagnóstico. La suite Firefox dio 27/32: fallaron las dos reproducciones con BRAZIL, las protecciones de dependientes/revisiones con códigos rodeados de espacios y el diagnóstico de una fila ajena.
@@ -7,7 +25,7 @@
 - Las pruebas incluyen espacios, tabulación y NBSP exteriores; colisiones; diferencias internas que siguen rechazadas; persistencia frente a edición; 118 filas con consulta y azul; llenado NICA/LA DIARIA; dependientes editadas; conflictos e identidad ajena indicada en diagnóstico.
 - `npm run check` y `git diff --check`: aprobados. Históricos 0.1.0, 0.1.1 y 0.1.2 conservados sin cambios.
 
-El diagnóstico de la sesión identificó la fila incompatible, pero no mostró el valor crudo recibido de su código. Se reprodujo y corrigió la asimetría entre recorte DOM y respuesta; no se afirma haber observado el carácter exacto en esa sesión. Se mantienen servicios/GM simulados y publicación manual. Falta confirmar 0.1.3 en Firefox/Tampermonkey del usuario; no se cambió el backend ni se publicaron resultados reales.
+El diagnóstico de la sesión identificó la fila incompatible, pero no mostró el valor crudo recibido de su código. Se reprodujo y corrigió la asimetría entre recorte DOM y respuesta; no se afirma haber observado el carácter exacto en esa sesión. Después, el usuario confirmó que 0.1.3 ya funciona y llena en Firefox/Tampermonkey, aunque informó llenado visual escalonado. Se mantienen servicios/GM simulados y publicación manual; no se cambió el backend ni se publicaron resultados reales.
 
 ## 0.1.2 — 27/10/2026
 

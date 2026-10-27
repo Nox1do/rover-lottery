@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mango/Rover React
 // @namespace    https://github.com/Nox1do/rover-lottery/Mango-react
-// @version      0.1.3
+// @version      0.1.4
 // @description  Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida.
 // @match        https://central.roversport.net/*
 // @connect      rover-lottery-api.loteriasrovers.workers.dev
@@ -196,7 +196,7 @@
     }
     function snapshot(view) {
       sync(view);
-      if (!confirmed || view.busy || view.dialog || !view.rows?.length)
+      if (!confirmed || view.busy || view.dialog || !(view.rowCount ?? view.rows?.length))
         return null;
       return confirmed;
     }
@@ -257,7 +257,7 @@
       cache2 = { ...matches[0], index: null };
       return cache2;
     }
-    function rows() {
+    function indexedRows() {
       const t = table();
       if (!t) return [];
       if (!t.index)
@@ -283,7 +283,10 @@
         }).filter(
           (r) => r.code && r.name && Object.values(r.inputs).every(Boolean)
         );
-      return t.index.map((r) => ({
+      return t.index;
+    }
+    function readRow(r) {
+      return {
         ...r,
         fields: fields(
           Object.fromEntries(FIELD_NAMES.map((k) => [k, r.inputs[k].value]))
@@ -291,7 +294,10 @@
         processed: r.procCell?.querySelector(
           ".lucide-circle-check, .lucide-check-circle-2, .lucide-circle-check-big, .lucide-circle-check-2"
         ) ? true : r.procCell?.querySelector(".lucide-circle-x") ? false : null
-      }));
+      };
+    }
+    function rows() {
+      return indexedRows().map(readRow);
     }
     function view() {
       const forms = [...doc.querySelectorAll("#root form")].filter(
@@ -309,6 +315,7 @@
         'button[title="Servidor cuyos datos se est\xE1n viendo"]'
       );
       const server = label(serverButton?.querySelector(".truncate"));
+      let currentRows;
       const current = {
         active: active(),
         selectedDate: parseDate(picker?.textContent),
@@ -321,12 +328,16 @@
           '[title="Las acciones que modifican datos est\xE1n bloqueadas"]'
         ),
         form,
-        search
+        search,
+        rowCount: indexedRows().length,
+        // Only a candidate response or a consumer needing values reads all rows.
+        get rows() {
+          return currentRows ??= rows().map((r) => ({
+            ...r,
+            dirty: touched.has(touchKey(r.code, current)) || sessionWrites.has(touchKey(r.code, current))
+          }));
+        }
       };
-      current.rows = rows().map((r) => ({
-        ...r,
-        dirty: touched.has(touchKey(r.code, current)) || sessionWrites.has(touchKey(r.code, current))
-      }));
       return current;
     }
     function snapshot() {
@@ -390,8 +401,8 @@
       onChange();
     }
     function find(code) {
-      const r = rows().filter((r2) => r2.code === code);
-      return r.length === 1 ? r[0] : null;
+      const r = indexedRows().filter((r2) => r2.code === code);
+      return r.length === 1 ? readRow(r[0]) : null;
     }
     function locked(row) {
       return !row || row.processed !== false || Object.values(row.inputs).some((x) => x.disabled || x.readOnly) || ![...row.el.querySelectorAll("button")].some(
@@ -445,7 +456,7 @@
       const keys = Object.keys(expected).filter(
         (k) => !(k === "primera" && expected.pick3) && !(["segunda", "tercera"].includes(k) && expected.pick4)
       );
-      let ok = true;
+      let ok = true, settled = false;
       try {
         for (const key of keys) {
           assert(snap);
@@ -469,7 +480,7 @@
           const event = new win.Event("input", { bubbles: true });
           ownEvents.add(event);
           input.dispatchEvent(event);
-          await sleep(35);
+          await Promise.resolve();
           assert(snap);
           guard();
           if (clean(find(code)?.inputs[key]?.value) !== expected[key]) {
@@ -478,11 +489,13 @@
           }
         }
         await sleep(35);
+        settled = true;
         assert(snap);
         guard();
         const latest = find(code);
         ok = ok && !!latest && equalFields(latest.fields, expected, Object.keys(expected)) && activity === userActivity && !touched.has(touchKey(code, v));
       } finally {
+        if (!settled) await sleep(0);
         if (activity === userActivity) {
           if (focus?.isConnected && doc.activeElement !== focus)
             focus.focus({ preventScroll: true });
@@ -525,7 +538,7 @@
     doc.addEventListener(
       "input",
       (event) => {
-        const row = rows().find(
+        const row = indexedRows().find(
           (r) => Object.values(r.inputs).includes(event.target)
         );
         if (row && !ownEvents.has(event)) {
@@ -1027,7 +1040,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.1.3";
+  var VERSION = "0.1.4";
   var KEYS = {
     token: "mango_react_token",
     client: "mango_react_client",

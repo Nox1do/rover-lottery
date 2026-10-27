@@ -157,7 +157,12 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
   }
   function snapshot(view) {
     sync(view);
-    if (!confirmed || view.busy || view.dialog || !view.rows?.length)
+    if (
+      !confirmed ||
+      view.busy ||
+      view.dialog ||
+      !(view.rowCount ?? view.rows?.length)
+    )
       return null;
     return confirmed;
   }

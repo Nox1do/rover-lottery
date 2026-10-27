@@ -54,6 +54,18 @@ La QA del usuario recibió HTTP 200, fecha 2026-10-27, PRINCIPAL y 118 filas tan
 
 Las regresiones Firefox verifican la consulta y el azul en 118 filas, el llenado de NICA/LA DIARIA con una fila BRAZIL cuyo código contiene espacios, y el bloqueo por conflictos, ediciones en dependientes e identidades realmente distintas. Falta confirmar la corrección en la sesión del usuario. Referencia primaria: [MDN: String.prototype.trim()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trim).
 
+## Llenado agrupado de 0.1.4
+
+El usuario confirmó que 0.1.3 ya llena, pero cada casilla aparecía por separado. El adaptador esperaba 35 ms tras cada evento `input`, además de otros 35 ms al terminar la fila. Esas cesiones permitían pintar valores parciales y ejecutar el foco nativo antes de completar el resto de campos.
+
+0.1.4 cede solo a microtareas entre entradas: React, MutationObservers y otros scripts pueden reaccionar, y se vuelven a comprobar contexto/reserva/actividad. Sin temporizadores entre entradas, los casos normales completan la fila antes de que el navegador pinte o ejecute el foco nativo. Se mantienen los 35 ms finales de comprobación, sin depender de `requestAnimationFrame` para operar en pestañas de fondo. Un fallo temprano deja pasar el foco nativo pendiente antes de restaurar foco/scroll.
+
+La intervención entre entradas se prueba con una microtarea, también cruzando el sandbox real de Firefox. La intervención mediante temporizador de 10 ms se conserva como escenario separado del userscript completo: puede ocurrir después del bloque ya escrito, pero la comprobación final impide `presented` y el verde. No se promete deshacer entradas anteriores a esa intervención ni se revierte trabajo ajeno.
+
+Los guards de un contexto confirmado usan metadatos y conteo de filas reconocidas; los valores de la fila afectada se releen en cada paso. Una respuesta candidata vuelve a comparar identidad, PROC y todos los valores visibles antes de autorizar. Se conserva el bloqueo de filtros/duplicados y no se adoptan las reglas de sobrescritura de USA React.
+
+Referencias primarias: [React: cola de actualizaciones](https://react.dev/learn/queueing-a-series-of-state-updates) y [MDN: requestAnimationFrame](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame). Las medidas de frames pertenecen a una fixture; no garantizan menor latencia global de Central en el equipo del usuario.
+
 ## Límites de pruebas
 
 La fixture reproduce los contratos comprobados, pero no es la aplicación privada de Central. La prueba de contexto aislado usa una extensión temporal y GM simulado, no una instalación personal de Tampermonkey. No se invocan publicaciones financieras ni se usan cookies de la sesión del usuario. Validación operativa posterior: instalar, configurar token, comprobar diagnóstico y revisar un llenado real antes de confirmar manualmente como siempre.

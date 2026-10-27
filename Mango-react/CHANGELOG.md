@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.1.4 — 2026-10-27
+
+- Agrupa las entradas de una fila mediante microtareas, sin las pausas de 35 ms entre casillas. Conserva la espera final de verificación y los cálculos nativos de picks/dependientes.
+- Mantiene controles de contexto, reserva e intervención entre entradas. Una intervención posterior al bloque pero anterior a la comprobación final impide `presented` y el verde; no revierte cambios ajenos.
+- Evita releer los valores de toda la tabla en cada guard de un contexto ya verificado; una nueva respuesta sigue exigiendo la comparación completa. Conserva foco/scroll incluso si una reserva falla antes de los temporizadores de foco nativos.
+- Pruebas de frames y foco con 3/241 filas, tabla completa/filtrada, intervención entre entradas y tardía, y una segunda prueba de intervención en la extensión aislada de Firefox.
+
 ## 0.1.3 — 2026-10-27
 
 - Compara los códigos nativos de resultados, tabla, dependientes y revisiones con el mismo recorte de espacios exteriores. Corrige el bloqueo reproducido con una fila `BRAZIL03PM` cuyo código recibido tiene espacios, sin alterar números ni identificadores en Central.

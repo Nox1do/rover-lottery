@@ -56,6 +56,35 @@ test("solo confirma carga fresca cuyo DOM coincide con persistencia", () => {
   load();
   assert.equal(c.snapshot(view).date, day);
 });
+test("contexto verificado usa conteo sin releer campos; una carga nueva compara valores", () => {
+  const { c, view, load } = setup();
+  load();
+  const rows = view.rows;
+  let reads = 0;
+  view.rowCount = 1;
+  Object.defineProperty(view, "rows", {
+    get() {
+      reads++;
+      return rows;
+    },
+  });
+  assert.equal(c.snapshot(view).date, day);
+  assert.equal(
+    reads,
+    0,
+    "el guard de contexto estable no relee todos los valores",
+  );
+  rows[0].fields.primera = "99";
+  load({ fecha: day, filas: [row({ primera: "05" })] });
+  assert.equal(
+    c.snapshot(view),
+    null,
+    "un conteo coincidente no prueba persistencia",
+  );
+  assert.ok(reads > 0);
+  rows[0].fields.primera = "05";
+  assert.equal(c.snapshot(view).date, day);
+});
 for (const code of [" BRAZIL03PM ", "BRAZIL03PM\t", "\u00a0BRAZIL03PM\u00a0"])
   test(`código con espacios exteriores conserva identidad: ${JSON.stringify(code)}`, () => {
     const { c, view, load } = setup();

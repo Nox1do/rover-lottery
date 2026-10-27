@@ -57,7 +57,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     cache = { ...matches[0], index: null };
     return cache;
   }
-  function rows() {
+  function indexedRows() {
     const t = table();
     if (!t) return [];
     if (!t.index)
@@ -85,7 +85,10 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         .filter(
           (r) => r.code && r.name && Object.values(r.inputs).every(Boolean),
         );
-    return t.index.map((r) => ({
+    return t.index;
+  }
+  function readRow(r) {
+    return {
       ...r,
       fields: fields(
         Object.fromEntries(FIELD_NAMES.map((k) => [k, r.inputs[k].value])),
@@ -97,7 +100,10 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         : r.procCell?.querySelector(".lucide-circle-x")
           ? false
           : null,
-    }));
+    };
+  }
+  function rows() {
+    return indexedRows().map(readRow);
   }
   function view() {
     const forms = [...doc.querySelectorAll("#root form")].filter(
@@ -117,6 +123,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       'button[title="Servidor cuyos datos se están viendo"]',
     );
     const server = label(serverButton?.querySelector(".truncate"));
+    let currentRows;
     const current = {
       active: active(),
       selectedDate: parseDate(picker?.textContent),
@@ -130,13 +137,17 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       ),
       form,
       search,
+      rowCount: indexedRows().length,
+      // Only a candidate response or a consumer needing values reads all rows.
+      get rows() {
+        return (currentRows ??= rows().map((r) => ({
+          ...r,
+          dirty:
+            touched.has(touchKey(r.code, current)) ||
+            sessionWrites.has(touchKey(r.code, current)),
+        })));
+      },
     };
-    current.rows = rows().map((r) => ({
-      ...r,
-      dirty:
-        touched.has(touchKey(r.code, current)) ||
-        sessionWrites.has(touchKey(r.code, current)),
-    }));
     return current;
   }
   function snapshot() {
@@ -204,8 +215,8 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     onChange();
   }
   function find(code) {
-    const r = rows().filter((r) => r.code === code);
-    return r.length === 1 ? r[0] : null;
+    const r = indexedRows().filter((r) => r.code === code);
+    return r.length === 1 ? readRow(r[0]) : null;
   }
   function locked(row) {
     return (
@@ -293,7 +304,8 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         !(k === "primera" && expected.pick3) &&
         !(["segunda", "tercera"].includes(k) && expected.pick4),
     );
-    let ok = true;
+    let ok = true,
+      settled = false;
     try {
       for (const key of keys) {
         assert(snap);
@@ -321,7 +333,9 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         const event = new win.Event("input", { bubbles: true });
         ownEvents.add(event);
         input.dispatchEvent(event);
-        await sleep(35);
+        // Yield to React, MutationObservers and other scripts' microtasks,
+        // without a timer/paint between this row's input events.
+        await Promise.resolve();
         assert(snap);
         guard();
         if (clean(find(code)?.inputs[key]?.value) !== expected[key]) {
@@ -330,6 +344,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         }
       }
       await sleep(35);
+      settled = true;
       assert(snap);
       guard();
       const latest = find(code);
@@ -340,6 +355,9 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         activity === userActivity &&
         !touched.has(touchKey(code, v));
     } finally {
+      // An early guard failure may precede Central's queued native focus.
+      // Let that timer run before restoring focus/scroll, including on abort.
+      if (!settled) await sleep(0);
       if (activity === userActivity) {
         if (focus?.isConnected && doc.activeElement !== focus)
           focus.focus({ preventScroll: true });
@@ -391,7 +409,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
   doc.addEventListener(
     "input",
     (event) => {
-      const row = rows().find((r) =>
+      const row = indexedRows().find((r) =>
         Object.values(r.inputs).includes(event.target),
       );
       if (row && !ownEvents.has(event)) {

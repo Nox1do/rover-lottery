@@ -540,6 +540,162 @@ test("PROC desconocido bloquea aunque el color y Status indiquen éxito", async 
     await r.close();
   }
 });
+for (const { rows, filtered } of [
+  { rows: 3, filtered: false },
+  { rows: 241, filtered: false },
+  { rows: 241, filtered: true },
+])
+  test(`llenado agrupado: ${rows} filas, filtro ${filtered}`, async () => {
+    const r = await setup({ rows });
+    try {
+      await r.load();
+      if (filtered)
+        await r.page
+          .locator('input[placeholder="Buscar lotería"]')
+          .fill("REAL");
+      const trace = await r.page.evaluate(async () => {
+        const values = () =>
+          [...document.querySelectorAll('tr[data-code="REAL"] input')].map(
+            (input) => input.value,
+          );
+        const frames = [],
+          writes = [];
+        const start = performance.now();
+        let recording = true,
+          timerValues = null;
+        function sample() {
+          frames.push(values());
+          if (recording) requestAnimationFrame(sample);
+        }
+        requestAnimationFrame(sample);
+        function input(event) {
+          if (event.target.closest("tr")?.dataset.code !== "REAL") return;
+          writes.push(performance.now() - start);
+          if (writes.length === 1)
+            setTimeout(() => {
+              timerValues = values();
+            }, 0);
+        }
+        document.addEventListener("input", input);
+        const ok = await adapter.fill(
+          "REAL",
+          { primera: "05", segunda: "00", tercera: "09" },
+          adapter.snapshot(),
+        );
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        recording = false;
+        document.removeEventListener("input", input);
+        return {
+          ok,
+          frames,
+          timerValues,
+          writes,
+          elapsed: performance.now() - start,
+        };
+      });
+      console.log(
+        "FILL_TRACE",
+        JSON.stringify({
+          rows,
+          filtered,
+          writeSpanMs: trace.writes.at(-1) - trace.writes[0],
+          elapsedMs: trace.elapsed,
+          partialFrames: trace.frames.filter(
+            (values) => values.join("|") !== "05|00|09||",
+          ).length,
+        }),
+      );
+      assert.equal(trace.ok, true);
+      assert.deepEqual(
+        trace.timerValues,
+        ["05", "00", "09", "", ""],
+        "el foco nativo ya encuentra la fila completa",
+      );
+      assert.ok(trace.frames.length > 0);
+      assert.ok(
+        trace.frames.every((values) => values.join("|") === "05|00|09||"),
+        "no se pinta una fila parcialmente llena",
+      );
+      await r.page.evaluate(() => fx.render());
+      assert.deepEqual(await r.vals("REAL"), ["05", "00", "09", "", ""]);
+    } finally {
+      await r.close();
+    }
+  });
+test("picks completos antes del foco nativo conservan ceros y dependientes", async () => {
+  const r = await setup();
+  try {
+    await r.load();
+    await r.page.evaluate(() => {
+      window.focusValues = [];
+      document.addEventListener("focusin", (event) => {
+        if (event.target.closest("tr")?.dataset.code === "NY-AM")
+          focusValues.push(
+            [...document.querySelectorAll('tr[data-code="NY-AM"] input')].map(
+              (input) => input.value,
+            ),
+          );
+      });
+    });
+    assert.equal(
+      await r.fill("NY-AM", {
+        pick3: "005",
+        pick4: "0123",
+        primera: "05",
+        segunda: "01",
+        tercera: "23",
+      }),
+      true,
+    );
+    const focusValues = await r.page.evaluate(() => window.focusValues);
+    assert.ok(focusValues.length > 0);
+    assert.ok(
+      focusValues.every((values) => values.join("|") === "05|01|23|005|0123"),
+    );
+    assert.deepEqual(await r.vals("NY-BP"), ["23", "X", "X", "", ""]);
+  } finally {
+    await r.close();
+  }
+});
+test("reserva invalidada en microtarea cancela los campos restantes y restaura foco", async () => {
+  const r = await setup();
+  try {
+    await r.load();
+    await r.page.locator("#work").focus();
+    const result = await r.page.evaluate(async () => {
+      let valid = true,
+        fired = false;
+      document.addEventListener("input", (event) => {
+        if (!fired && event.target.closest("tr")?.dataset.code === "REAL") {
+          fired = true;
+          queueMicrotask(() => {
+            valid = false;
+          });
+        }
+      });
+      try {
+        await adapter.fill(
+          "REAL",
+          { primera: "05", segunda: "00", tercera: "09" },
+          adapter.snapshot(),
+          () => {
+            if (!valid) throw Error("operation_expired");
+          },
+        );
+      } catch (error) {
+        return error.message;
+      }
+    });
+    assert.equal(result, "operation_expired");
+    assert.deepEqual(await r.vals("REAL"), ["05", "", "", "", ""]);
+    assert.equal(
+      await r.page.evaluate(() => document.activeElement.id),
+      "work",
+    );
+  } finally {
+    await r.close();
+  }
+});
 test("carga real React: fecha verificada, ceros, persistencia tras rerender", async () => {
   const r = await setup();
   try {
@@ -699,95 +855,146 @@ test("241 filas: no roba foco ni scroll al llenar, solo cambios propios", async 
     await r.close();
   }
 });
-test("userscript completo: contrato Mango, GM privado y presented sin Procesar", async () => {
-  const r = await setup({
-    overrides: { "NY-AM": { procesado: true } },
-  });
-  try {
-    const { readFile } = await import("node:fs/promises");
-    const runtime = await readFile("Mango-Rover-React.user.js", "utf8");
-    await r.page.evaluate(() => {
-      window.gmCalls = [];
-      window.gmMenus = {};
-      const storage = { mango_react_token: "test-secret" };
-      window.GM_getValue = (k, d) => storage[k] ?? d;
-      window.GM_setValue = (k, v) => (storage[k] = v);
-      window.GM_addValueChangeListener = () => {};
-      window.GM_registerMenuCommand = (n, f) => (gmMenus[n] = f);
-      window.unsafeWindow = window;
-      window.exportFunction = (f) => f;
-      window.GM_xmlhttpRequest = (o) => {
-        gmCalls.push({ url: o.url, body: o.data ? JSON.parse(o.data) : null });
-        const expected = { primera: "05", segunda: "00", tercera: "09" };
-        const row = {
-          lottery_id: "real",
-          row_key: "real|2026-10-27",
-          name: "REAL",
-          aliases: ["REAL"],
-          draw_date: "2026-10-27",
-          revision: 2,
-          proc_state: "pending",
-          owned_fields: ["primera", "segunda", "tercera"],
-          expected_fields: expected,
-          components: [{ state: "ready", expected_fields: expected }],
+for (const interrupted of [false, true])
+  test(`userscript completo: contrato Mango y presented sin Procesar; intervención tardía ${interrupted}`, async () => {
+    const r = await setup({
+      overrides: { "NY-AM": { procesado: true } },
+    });
+    try {
+      const { readFile } = await import("node:fs/promises");
+      const runtime = await readFile("Mango-Rover-React.user.js", "utf8");
+      await r.page.evaluate((interrupted) => {
+        window.gmCalls = [];
+        window.gmMenus = {};
+        const storage = { mango_react_token: "test-secret" };
+        window.GM_getValue = (k, d) => storage[k] ?? d;
+        window.GM_setValue = (k, v) => (storage[k] = v);
+        window.GM_addValueChangeListener = () => {};
+        window.GM_registerMenuCommand = (n, f) => (gmMenus[n] = f);
+        window.unsafeWindow = window;
+        window.exportFunction = (f) => f;
+        window.alert = (message) => {
+          window.gmDiagnostic = JSON.parse(message);
         };
-        let data = o.url.includes("/version?")
-          ? { ok: true, date: "2026-10-27", revision: 2 }
-          : o.url.includes("/rows?")
-            ? { contract_version: "1.0", date: "2026-10-27", rows: [row] }
-            : o.url.endsWith("/reconcile")
-              ? {
-                  ok: true,
-                  action: "paint_fields",
-                  should_paint: true,
-                  expected_fields: expected,
-                  operation: {
-                    operation_id: "op-runtime",
-                    revision: 2,
-                    status: "reserved",
-                    expires_at: new Date(Date.now() + 60000).toISOString(),
-                  },
-                }
-              : { ok: true, authenticated: true };
-        setTimeout(
-          () => o.onload({ status: 200, responseText: JSON.stringify(data) }),
+        if (interrupted) {
+          let fired = false;
+          document.addEventListener("input", (event) => {
+            if (!fired && event.target.closest("tr")?.dataset.code === "REAL") {
+              fired = true;
+              setTimeout(() => {
+                const input = document.querySelector(
+                  'tr[data-code="REAL"] td:nth-child(6) input',
+                );
+                Object.getOwnPropertyDescriptor(
+                  HTMLInputElement.prototype,
+                  "value",
+                ).set.call(input, "77");
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+              }, 10);
+            }
+          });
+        }
+        window.GM_xmlhttpRequest = (o) => {
+          gmCalls.push({
+            url: o.url,
+            body: o.data ? JSON.parse(o.data) : null,
+          });
+          const expected = { primera: "05", segunda: "00", tercera: "09" };
+          const row = {
+            lottery_id: "real",
+            row_key: "real|2026-10-27",
+            name: "REAL",
+            aliases: ["REAL"],
+            draw_date: "2026-10-27",
+            revision: 2,
+            proc_state: "pending",
+            owned_fields: ["primera", "segunda", "tercera"],
+            expected_fields: expected,
+            components: [{ state: "ready", expected_fields: expected }],
+          };
+          let data = o.url.includes("/version?")
+            ? { ok: true, date: "2026-10-27", revision: 2 }
+            : o.url.includes("/rows?")
+              ? { contract_version: "1.0", date: "2026-10-27", rows: [row] }
+              : o.url.endsWith("/reconcile")
+                ? {
+                    ok: true,
+                    action: "paint_fields",
+                    should_paint: true,
+                    expected_fields: expected,
+                    operation: {
+                      operation_id: "op-runtime",
+                      revision: 2,
+                      status: "reserved",
+                      expires_at: new Date(Date.now() + 60000).toISOString(),
+                    },
+                  }
+                : { ok: true, authenticated: true };
+          setTimeout(
+            () => o.onload({ status: 200, responseText: JSON.stringify(data) }),
+            0,
+          );
+        };
+      }, interrupted);
+      await r.page.addScriptTag({ content: runtime });
+      await r.page.evaluate(() =>
+        Promise.all([
+          fetch("/api/loteria/resultadosLoteria2/dependientes", {
+            headers: { "X-Servidor": "1" },
+          }),
+          fetch("/api/loteria/resultadosLoteria2/revision?fecha=10/27/2026", {
+            headers: { "X-Servidor": "1" },
+          }),
+        ]),
+      );
+      await r.page.locator('form button[type="submit"]').click();
+      if (interrupted) {
+        await r.page.waitForFunction(
+          () => {
+            gmMenus["Mango React · Diagnóstico"]();
+            return gmDiagnostic.errors.some(
+              (error) => error.error === "write_not_retained",
+            );
+          },
+          null,
+          { timeout: 5000 },
+        );
+        assert.equal(
+          await r.page.evaluate(() =>
+            gmCalls.some((call) => call.url.endsWith("/presented")),
+          ),
+          false,
+        );
+        assert.equal((await r.vals("REAL"))[2], "77");
+        assert.equal(
+          await r.page
+            .locator('input[data-mango-react-visual="green"]')
+            .count(),
           0,
         );
-      };
-    });
-    await r.page.addScriptTag({ content: runtime });
-    await r.page.evaluate(() =>
-      Promise.all([
-        fetch("/api/loteria/resultadosLoteria2/dependientes", {
-          headers: { "X-Servidor": "1" },
-        }),
-        fetch("/api/loteria/resultadosLoteria2/revision?fecha=10/27/2026", {
-          headers: { "X-Servidor": "1" },
-        }),
-      ]),
-    );
-    await r.page.locator('form button[type="submit"]').click();
-    await r.page.waitForFunction(
-      () => window.gmCalls.some((c) => c.url.endsWith("/presented")),
-      null,
-      { timeout: 5000 },
-    );
-    assert.deepEqual(await r.vals("REAL"), ["05", "00", "09", "", ""]);
-    const calls = await r.page.evaluate(() => gmCalls);
-    assert.equal(calls.filter((c) => c.url.endsWith("/reconcile")).length, 1);
-    assert.deepEqual(
-      calls.find((c) => c.url.endsWith("/presented")).body.presented_fields,
-      { primera: "05", segunda: "00", tercera: "09" },
-    );
-    assert.equal(
-      await r.page.evaluate(() => window.mangoReactToken),
-      undefined,
-    );
-  } finally {
-    await r.close();
-  }
-});
-test("otro userscript durante el llenado cancela los campos restantes", async () => {
+        return;
+      }
+      await r.page.waitForFunction(
+        () => window.gmCalls.some((c) => c.url.endsWith("/presented")),
+        null,
+        { timeout: 5000 },
+      );
+      assert.deepEqual(await r.vals("REAL"), ["05", "00", "09", "", ""]);
+      const calls = await r.page.evaluate(() => gmCalls);
+      assert.equal(calls.filter((c) => c.url.endsWith("/reconcile")).length, 1);
+      assert.deepEqual(
+        calls.find((c) => c.url.endsWith("/presented")).body.presented_fields,
+        { primera: "05", segunda: "00", tercera: "09" },
+      );
+      assert.equal(
+        await r.page.evaluate(() => window.mangoReactToken),
+        undefined,
+      );
+    } finally {
+      await r.close();
+    }
+  });
+test("otro userscript en una microtarea cancela los campos restantes", async () => {
   const r = await setup();
   try {
     await r.load();
@@ -796,7 +1003,7 @@ test("otro userscript durante el llenado cancela los campos restantes", async ()
       document.addEventListener("input", (e) => {
         if (!fired && e.target.closest("tr")?.dataset.code === "REAL") {
           fired = true;
-          setTimeout(() => {
+          queueMicrotask(() => {
             const input = document.querySelector(
               'tr[data-code="REAL"] td:nth-child(6) input',
             );
@@ -805,7 +1012,7 @@ test("otro userscript durante el llenado cancela los campos restantes", async ()
               "value",
             ).set.call(input, "77");
             input.dispatchEvent(new Event("input", { bubbles: true }));
-          }, 10);
+          });
         }
       });
     });

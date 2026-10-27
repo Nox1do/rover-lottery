@@ -135,6 +135,10 @@ function createRoverAdapter(onChange) {
             if (!/^\d{4}$/.test(result.p4)) throw statusError('invalid_response', 'Pick 4 inválido.');
             expected.pick4 = result.p4; expected.segunda = result.p4.slice(0, 2); expected.tercera = result.p4.slice(-2); picks.push('pick4');
         }
+        // Rover programa focus() en Pick 4 al completar Pick 3. Prepararlo sin
+        // scroll evita un segundo desplazamiento al ejecutarse ese mismo foco.
+        // No se sustituyen métodos ni manejadores de la página.
+        if (picks.includes('pick3')) findFields(config).pick4.focus({ preventScroll: true });
         for (const key of picks) {
             assertCurrent(snapshot);
             const input = findFields(config)[key];
@@ -150,9 +154,11 @@ function createRoverAdapter(onChange) {
                 const nativeSetter = Object.getOwnPropertyDescriptor(current.ownerDocument.defaultView.HTMLInputElement.prototype, 'value').set;
                 nativeSetter.call(current, value);
                 current.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-                await nextRender();
             }
         }
+        // Una sola cesión: los temporizadores/foco de Rover ya encuentran
+        // ambos picks completos, sin pintar el estado vacío entre escrituras.
+        await nextRender();
         assertCurrent(snapshot);
         const fields = findFields(config);
         if (Object.entries(expected).some(([key, value]) => fields[key].value !== value)) throw statusError('unconfirmed', 'Rover no conservó todos los valores. Revisa la fila antes de procesar.');

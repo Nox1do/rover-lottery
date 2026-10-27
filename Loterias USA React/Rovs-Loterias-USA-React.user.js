@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterias USA React 0.0.1
 // @namespace    https://github.com/Nox1do/rover-lottery/Loterias-USA-React
-// @version      0.0.12
+// @version      0.0.13
 // @description  Barra manual de loterías USA para la tabla React de Rover. Solo llenado de formulario.
 // @author       noeg
 // @match        https://central.roversport.net/*
@@ -26,7 +26,7 @@
 
 (function () {
 'use strict';
-const APP_VERSION = "0.0.12";
+const APP_VERSION = "0.0.13";
 
 // --- src/config.js ---
     const LOTERIAS = [
@@ -1486,6 +1486,10 @@ function createRoverAdapter(onChange) {
             if (!/^\d{4}$/.test(result.p4)) throw statusError('invalid_response', 'Pick 4 inválido.');
             expected.pick4 = result.p4; expected.segunda = result.p4.slice(0, 2); expected.tercera = result.p4.slice(-2); picks.push('pick4');
         }
+        // Rover programa focus() en Pick 4 al completar Pick 3. Prepararlo sin
+        // scroll evita un segundo desplazamiento al ejecutarse ese mismo foco.
+        // No se sustituyen métodos ni manejadores de la página.
+        if (picks.includes('pick3')) findFields(config).pick4.focus({ preventScroll: true });
         for (const key of picks) {
             assertCurrent(snapshot);
             const input = findFields(config)[key];
@@ -1501,9 +1505,11 @@ function createRoverAdapter(onChange) {
                 const nativeSetter = Object.getOwnPropertyDescriptor(current.ownerDocument.defaultView.HTMLInputElement.prototype, 'value').set;
                 nativeSetter.call(current, value);
                 current.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-                await nextRender();
             }
         }
+        // Una sola cesión: los temporizadores/foco de Rover ya encuentran
+        // ambos picks completos, sin pintar el estado vacío entre escrituras.
+        await nextRender();
         assertCurrent(snapshot);
         const fields = findFields(config);
         if (Object.entries(expected).some(([key, value]) => fields[key].value !== value)) throw statusError('unconfirmed', 'Rover no conservó todos los valores. Revisa la fila antes de procesar.');
@@ -1518,32 +1524,27 @@ function createRoverAdapter(onChange) {
 function createFillFeedback() {
     const style = document.createElement('style');
     style.textContent = `
-      #root input.rlur-filled { font-weight: 700; }
+      #root input.rlur-filled { font-weight: 700; transition-property: box-shadow !important; }
+      #root input.rlur-fill-flash { background-color: #d1fae5 !important; color: #065f46 !important; transition: none !important; }
     `;
     document.head.append(style);
-    const marked = new Set(), timers = new WeakMap(), animations = new WeakMap();
+    const marked = new Set(), timers = new WeakMap();
     function remove(input) {
         if (!marked.has(input)) return;
         clearTimeout(timers.get(input)); timers.delete(input);
-        animations.get(input)?.cancel(); animations.delete(input);
         input.classList.remove('rlur-filled', 'rlur-fill-flash'); marked.delete(input);
     }
     function clear() { for (const input of marked) remove(input); }
     function highlight(inputs) {
         for (const input of marked) if (!input.isConnected) remove(input);
         for (const input of inputs) remove(input);
-        // Reiniciar el verde sin leer geometría ni forzar el diseño de la tabla.
-        // La última clave usa el estilo del tema como valor subyacente.
-        const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches, duration = reduced ? 1000 : 2000;
-        const green = { backgroundColor: '#d1fae5', color: '#065f46' };
-        const frames = reduced ? [green, green] : [{ ...green, offset: 0 }, { ...green, offset: .5, easing: 'ease-out' }, { offset: 1 }];
+        // Verde fijo: aplicar y retirar una vez, sin repintar colores por frame.
+        // No se leen medidas ni se sobrescriben estilos del tema.
         for (const input of inputs) {
             input.classList.add('rlur-filled', 'rlur-fill-flash'); marked.add(input);
-            const animation = input.animate(frames, { duration }); animations.set(input, animation);
             timers.set(input, setTimeout(() => {
-                animation.cancel(); animations.delete(input);
                 input.classList.remove('rlur-fill-flash'); timers.delete(input);
-            }, duration));
+            }, 1000));
         }
     }
     document.addEventListener('input', event => {
@@ -1558,7 +1559,7 @@ function createFillFeedback() {
 // Mantiene la fila consultada fuera de la zona cubierta por la barra fija.
 function createRowVisibility(bar) {
     const gap = 8, managed = new Map();
-    let enabled = false, row = null, frame = null;
+    let enabled = false, row = null, frame = null, viewportTop = window.visualViewport?.offsetTop || 0;
 
     function scrollPorts() {
         const ports = [], root = document.scrollingElement;
@@ -1661,6 +1662,17 @@ function createRowVisibility(bar) {
         }
     }
     new ResizeObserver(schedule).observe(bar);
+    // Cambiar el alto de la ventana mueve la barra aunque su propio tamaño no
+    // cambie; ResizeObserver no avisa de ese movimiento (p. ej. teclado móvil).
+    window.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('scroll', () => {
+        const top = window.visualViewport.offsetTop;
+        // No seguir el scroll manual normal de la página, solo el movimiento
+        // del viewport visual respecto al de diseño (zoom/teclado).
+        if (top === viewportTop) return;
+        viewportTop = top; schedule();
+    });
     return { reveal(target) { row = target; schedule(); }, setEnabled, clear };
 }
 
@@ -1921,22 +1933,36 @@ const rover = createRoverAdapter(ui.setContext);
 async function runQuery(config) {
     if (running.has(config.id)) return;
     const token = Symbol(); running.set(config.id, token);
+    const started = performance.now(), elapsed = { source: null, queue: null, form: null };
     ui.setStatus(config.id, 'loading');
     let snapshot, provider, result;
     const details = message => [snapshot?.dateKey, config.sorteo, message, result?.source || provider?.name || config.fuente].filter(Boolean).join(' · ');
-    const report = state => console.table(queryReport(config, provider, snapshot, result, state));
+    const report = state => console.table({
+        ...queryReport(config, provider, snapshot, result, state),
+        ...Object.fromEntries([['Fuente (ms)', elapsed.source], ['Cola (ms)', elapsed.queue],
+            ['Formulario (ms)', elapsed.form], ['Total (ms)', performance.now() - started]]
+            .map(([key, value]) => [key, value === null ? '—' : Math.round(value)]))
+    });
     try {
         snapshot = rover.capture();
         ui.revealFields(Object.values(rover.findFields(config)));
         provider = PROVIDERS[config.fuente];
         if (!provider) throw statusError('source_error', 'Fuente de resultados no disponible.');
-        result = await provider.consultar(config, snapshot.date);
+        const sourceStart = performance.now();
+        try { result = await provider.consultar(config, snapshot.date); }
+        finally { elapsed.source = performance.now() - sourceStart; }
         rover.assertCurrent(snapshot);
         if (!result.p3 && !result.p4) {
             const message = 'Sin resultado para la fecha y sorteo seleccionados.';
             ui.setStatus(config.id, 'pending', details(message)); report(message); return;
         }
-        const write = writeQueue.then(() => rover.fill(config, result, snapshot));
+        const queued = performance.now();
+        const write = writeQueue.then(async () => {
+            elapsed.queue = performance.now() - queued;
+            const formStart = performance.now();
+            try { return await rover.fill(config, result, snapshot); }
+            finally { elapsed.form = performance.now() - formStart; }
+        });
         writeQueue = write.catch(() => {});
         const expected = await write;
         const fields = rover.findFields(config);

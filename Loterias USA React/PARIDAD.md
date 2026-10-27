@@ -49,3 +49,7 @@ Por petición del usuario se retira el pie de mensajes. Se conservan iconos indi
 ## Actualización 0.0.12: rendimiento
 
 El verde se conserva con Web Animations (1 s fijo y 1 s de desvanecimiento; movimiento reducido 1 s sin transición) para reiniciarlo sin forzar medidas de los inputs. Se mantiene la negrita y limpieza de marcas. El índice de filas solo evita búsquedas repetidas: no elimina controles de fecha, identidad, duplicados o bloqueo ni cambia las entradas nativas de React o los proveedores. La fila sigue mostrándose sobre la barra y el tamaño/tipografía permanecen iguales.
+
+## Actualización 0.0.13: confirmación fija y llenado consecutivo
+
+El verde suave se conserva durante un segundo, con retirada directa. Se elimina intencionalmente el segundo de desvanecimiento para evitar animar los colores de cinco inputs dentro de la tabla. La negrita se conserva y se limpia al editar/cambiar el contexto. El foco sigue en Pick 4; se prepara sin scroll antes del llenado para que la llamada posterior de Rover al mismo campo no vuelva a mover la vista. Los picks iguales siguen vaciándose y reintroduciéndose con eventos nativos, pero sin ceder una tarea entre esos pasos. Solo se cede al terminar ambos picks, antes de verificar que React conserve el resultado.

@@ -1,7 +1,7 @@
 // Mantiene la fila consultada fuera de la zona cubierta por la barra fija.
 function createRowVisibility(bar) {
     const gap = 8, managed = new Map();
-    let enabled = false, row = null, frame = null;
+    let enabled = false, row = null, frame = null, viewportTop = window.visualViewport?.offsetTop || 0;
 
     function scrollPorts() {
         const ports = [], root = document.scrollingElement;
@@ -104,5 +104,16 @@ function createRowVisibility(bar) {
         }
     }
     new ResizeObserver(schedule).observe(bar);
+    // Cambiar el alto de la ventana mueve la barra aunque su propio tamaño no
+    // cambie; ResizeObserver no avisa de ese movimiento (p. ej. teclado móvil).
+    window.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('scroll', () => {
+        const top = window.visualViewport.offsetTop;
+        // No seguir el scroll manual normal de la página, solo el movimiento
+        // del viewport visual respecto al de diseño (zoom/teclado).
+        if (top === viewportTop) return;
+        viewportTop = top; schedule();
+    });
     return { reveal(target) { row = target; schedule(); }, setEnabled, clear };
 }

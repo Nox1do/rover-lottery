@@ -448,6 +448,58 @@ for (const filtered of [false, true]) test(`Rendimiento: ${filtered ? 'una fila 
     }
   } finally { await r.close(); }
 });
+for (const repeated of [false, true]) test(`Fluidez: foco nativo ve el llenado completo (${repeated ? 'repetido' : 'inicial'})`, async () => {
+  const r = await setup({ rows: 241 }); try {
+    await r.bind();
+    if (repeated) await r.page.evaluate(() => window.fixtureValues('GE-MD', { primera: '11', segunda: '22', tercera: '33', pick3: '027', pick4: '0987' }));
+    await r.page.evaluate(() => {
+      const table = document.querySelector('#root table'), wrap = document.createElement('div');
+      wrap.id = 'fixture-scroll'; Object.assign(wrap.style, { overflow: 'auto', maxHeight: '72vh' });
+      table.before(wrap); wrap.append(table);
+      window.focusSamples = [];
+      // Observar lo que recibe el foco que programa el manejador real de Rover.
+      const focus = HTMLElement.prototype.focus;
+      HTMLElement.prototype.focus = function(options) {
+        const before = [wrap.scrollTop, window.scrollY];
+        const result = focus.call(this, options);
+        if (this.matches('tr[data-code="GE-MD"] input') && !options?.preventScroll) {
+          window.focusSamples.push({ before, after: [wrap.scrollTop, window.scrollY], values: [...this.closest('tr').querySelectorAll('input')].map(el => el.value) });
+        }
+        return result;
+      };
+    });
+    await r.click('ga-am');
+    await r.page.waitForFunction(() => window.focusSamples.length);
+    const samples = await r.page.evaluate(() => window.focusSamples);
+    for (const sample of samples) {
+      assert.deepEqual(sample.values, ['27', '09', '87', '027', '0987'], 'El foco programado no debe interrumpir el llenado con premios vacíos/parciales');
+      assert.deepEqual(sample.after, sample.before, 'El foco nativo no debe competir con el desplazamiento del script');
+    }
+    await assertRowClear(r.page, false);
+    await r.page.evaluate(() => window.fixtureRender());
+    assert.deepEqual(await r.values('GE-MD'), ['27', '09', '87', '027', '0987']);
+  } finally { await r.close(); }
+});
+test('Fluidez: diagnóstico separa espera de fuente y formulario', async () => {
+  const r = await setup({ mode: 'slow' }); try {
+    await r.bind(); await r.click('ga-am');
+    const [report] = await r.page.evaluate(() => window.queryReports);
+    assert.ok(report['Fuente (ms)'] >= 150, 'La demora simulada de red debe registrarse en la fase de fuente');
+    for (const key of ['Cola (ms)', 'Formulario (ms)', 'Total (ms)']) assert.ok(Number.isFinite(report[key]) && report[key] >= 0, key);
+    assert.ok(report['Total (ms)'] >= report['Fuente (ms)']);
+  } finally { await r.close(); }
+});
+test('Fluidez: verde inmediato y fijo sin animaciones de color', async () => {
+  const r = await setup(); try {
+    await r.bind(); await r.click('ga-am');
+    const inputs = r.page.locator('tr[data-code="GE-MD"] input');
+    assert.ok(await inputs.evaluateAll(nodes => nodes.every(input => getComputedStyle(input).backgroundColor === 'rgb(209, 250, 229)')));
+    assert.deepEqual(await inputs.evaluateAll(nodes => nodes.map(input => input.getAnimations().length)), [0, 0, 0, 0, 0], 'El verde no debe repintarse en cada frame');
+    await r.page.waitForFunction(() => !document.querySelector('.rlur-fill-flash'));
+    assert.deepEqual(await inputs.evaluateAll(nodes => nodes.map(input => input.classList.contains('rlur-filled'))), [true, true, true, true, true]);
+    assert.deepEqual(await r.values('GE-MD'), ['27', '09', '87', '027', '0987']);
+  } finally { await r.close(); }
+});
 test('Índice: detecta duplicados añadidos después de un llenado', async () => {
   const r = await setup({ rows: 241 }); try {
     await r.bind(); await r.click('ga-am');

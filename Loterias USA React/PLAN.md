@@ -76,3 +76,14 @@ Causa contrastada en el código público actual de Rover: completar Pick 3 progr
 ## 0.0.12 — Menos trabajo por consulta con 241 filas
 
 Reproducir la diferencia entre tabla completa y una fila filtrada en Firefox con 241 filas React. Antes: 8 recorridos completos en llenado inicial, 10 al repetir, cinco lecturas de ancho intercaladas con estilos. Reutilizar un índice invalidado por mutaciones estructurales/identidad (también pendientes de entregar), sustituir el reinicio forzado de CSS por Web Animations y agrupar mediciones de scroll antes de aplicarlo. Verificar duplicados tras usar el índice, identidad, reconstrucción, bloqueo, verde/reduced-motion, fila visible y suite completa antes de publicar.
+
+## 0.0.13 — Llenado sin pausas intermedias ni animación de color
+
+El usuario confirma que 0.0.12 no resuelve la fluidez real. La reducción de recorridos no demuestra latencia menor. El código público actual de Rover (`VerResultados-D5ODL1lu.js`, consultado 27 oct) sigue programando foco en Pick 4 dentro del cambio de Pick 3. El adaptador anterior cede una tarea después de cada entrada: permite ejecutar ese foco y pintar valores parciales antes del siguiente pick. Además, animar background/color durante un segundo repinta continuamente los campos.
+
+1. Reproducir en Firefox la lectura de valores que hace el foco programado: debe encontrar ambos picks completos; comprobar que ese foco no mueve los scrollports. Conservar eventos nativos y verificaciones de contexto/campos antes de cada escritura.
+2. Preparar el foco de Pick 4 con preventScroll antes de Pick 3, escribir picks consecutivamente y esperar una sola vez antes de confirmar estado React. No agrupar mediante APIs privadas de React ni alterar manejadores nativos.
+3. Confirmación verde/negrita inmediata, fija durante 1 s y retirada directa, sin animación por frame. Ajuste visual intencional para rendimiento; conserva limpieza, parciales y tema.
+4. Añadir diagnóstico en consola por fases para distinguir demora de la fuente de la del formulario; medir operaciones y orden de tareas, sin prometer fluidez en Windows a partir del laboratorio. Ejecutar suite completa y publicar con URLs estables.
+
+La verificación móvil encontró una dependencia previa del foco: al reducir el viewport de 844 a 640 px la barra sigue midiendo 242 px y ResizeObserver no detecta su nueva posición. Añadir eventos de resize y cambios del offset visual, sin seguir el scroll manual normal, y volver a ejecutar la suite completa.

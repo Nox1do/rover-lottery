@@ -1,4 +1,4 @@
-# Rovs Loterias USA React 0.0.12
+# Rovs Loterias USA React 0.0.13
 
 [Instalar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA%20React/Rovs-Loterias-USA-React.user.js)
 
@@ -9,9 +9,9 @@ Userscript independiente para **Firefox + Tampermonkey** en `https://central.rov
 1. Instala el script desde el enlace anterior y recarga Rover.
 2. Selecciona la fecha en Rover y pulsa **Buscar**. La barra confirma la fecha cuando termina la carga. Si ya tenías la tabla abierta al instalar el script, pulsa Buscar de nuevo.
 3. Abre **Loterías USA** en la esquina inferior derecha. Arranca compacta y ocupa toda la ventana de izquierda a derecha. En escritorio los controles quedan a la izquierda y la cuadrícula de loterías a la derecha, como en la barra anterior. Elige Día/Noche o filtra por nombre/código. Arrastra los bordes o las esquinas con el ratón o el dedo para cambiar ancho/alto; El icono de **flechas hacia dentro** restaura el tamaño inicial; su descripción es «Restablecer tamaño compacto (ancho completo)». La cuadrícula de escritorio conserva el orden por columnas y el desplazamiento horizontal de la versión anterior; muestra dos filas en el tamaño compacto y más filas al ampliar. En móvil el desplazamiento es vertical.
-4. Pulsa la lotería. El script consulta su proveedor y llena Pick 3 y/o Pick 4 en la fila que coincida por nombre **y** abreviatura. Washington estado usa WST-NG y solo Pick 3. Puedes volver a pulsar el botón para reemplazar los datos existentes y recalcular los premios, incluso si Pick 3/4 ya coincide. Si un pick coincide, se vacía brevemente y se vuelve a introducir mediante los eventos normales del formulario. Un resultado parcial conserva los campos del juego que no esté disponible.
+4. Pulsa la lotería. El script consulta su proveedor y llena Pick 3 y/o Pick 4 en la fila que coincida por nombre **y** abreviatura. Washington estado usa WST-NG y solo Pick 3. Puedes volver a pulsar el botón para reemplazar los datos existentes y recalcular los premios, incluso si Pick 3/4 ya coincide. Si un pick coincide, se vacía y se vuelve a introducir mediante los eventos normales del formulario, en la misma tarea sin una pausa intermedia. Un resultado parcial conserva los campos del juego que no esté disponible.
 5. La fila consultada queda por encima de la barra, teniendo en cuenta su altura actual y el foco automático de Rover. Se reserva espacio inferior mientras la barra está abierta, también en tablas con desplazamiento propio; al cerrarla o cambiar de contexto se restauran los espacios originales. Una fila que ya está visible no provoca desplazamiento adicional.
-6. Los campos confirmados se resaltan en verde suave durante un segundo y se desvanecen durante otro; quedan en negrita hasta editar la fila o cambiar de contexto. Un resultado parcial solo marca los campos que se llenaron. Revisa los valores. La publicación se sigue realizando manualmente con **Procesar**, desde Rover.
+6. Los campos confirmados se resaltan en verde suave durante un segundo fijo, sin desvanecimiento por frame; quedan en negrita hasta editar la fila o cambiar de contexto. Un resultado parcial solo marca los campos que se llenaron. Revisa los valores. La publicación se sigue realizando manualmente con **Procesar**, desde Rover.
 
 El propio Rover deriva 1era/2da/3ra y puede llenar las loterías dependientes que tenga configuradas, igual que al escribir manualmente. El userscript conserva ese comportamiento y no publica ninguna de esas filas.
 
@@ -47,7 +47,11 @@ La versión instalada aparece debajo del buscador. Las URLs `.user.js` y `.meta.
 
 ## Rendimiento con la tabla completa
 
-Desde 0.0.12 se reutiliza un índice de filas por nombre/código en vez de recorrer toda la tabla durante cada validación del llenado. Se invalida al cambiar su estructura, cabeceras o identidad de filas, incluidos los cambios todavía pendientes de entregar al MutationObserver. Las validaciones de fecha, duplicados y campos bloqueados siguen activas. El resaltado usa Web Animations sin lecturas de ancho para reiniciarlo; el desplazamiento mide primero y aplica después los movimientos, sin alternar lecturas/escrituras por cada contenedor.
+Desde 0.0.12 se reutiliza un índice de filas por nombre/código en vez de recorrer toda la tabla durante cada validación del llenado. Se invalida al cambiar su estructura, cabeceras o identidad de filas, incluidos los cambios todavía pendientes de entregar al MutationObserver. Las validaciones de fecha, duplicados y campos bloqueados siguen activas. El desplazamiento mide primero y aplica después los movimientos, sin alternar lecturas/escrituras por cada contenedor.
+
+En 0.0.13 se eliminan las pausas entre entradas: Pick 3/4 y sus premios se completan antes de ejecutar los temporizadores de foco de Rover. Se prepara Pick 4 con `focus({preventScroll:true})` para que el foco nativo posterior no desplace de nuevo la tabla. Esto conserva los cambios nativos de React, incluidos los dependientes; no evita que Rover renderice su propia tabla por cada entrada. El verde es ahora fijo durante un segundo y se retira directamente: se elimina el desvanecimiento continuo para reducir repintados. Se conserva la negrita y la limpieza al editar/cambiar de fecha.
+
+El informe de consola añade **Fuente (ms)**, **Cola (ms)**, **Formulario (ms)** y **Total (ms)**. Permite distinguir la espera del proveedor de la escritura; no mide el tiempo de pintura de la GPU ni garantiza la fluidez del equipo real.
 
 La reproducción incluye 241 filas reales de React (1205 inputs controlados) y una fila filtrada, con llenado inicial y repetido. Ver [RENDIMIENTO.md](RENDIMIENTO.md) para el método, contadores y límites: los tiempos de la reproducción no garantizan la fluidez de la sesión real de Rover.
 

@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.0.13 — 2026-10-27
+
+- Elimina las cesiones de tarea entre Pick 3/4 y entre vaciado/reentrada de picks iguales. Espera una sola vez antes de confirmar los valores de React, manteniendo las validaciones antes de cada escritura.
+- Prepara el foco de Pick 4 sin desplazamiento para que el foco programado por Rover no compita con la posición de la fila. Conserva el foco final y las derivaciones/dependientes nativas.
+- Sustituye Web Animations por verde fijo durante 1 s y retirada directa, sin transición de color. Mantiene negrita, parciales, tema y limpieza. Este cambio de duración es intencional para reducir repintados.
+- Recalcula la posición al cambiar el viewport aunque la barra conserve el mismo tamaño (altura de ventana/teclado móvil); no sigue el scroll manual normal.
+- Registra tiempos de fuente, cola, formulario y total en la consola, sin añadir mensajes a la barra. Añade regresiones del estado completo al recibir el foco, ausencia de scroll adicional y verde sin animaciones.
+
 ## 0.0.12 — 2026-10-26
 
 - Optimiza el llenado con la tabla completa: reutiliza un índice por nombre/código en vez de recorrer todas las filas 8–10 veces por consulta. Invalida el índice al reconstruir/filtrar o cambiar la identidad/cabeceras y procesa mutaciones pendientes antes de usarlo.

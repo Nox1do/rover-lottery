@@ -7,22 +7,36 @@ const rover = createRoverAdapter(ui.setContext);
 async function runQuery(config) {
     if (running.has(config.id)) return;
     const token = Symbol(); running.set(config.id, token);
+    const started = performance.now(), elapsed = { source: null, queue: null, form: null };
     ui.setStatus(config.id, 'loading');
     let snapshot, provider, result;
     const details = message => [snapshot?.dateKey, config.sorteo, message, result?.source || provider?.name || config.fuente].filter(Boolean).join(' · ');
-    const report = state => console.table(queryReport(config, provider, snapshot, result, state));
+    const report = state => console.table({
+        ...queryReport(config, provider, snapshot, result, state),
+        ...Object.fromEntries([['Fuente (ms)', elapsed.source], ['Cola (ms)', elapsed.queue],
+            ['Formulario (ms)', elapsed.form], ['Total (ms)', performance.now() - started]]
+            .map(([key, value]) => [key, value === null ? '—' : Math.round(value)]))
+    });
     try {
         snapshot = rover.capture();
         ui.revealFields(Object.values(rover.findFields(config)));
         provider = PROVIDERS[config.fuente];
         if (!provider) throw statusError('source_error', 'Fuente de resultados no disponible.');
-        result = await provider.consultar(config, snapshot.date);
+        const sourceStart = performance.now();
+        try { result = await provider.consultar(config, snapshot.date); }
+        finally { elapsed.source = performance.now() - sourceStart; }
         rover.assertCurrent(snapshot);
         if (!result.p3 && !result.p4) {
             const message = 'Sin resultado para la fecha y sorteo seleccionados.';
             ui.setStatus(config.id, 'pending', details(message)); report(message); return;
         }
-        const write = writeQueue.then(() => rover.fill(config, result, snapshot));
+        const queued = performance.now();
+        const write = writeQueue.then(async () => {
+            elapsed.queue = performance.now() - queued;
+            const formStart = performance.now();
+            try { return await rover.fill(config, result, snapshot); }
+            finally { elapsed.form = performance.now() - formStart; }
+        });
         writeQueue = write.catch(() => {});
         const expected = await write;
         const fields = rover.findFields(config);

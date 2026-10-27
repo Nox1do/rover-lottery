@@ -14,7 +14,7 @@ const lines = [
   ['supportURL', 'https://github.com/Nox1do/rover-lottery/issues']
 ];
 const header = '// ==UserScript==\n' + lines.map(([key,value]) => `// @${key.padEnd(13)}${value}`).join('\n') + '\n// @noframes\n// ==/UserScript==\n';
-const names = ['config', 'helpers', 'status', 'providers', 'rover', 'feedback', 'ui', 'main'];
+const names = ['config', 'helpers', 'status', 'providers', 'rover', 'feedback', 'visibility', 'ui', 'main'];
 const body = names.map(name => `\n// --- src/${name}.js ---\n` + fs.readFileSync(path.join(root,'src',name+'.js'),'utf8')).join('\n');
 const script = header + `\n(function () {\n'use strict';\nconst APP_VERSION = ${JSON.stringify(metadata.version)};\n` + body + '\n})();\n';
 new (require('node:vm').Script)(script);

@@ -27,6 +27,8 @@ function App() {
   window.fixtureDuplicate = false;
   function change(code, key, raw) {
     if (window.fixtureIgnoreInput) return;
+    // Rover enfoca Pick 4 después de completar Pick 3.
+    if (key === 'pick3' && raw.length === 3) setTimeout(() => document.querySelector(`tr[data-code="${code}"] td:nth-child(7) input`)?.focus());
     setValues(old => {
       const row = { ...old[code] }, value = raw.replace(/[^A-Za-z0-9]/g, '').slice(0, key.startsWith('pick') ? 4 : 2);
       row[key] = value;

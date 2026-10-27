@@ -68,3 +68,7 @@ Regresión: tras redimensionar manualmente se conservaba top/left en píxeles, d
 ## 0.0.8 — Base pegada al pie
 
 La captura de 0.0.7 todavía muestra un margen inferior y recorte lateral. Eliminar margen inferior y mantener la base anclada incluso cuando se redimensiona desde abajo; usar clientWidth y ancho explícito para excluir el scrollbar. Comprobar página larga con scrollbar estable, scroll y borde inferior, además de la suite existente.
+
+## 0.0.10 — Fila fuera de la barra
+
+Causa contrastada en el código público actual de Rover: completar Pick 3 programa un foco en Pick 4. El navegador desplaza sus scrollports sin descontar la barra fija. Reproducir ese foco en React y casos rojos para últimas filas de página y contenedor anidado, móvil y barra ampliada. Un módulo de visibilidad reserva espacio inferior restaurable y corrige solo el scroll vertical según el alto real de la barra; se invoca al consultar/confirmar y al cambiar el tamaño. No mueve filas ya visibles. Publicar después de la suite completa, sin cambios de proveedores ni escrituras nuevas en datos de Rover.

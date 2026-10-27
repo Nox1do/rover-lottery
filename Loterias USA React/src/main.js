@@ -13,7 +13,7 @@ async function runQuery(config) {
     const report = state => console.table(queryReport(config, provider, snapshot, result, state));
     try {
         snapshot = rover.capture();
-        rover.findFields(config);
+        ui.revealFields(Object.values(rover.findFields(config)));
         provider = PROVIDERS[config.fuente];
         if (!provider) throw statusError('source_error', 'Fuente de resultados no disponible.');
         result = await provider.consultar(config, snapshot.date);
@@ -27,6 +27,7 @@ async function runQuery(config) {
         const expected = await write;
         const fields = rover.findFields(config);
         ui.highlightFields(Object.keys(expected).map(key => fields[key]));
+        ui.revealFields(Object.values(fields));
         const missing = result.requiredGames.filter(key => !result[key]);
         const state = missing.length ? 'partial' : 'success';
         const message = missing.length ? `Resultado parcial: falta ${missing.map(key => provider.labels[key === 'p3' ? 0 : 1]).join(', ')}.` : 'Completado. Revisa la fila antes de procesar.';

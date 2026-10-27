@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.0.10 — 2026-10-26
+
+- Evita que la barra tape la fila consultada cuando el foco automático de Rover desplaza la página hacia Pick 4.
+- Reserva espacio inferior según la altura actual de la barra en la página y contenedores con scroll; permite mostrar también las últimas filas y respeta los encabezados fijos de la tabla.
+- Reajusta la fila al ampliar la barra, abrirla de nuevo o cambiar el viewport; conserva el desplazamiento horizontal y restaura estilos originales al cerrar o cambiar fecha, servidor o ruta.
+- Añade el módulo de visibilidad y cuatro regresiones Firefox; la reproducción React incorpora el foco nativo de Rover. Conserva el llenado repetido, proveedores y funciones anteriores.
+
 ## 0.0.9 — 2026-10-26
 
 - Permite repetir el llenado de una fila con datos existentes y recalcula 1era/2da/3ra incluso si los picks consultados ya coinciden con los del formulario.

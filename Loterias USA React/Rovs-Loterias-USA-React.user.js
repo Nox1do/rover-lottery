@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterias USA React 0.0.1
 // @namespace    https://github.com/Nox1do/rover-lottery/Loterias-USA-React
-// @version      0.0.9
+// @version      0.0.10
 // @description  Barra manual de loterías USA para la tabla React de Rover. Solo llenado de formulario.
 // @author       noeg
 // @match        https://central.roversport.net/*
@@ -26,7 +26,7 @@
 
 (function () {
 'use strict';
-const APP_VERSION = "0.0.9";
+const APP_VERSION = "0.0.10";
 
 // --- src/config.js ---
     const LOTERIAS = [
@@ -1527,6 +1527,101 @@ function createFillFeedback() {
 }
 
 
+// --- src/visibility.js ---
+// Mantiene la fila consultada fuera de la zona cubierta por la barra fija.
+function createRowVisibility(bar) {
+    const gap = 8, managed = new Map();
+    let enabled = false, row = null, frame = null;
+
+    function scrollPorts() {
+        const ports = [], root = document.scrollingElement;
+        for (let node = row?.parentElement; node && node !== document.body && node !== root; node = node.parentElement) {
+            if (/(auto|scroll|overlay)/.test(getComputedStyle(node).overflowY)) ports.push(node);
+        }
+        if (root) ports.push(root);
+        return ports;
+    }
+
+    function restore(port, saved) {
+        for (const [name, value] of Object.entries(saved.properties)) {
+            // No deshacer una modificación posterior hecha por la página.
+            if (port.style.getPropertyValue(name) !== value.applied) continue;
+            if (value.original) port.style.setProperty(name, value.original, value.priority);
+            else port.style.removeProperty(name);
+        }
+        managed.delete(port);
+    }
+
+    function reserve(ports, height) {
+        for (const [port, saved] of managed) if (!ports.includes(port)) restore(port, saved);
+        for (const port of ports) {
+            if (!managed.has(port)) {
+                const css = getComputedStyle(port), properties = {};
+                for (const name of ['padding-bottom', 'scroll-padding-bottom']) {
+                    const base = css.getPropertyValue(name);
+                    properties[name] = { original: port.style.getPropertyValue(name), priority: port.style.getPropertyPriority(name),
+                        base: base === 'auto' ? '0px' : base, applied: '' };
+                }
+                managed.set(port, { properties });
+            }
+            for (const [name, value] of Object.entries(managed.get(port).properties)) {
+                const next = `calc(${value.base} + ${height}px)`;
+                if (value.applied === next) continue;
+                port.style.setProperty(name, next, 'important'); value.applied = port.style.getPropertyValue(name);
+            }
+        }
+    }
+
+    function update() {
+        if (!enabled || !row?.isConnected || !row.getClientRects().length) {
+            for (const [port, saved] of managed) restore(port, saved);
+            return;
+        }
+        const viewport = window.visualViewport;
+        // offsetHeight no incluye la animación de apertura de la barra.
+        const bottom = window.innerHeight - (parseFloat(bar.style.bottom) || 0) - bar.offsetHeight - gap;
+        const top = (viewport?.offsetTop || 0) + gap;
+        const ports = scrollPorts(), root = document.scrollingElement;
+        reserve(ports, window.innerHeight - bottom);
+        const header = row.closest('table')?.tHead;
+        const stickyHeight = header && getComputedStyle(header).position === 'sticky' ? header.offsetHeight : 0;
+        // Una primera pasada mueve el contenedor exterior; la segunda corrige
+        // los límites interiores ya visibles. Se conserva el scroll horizontal.
+        for (let pass = 0; pass < 2; pass++) for (const port of ports) {
+            const box = port.getBoundingClientRect();
+            const portTop = port === root ? top : Math.max(top, box.top + port.clientTop + gap);
+            const portBottom = port === root ? bottom : Math.min(bottom, box.top + port.clientTop + port.clientHeight - gap);
+            const safeTop = portTop + (port === ports[0] ? stickyHeight : 0);
+            if (portBottom <= safeTop) continue;
+            const target = row.getBoundingClientRect();
+            const delta = target.top < safeTop ? target.top - safeTop : target.bottom > portBottom ? target.bottom - portBottom : 0;
+            if (Math.abs(delta) > .5) port.scrollTo({ top: port.scrollTop + delta, left: port.scrollLeft, behavior: 'instant' });
+        }
+    }
+
+    function schedule() {
+        if (frame !== null) return;
+        frame = requestAnimationFrame(() => { frame = null; update(); });
+    }
+    function clear() {
+        if (frame !== null) cancelAnimationFrame(frame);
+        frame = null; row = null;
+        for (const [port, saved] of managed) restore(port, saved);
+    }
+    function setEnabled(value) {
+        enabled = value;
+        if (enabled) schedule();
+        else {
+            if (frame !== null) cancelAnimationFrame(frame);
+            frame = null;
+            for (const [port, saved] of managed) restore(port, saved);
+        }
+    }
+    new ResizeObserver(schedule).observe(bar);
+    return { reveal(target) { row = target; schedule(); }, setEnabled, clear };
+}
+
+
 // --- src/ui.js ---
 function createInterface(onQuery) {
     const feedback = createFillFeedback();
@@ -1737,11 +1832,13 @@ function createInterface(onQuery) {
     const setOpen = value => {
         open = value; endDrag();
         bar.classList.toggle('is-open', open); bar.inert = !open; bar.setAttribute('aria-hidden', String(!open)); toggle.setAttribute('aria-expanded', String(open));
+        visibility.setEnabled(open && !bar.hidden);
         if (open && matchMedia('(pointer: fine)').matches) search.focus();
         if (!open) toggle.focus();
     };
     toggle.setAttribute('aria-controls', 'rlur-bar'); toggle.setAttribute('aria-expanded', 'false'); toggle.onclick = () => setOpen(!open); close.onclick = () => setOpen(false); compact.onclick = resetSize;
-    bar.append(left, grid, context); bar.inert = true; bar.setAttribute('aria-hidden', 'true'); host.append(bar, toggle); document.body.append(host); resetSize();
+    bar.append(left, grid, context); bar.inert = true; bar.setAttribute('aria-hidden', 'true'); host.append(bar, toggle); document.body.append(host);
+    const visibility = createRowVisibility(bar); resetSize();
     const fitViewport = () => {
         endDrag();
         if (!resized) { resetSize(); return; }
@@ -1775,14 +1872,15 @@ function createInterface(onQuery) {
     let previousEpoch = -1;
     function setContext(view) {
         bar.hidden = toggle.hidden = !view.active; context.dataset.ready = String(view.ready);
-        if (previousEpoch !== view.epoch) { notice = false; feedback.clear(); for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
+        visibility.setEnabled(open && view.active);
+        if (previousEpoch !== view.epoch) { notice = false; feedback.clear(); visibility.clear(); for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
         if (view.ready && context.dataset.statusCode === 'rover_loading') {
             notice = false;
             for (const [id, button] of buttons) if (button.dataset.statusCode === 'rover_loading') setStatus(id, 'idle');
         }
         if (!notice) { context.textContent = view.message; delete context.dataset.tone; delete context.dataset.statusCode; }
     }
-    return { setStatus, setContext, highlightFields: feedback.highlight };
+    return { setStatus, setContext, highlightFields: feedback.highlight, revealFields: fields => visibility.reveal(fields[0]?.closest('tr')) };
 }
 
 
@@ -1802,7 +1900,7 @@ async function runQuery(config) {
     const report = state => console.table(queryReport(config, provider, snapshot, result, state));
     try {
         snapshot = rover.capture();
-        rover.findFields(config);
+        ui.revealFields(Object.values(rover.findFields(config)));
         provider = PROVIDERS[config.fuente];
         if (!provider) throw statusError('source_error', 'Fuente de resultados no disponible.');
         result = await provider.consultar(config, snapshot.date);
@@ -1816,6 +1914,7 @@ async function runQuery(config) {
         const expected = await write;
         const fields = rover.findFields(config);
         ui.highlightFields(Object.keys(expected).map(key => fields[key]));
+        ui.revealFields(Object.values(fields));
         const missing = result.requiredGames.filter(key => !result[key]);
         const state = missing.length ? 'partial' : 'success';
         const message = missing.length ? `Resultado parcial: falta ${missing.map(key => provider.labels[key === 'p3' ? 0 : 1]).join(', ')}.` : 'Completado. Revisa la fila antes de procesar.';

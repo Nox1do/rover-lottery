@@ -207,11 +207,13 @@ function createInterface(onQuery) {
     const setOpen = value => {
         open = value; endDrag();
         bar.classList.toggle('is-open', open); bar.inert = !open; bar.setAttribute('aria-hidden', String(!open)); toggle.setAttribute('aria-expanded', String(open));
+        visibility.setEnabled(open && !bar.hidden);
         if (open && matchMedia('(pointer: fine)').matches) search.focus();
         if (!open) toggle.focus();
     };
     toggle.setAttribute('aria-controls', 'rlur-bar'); toggle.setAttribute('aria-expanded', 'false'); toggle.onclick = () => setOpen(!open); close.onclick = () => setOpen(false); compact.onclick = resetSize;
-    bar.append(left, grid, context); bar.inert = true; bar.setAttribute('aria-hidden', 'true'); host.append(bar, toggle); document.body.append(host); resetSize();
+    bar.append(left, grid, context); bar.inert = true; bar.setAttribute('aria-hidden', 'true'); host.append(bar, toggle); document.body.append(host);
+    const visibility = createRowVisibility(bar); resetSize();
     const fitViewport = () => {
         endDrag();
         if (!resized) { resetSize(); return; }
@@ -245,12 +247,13 @@ function createInterface(onQuery) {
     let previousEpoch = -1;
     function setContext(view) {
         bar.hidden = toggle.hidden = !view.active; context.dataset.ready = String(view.ready);
-        if (previousEpoch !== view.epoch) { notice = false; feedback.clear(); for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
+        visibility.setEnabled(open && view.active);
+        if (previousEpoch !== view.epoch) { notice = false; feedback.clear(); visibility.clear(); for (const id of buttons.keys()) setStatus(id, 'idle'); previousEpoch = view.epoch; }
         if (view.ready && context.dataset.statusCode === 'rover_loading') {
             notice = false;
             for (const [id, button] of buttons) if (button.dataset.statusCode === 'rover_loading') setStatus(id, 'idle');
         }
         if (!notice) { context.textContent = view.message; delete context.dataset.tone; delete context.dataset.statusCode; }
     }
-    return { setStatus, setContext, highlightFields: feedback.highlight };
+    return { setStatus, setContext, highlightFields: feedback.highlight, revealFields: fields => visibility.reveal(fields[0]?.closest('tr')) };
 }

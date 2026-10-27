@@ -327,6 +327,71 @@ test('Pie fijo: sin margen inferior al desplazar una página larga o ajustar el 
     await r.page.screenshot({ path: path.join(root, 'test-results', 'pie-con-scroll.png') });
   } finally { await r.close(); }
 });
+async function longResults(page, nested) {
+  await page.evaluate(nested => {
+    const table = document.querySelector('#root table'), section = table.parentElement;
+    section.style.marginTop = '650px';
+    const row = table.querySelector('tr[data-code="GE-MD"]');
+    for (let i = 0; i < 45; i++) {
+      const spacer = document.createElement('tr'), cell = document.createElement('td');
+      cell.colSpan = 10; cell.textContent = 'Lotería de prueba ' + i; cell.style.height = '44px';
+      spacer.append(cell); table.tBodies[0].append(spacer);
+    }
+    table.tBodies[0].append(row);
+    if (nested) {
+      const scroller = document.createElement('div'); scroller.id = 'fixture-scroll';
+      Object.assign(scroller.style, { overflow: 'auto', maxHeight: '72vh', paddingBottom: '7px' });
+      section.append(scroller); scroller.append(table);
+      Object.assign(table.tHead.style, { position: 'sticky', top: '0', background: 'white' });
+    }
+  }, nested);
+}
+async function assertRowClear(page, nested) {
+  await page.waitForFunction(nested => {
+    const row = document.querySelector('tr[data-code="GE-MD"]').getBoundingClientRect();
+    const bar = document.querySelector('#rlur-bar').getBoundingClientRect();
+    const head = document.querySelector('#root thead').getBoundingClientRect();
+    return row.top >= (nested ? Math.max(0, head.bottom) : 0) && row.bottom <= bar.top - 7;
+  }, nested);
+}
+for (const nested of [false, true]) test(`Fila visible: última fila por encima de la barra (${nested ? 'scroll anidado' : 'página'})`, async () => {
+  const r = await setup(); try {
+    await r.bind(); await longResults(r.page, nested);
+    const b = await r.click('ga-am');
+    assert.equal(await b.getAttribute('data-status-code'), 'success');
+    await assertRowClear(r.page, nested);
+    assert.deepEqual(await r.values('GE-MD'), ['27', '09', '87', '027', '0987']);
+    assert.equal(await r.page.evaluate(() => document.activeElement === document.querySelector('tr[data-code="GE-MD"] td:nth-child(7) input')), true);
+    await dragEdge(r.page, 'n', 0, -180);
+    await assertRowClear(r.page, nested);
+    await r.page.locator('.rlur-close').click();
+    assert.equal(await r.page.evaluate(() => document.documentElement.style.paddingBottom), '');
+    if (nested) assert.equal(await r.page.locator('#fixture-scroll').evaluate(el => el.style.paddingBottom), '7px');
+    await r.page.locator('#rlur-toggle').click();
+    await assertRowClear(r.page, nested);
+    await r.page.evaluate(() => { history.pushState({}, '', '/otra'); document.querySelector('#root').append(document.createElement('span')); });
+    await r.page.waitForFunction(() => document.querySelector('#rlur-bar').hidden);
+    assert.equal(await r.page.evaluate(() => document.documentElement.style.paddingBottom), '');
+    if (nested) assert.equal(await r.page.locator('#fixture-scroll').evaluate(el => el.style.paddingBottom), '7px');
+  } finally { await r.close(); }
+});
+test('Fila visible: móvil, barra alta y cambio de viewport', async () => {
+  const r = await setup({ viewport: { width: 390, height: 844 }, hasTouch: true }); try {
+    await r.bind(); await longResults(r.page, true); await r.click('ga-am');
+    await assertRowClear(r.page, true);
+    await r.page.setViewportSize({ width: 390, height: 640 });
+    await assertRowClear(r.page, true);
+    await r.page.screenshot({ path: path.join(root, 'test-results', 'fila-visible-mobile.png') });
+  } finally { await r.close(); }
+});
+test('Fila visible: una fila ya descubierta no provoca saltos', async () => {
+  const r = await setup(); try {
+    await r.bind();
+    const before = await r.page.evaluate(() => window.scrollY);
+    await r.click('ga-am'); await assertRowClear(r.page, false);
+    assert.equal(await r.page.evaluate(() => window.scrollY), before);
+  } finally { await r.close(); }
+});
 test('Móvil: compacto, controles táctiles, cuadrícula y ajuste con el dedo', async () => {
   const r = await setup({ viewport: { width: 390, height: 844 }, hasTouch: true }); try {
     const initial = await panelBox(r.page); assertInside(initial, 390, 844); assert.ok(initial.height <= 280);

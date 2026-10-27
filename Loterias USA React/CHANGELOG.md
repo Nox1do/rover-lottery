@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.0.15 — 2026-10-27
+
+- Permite reducir la barra por debajo del tamaño compacto arrastrando el borde superior hacia abajo: hasta 100 px en escritorio y 200 px en móvil. Conserva el anclaje al pie y el ancho elegido.
+- En escritorio, con menos de 138 px, acomoda Día/Noche, buscador y acciones en una sola fila de controles; la versión permanece debajo del buscador. Mantiene letras, botones y una fila completa de loterías.
+- Conserva el restablecimiento compacto, ampliación, filtrado y llenado. Añade regresiones Firefox a 1280 px, 4K y entrada táctil.
+
 ## 0.0.14 — 2026-10-27
 
 - Reduce la repetición con picks iguales de cuatro a dos eventos nativos en los inputs de texto actuales de Central. Una entrada equivalente con espacio final se normaliza al mismo número y vuelve a calcular premios/dependientes sin vaciar el pick.

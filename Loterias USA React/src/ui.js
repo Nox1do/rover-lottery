@@ -66,6 +66,10 @@ function createInterface(onQuery) {
       #rlur-bar[data-narrow="false"] .rlur-tabs { grid-column: 1; grid-row: 1; }
       #rlur-bar[data-narrow="false"] .rlur-actions { grid-column: 2; grid-row: 1; }
       #rlur-bar[data-narrow="false"] .rlur-search-wrap { grid-column: 1 / -1; grid-row: 2; }
+      #rlur-bar[data-narrow="false"][data-shallow="true"] { grid-template-columns: clamp(460px, 42vw, 680px) minmax(0, 1fr); }
+      #rlur-bar[data-shallow="true"] .rlur-controls { grid-template-columns: max-content minmax(120px, 1fr) auto; }
+      #rlur-bar[data-shallow="true"] .rlur-search-wrap { grid-column: 2; grid-row: 1; }
+      #rlur-bar[data-shallow="true"] .rlur-actions { grid-column: 3; grid-row: 1; }
       #rlur-bar[data-narrow="true"] .rlur-controls { grid-template-columns: minmax(144px, .9fr) minmax(0, 1fr); gap: 6px 8px; }
       #rlur-bar[data-narrow="true"] .rlur-lottery { width: calc(100% - 2px); justify-self: center; }
       #rlur-bar[data-narrow="true"] .rlur-title { grid-column: 1; grid-row: 1; font-size: var(--rlur-font); }
@@ -135,7 +139,7 @@ function createInterface(onQuery) {
         const left = viewport?.offsetLeft || 0, top = (viewport?.offsetTop || 0) + margin;
         const maxWidth = Math.max(1, width), maxHeight = Math.max(1, height - margin);
         return { left, top, right: left + maxWidth, bottom: top + maxHeight, maxWidth, maxHeight,
-            minWidth: Math.min(360, maxWidth), minHeight: Math.min(width <= 640 || matchMedia('(pointer: coarse)').matches ? 216 : 138, maxHeight) };
+            minWidth: Math.min(360, maxWidth), minHeight: Math.min(width <= 640 || matchMedia('(pointer: coarse)').matches ? 200 : 100, maxHeight) };
     }
     function paint(next) {
         const bounds = limits();
@@ -148,7 +152,10 @@ function createInterface(onQuery) {
             right: ((document.documentElement.clientWidth || window.innerWidth) - geometry.left - width) + 'px',
             bottom: (window.innerHeight - geometry.top - height) + 'px',
             width: width + 'px', height: height + 'px' });
-        bar.dataset.narrow = String(width < 700); requestAnimationFrame(updateGridRows);
+        bar.dataset.narrow = String(width < 700);
+        // Una sola fila de controles permite bajar del compacto sin recortar el buscador o la versión.
+        bar.dataset.shallow = String(width >= 700 && height < 138);
+        requestAnimationFrame(updateGridRows);
     }
     function resetSize() {
         resized = false; widthFraction = 1;

@@ -300,6 +300,50 @@ test('Tamaño: compacto inicial, borde superior y Compactar', async () => {
     assert.ok(Math.abs((await panelBox(r.page)).height - initial.height) <= 1);
   } finally { await r.close(); }
 });
+for (const viewport of [{ width: 1280, height: 720 }, { width: 3840, height: 2160 }]) test(`Tamaño: reducir hacia abajo desde compacto (${viewport.width})`, async () => {
+  const r = await setup({ viewport }); try {
+    const initial = await panelBox(r.page);
+    await dragEdge(r.page, 'n', 0, 400);
+    const lower = await panelBox(r.page);
+    assert.ok(lower.height <= initial.height - 40, 'Debe poder reducir claramente la altura inicial');
+    assert.ok(Math.abs(lower.y + lower.height - viewport.height) < 1, 'Conservar el anclaje inferior');
+    assert.ok(lower.width >= viewport.width - 1, 'Conservar el ancho completo');
+    for (const selector of ['.rlur-tabs', '#rlur-search', '.rlur-version', '.rlur-actions']) {
+      const box = await r.page.locator(selector).boundingBox();
+      assert.ok(box.y >= lower.y && box.y + box.height <= lower.y + lower.height - 1, `${selector} no debe quedar cortado`);
+    }
+    const searchBox = await r.page.locator('#rlur-search').boundingBox();
+    for (const tab of await r.page.locator('.rlur-tabs button').all()) {
+      const box = await tab.boundingBox();
+      assert.ok(box.x + box.width <= searchBox.x, 'Día/Noche no debe solaparse con el buscador en 4K');
+    }
+    const visibleButton = r.page.locator('[data-lottery-id]:not([hidden])').first();
+    const buttonBox = await visibleButton.boundingBox();
+    assert.ok(buttonBox.y >= lower.y && buttonBox.y + buttonBox.height <= viewport.height - 1, 'Una fila completa de loterías');
+    await r.page.locator('#rlur-search').fill('Georgia');
+    await r.bind(); await r.click('ga-am');
+    assert.deepEqual((await r.values('GE-MD')).slice(3), ['027', '0987']);
+    await r.page.locator('#rlur-search').fill('Ohio');
+    assert.ok(await r.page.locator('[data-lottery-id="oh-am"]').isVisible());
+    await r.page.screenshot({ path: path.join(root, 'test-results', `barra-altura-minima-${viewport.width}.png`) });
+    await r.page.getByRole('button', { name: 'Restablecer tamaño compacto' }).click();
+    assert.ok(Math.abs((await panelBox(r.page)).height - initial.height) <= 1);
+  } finally { await r.close(); }
+});
+test('Tamaño: móvil permite reducir hacia abajo sin cortar la fila táctil', async () => {
+  const r = await setup({ viewport: { width: 390, height: 844 }, hasTouch: true }); try {
+    const initial = await panelBox(r.page), handle = r.page.locator('[data-resize="n"]'), box = await handle.boundingBox();
+    const pointer = { pointerId: 7, pointerType: 'touch', isPrimary: true, clientX: box.x + box.width / 2, clientY: box.y + box.height / 2, buttons: 1, bubbles: true };
+    await handle.dispatchEvent('pointerdown', pointer);
+    await handle.dispatchEvent('pointermove', { ...pointer, clientY: pointer.clientY + 300 });
+    await handle.dispatchEvent('pointerup', { ...pointer, clientY: pointer.clientY + 300, buttons: 0 });
+    const lower = await panelBox(r.page), button = await r.page.locator('[data-lottery-id]:not([hidden])').first().boundingBox();
+    assert.ok(lower.height <= initial.height - 30, 'Reducir también con el dedo');
+    assert.ok(Math.abs(lower.y + lower.height - 844) < 1);
+    assert.ok(button.height >= 42 && button.y + button.height <= 843, 'Una fila táctil completa');
+    await r.page.screenshot({ path: path.join(root, 'test-results', 'barra-altura-minima-mobile.png') });
+  } finally { await r.close(); }
+});
 test('Tamaño: bordes, esquinas, teclado y límites de pantalla', async () => {
   const r = await setup(); try {
     const initial = await panelBox(r.page);

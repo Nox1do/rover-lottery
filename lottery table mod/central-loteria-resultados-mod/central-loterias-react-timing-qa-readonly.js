@@ -141,26 +141,28 @@
       start('submit/Enter');
   }
   function changedTable(records) {
+    let relevant = false, table = false;
     for (const record of records) {
-      if (record.type === 'attributes' &&
-        record.attributeName?.startsWith('data-clr-')) return { relevant: true, table: false };
+      if (record.type === 'attributes') {
+        if (record.attributeName?.startsWith('data-clr-')) relevant = true;
+        continue;
+      }
       if (record.type === 'characterData') {
-        if (record.target.parentElement?.closest('table')) return { relevant: true, table: true };
+        if (record.target.parentElement?.closest('table')) relevant = table = true;
         continue;
       }
       if (record.type !== 'childList') continue;
-      if (record.target?.closest?.('table')) return { relevant: true, table: true };
+      if (record.target?.closest?.('table')) relevant = table = true;
       for (const node of record.addedNodes) {
         if (node.nodeType !== 1) continue;
         if ((node.matches?.(SELECTOR) && validTable(node)) ||
-          [...(node.querySelectorAll?.(SELECTOR) || [])].some(validTable)) {
-          return { relevant: true, table: true };
-        }
+          [...(node.querySelectorAll?.(SELECTOR) || [])].some(validTable))
+          relevant = table = true;
         if (['clr001-panel', 'clr001-style', 'clr001-column-widths'].includes(node.id))
-          return { relevant: true, table: false };
+          relevant = true;
       }
     }
-    return { relevant: false, table: false };
+    return { relevant, table };
   }
   function onMutation(records) {
     if (!active) return;

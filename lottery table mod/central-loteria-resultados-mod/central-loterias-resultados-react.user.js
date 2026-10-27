@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.7
+// @version      0.0.8
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,7 +16,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.7';
+  const VERSION = '0.0.8';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
@@ -355,18 +355,19 @@
     if (state.scrollHost?.isConnected) state.scrollHost.removeAttribute('data-clr-scroll-host');
     state.scrollHost = null;
     if (!table) return;
-    // No confundir el scroll horizontal interior con el contenedor vertical real.
-    // En Central el padre inmediato overflow-x-auto NO tiene scroll vertical.
+    // Central tiene overflow-x-auto en el interior y overflow-auto vertical
+    // en la tarjeta. Identificarlo por clases evita reflow al montar la tabla.
     for (let parent = table.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
-      const overflowY = getComputedStyle(parent).overflowY;
-      if (!/^(auto|scroll)$/.test(overflowY)) continue;
-      if (parent.scrollHeight <= parent.clientHeight + 2 && overflowY !== 'scroll') continue;
+      const classes = parent.classList;
+      if (!classes?.contains('overflow-auto') &&
+          !classes?.contains('overflow-scroll') &&
+          !classes?.contains('overflow-y-auto') &&
+          !classes?.contains('overflow-y-scroll')) continue;
       state.scrollHost = parent;
       parent.setAttribute('data-clr-scroll-host', 'true');
       break;
     }
   }
-
 
   function clearWidthLock() {
     state.widthLock = null;
@@ -614,8 +615,8 @@
         if (automatic) {
           let toolbar = search.parentElement;
           while (toolbar && toolbar !== card && !toolbar.contains(automatic)) toolbar = toolbar.parentElement;
-          if (toolbar && toolbar !== card && !toolbar.contains(state.table) &&
-              ['flex', 'inline-flex'].includes(getComputedStyle(toolbar).display)) {
+          // Estructura de toolbar suficiente: no leer estilo calculado aquí.
+          if (toolbar && toolbar !== card && !toolbar.contains(state.table)) {
             const rightChild = directChild(toolbar, automatic);
             const searchGroup = directChild(toolbar, search);
             if (rightChild && searchGroup && rightChild !== searchGroup) {
@@ -634,9 +635,19 @@
   }
 
   function visibleElement(element) {
-    if (!element?.isConnected || element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
-    return element.getClientRects().length > 0 &&
-      getComputedStyle(element).visibility !== 'hidden';
+    if (!element?.isConnected) return false;
+    // Verificar visibilidad estructural sin geometría sincrónica.
+    for (let current = element; current && current !== document.body; current = current.parentElement) {
+      if (current.hasAttribute?.('hidden') || current.hasAttribute?.('inert') ||
+          current.getAttribute?.('aria-hidden') === 'true' ||
+          current.getAttribute?.('data-state') === 'closed' ||
+          current.classList?.contains('hidden') ||
+          current.classList?.contains('invisible')) return false;
+      if (current.tagName === 'DIALOG' && !current.hasAttribute('open')) return false;
+      const inlineStyle = current.getAttribute?.('style') || '';
+      if (/(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden)\s*(?:;|$)/i.test(inlineStyle)) return false;
+    }
+    return true;
   }
 
   function isModalOpen() {
@@ -675,7 +686,10 @@
     if (state.panelHost !== placement.host && state.panelHost?.isConnected) {
       state.panelHost.removeAttribute('data-clr-toolbar-host');
     }
-    if (placement.mode === 'toolbar') placement.host.setAttribute('data-clr-toolbar-host', 'true');
+    if (placement.mode === 'toolbar' &&
+        placement.host.getAttribute('data-clr-toolbar-host') !== 'true') {
+      placement.host.setAttribute('data-clr-toolbar-host', 'true');
+    }
     if (state.panelMode !== placement.mode) panel.dataset.clrPlacement = placement.mode;
     state.panelHost = placement.host;
     state.panelMode = placement.mode;

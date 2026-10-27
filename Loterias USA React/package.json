@@ -1,6 +1,6 @@
 {
   "name": "rovs-loterias-usa-react",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "private": true,
   "scripts": {
     "build": "node tools/build.cjs",

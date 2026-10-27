@@ -313,6 +313,13 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 3840, height: 216
       assert.ok(box.y >= lower.y && box.y + box.height <= lower.y + lower.height - 1, `${selector} no debe quedar cortado`);
     }
     const searchBox = await r.page.locator('#rlur-search').boundingBox();
+    const tabs = await r.page.locator('.rlur-tabs button').all();
+    const dayBox = await tabs[0].boundingBox(), nightBox = await tabs[1].boundingBox();
+    assert.ok(Math.abs(dayBox.width - nightBox.width) < 1 && Math.abs(dayBox.height - nightBox.height) < 1, 'Día/Noche deben tener igual ancho y alto');
+    // Medidas de la versión 0.0.15 en esta reproducción Firefox, antes del cambio.
+    const previousSearchWidth = viewport.width === 1280 ? 304.23 : 416.82;
+    assert.ok(Math.abs(searchBox.width - previousSearchWidth / 2) < 4, 'Buscador a la mitad del ancho anterior');
+    for (const tab of tabs) assert.ok(await tab.evaluate(el => el.scrollWidth <= el.clientWidth), 'Icono y texto completos');
     for (const tab of await r.page.locator('.rlur-tabs button').all()) {
       const box = await tab.boundingBox();
       assert.ok(box.x + box.width <= searchBox.x, 'Día/Noche no debe solaparse con el buscador en 4K');

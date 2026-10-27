@@ -66,8 +66,11 @@ function createInterface(onQuery) {
       #rlur-bar[data-narrow="false"] .rlur-tabs { grid-column: 1; grid-row: 1; }
       #rlur-bar[data-narrow="false"] .rlur-actions { grid-column: 2; grid-row: 1; }
       #rlur-bar[data-narrow="false"] .rlur-search-wrap { grid-column: 1 / -1; grid-row: 2; }
-      #rlur-bar[data-narrow="false"][data-shallow="true"] { grid-template-columns: clamp(460px, 42vw, 680px) minmax(0, 1fr); }
-      #rlur-bar[data-shallow="true"] .rlur-controls { grid-template-columns: max-content minmax(120px, 1fr) auto; }
+      #rlur-bar[data-narrow="false"][data-shallow="true"] { grid-template-columns: max-content minmax(0, 1fr); }
+      #rlur-bar[data-shallow="true"] .rlur-controls { grid-template-columns: 12em clamp(114px, calc(21vw - 116px), calc(280px - 4em)) auto; }
+      #rlur-bar[data-shallow="true"] .rlur-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #rlur-bar[data-shallow="true"] .rlur-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; }
+      #rlur-bar[data-shallow="true"] .rlur-tabs svg { flex-shrink: 0; }
       #rlur-bar[data-shallow="true"] .rlur-search-wrap { grid-column: 2; grid-row: 1; }
       #rlur-bar[data-shallow="true"] .rlur-actions { grid-column: 3; grid-row: 1; }
       #rlur-bar[data-narrow="true"] .rlur-controls { grid-template-columns: minmax(144px, .9fr) minmax(0, 1fr); gap: 6px 8px; }

@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.0.16 — 2026-10-27
+
+- Reduce aproximadamente un 50 % el ancho del buscador solo en la vista baja, al arrastrar el borde superior hacia abajo. El espacio liberado amplía la cuadrícula de loterías.
+- Iguala ancho y alto de Día/Noche en esa vista, alineando iconos y texto sin recortar Noche. Conserva el tamaño de letra, la versión bajo el buscador y los controles de tamaño/cierre.
+- Conserva la distribución compacta inicial, ampliada y móvil. Verifica la reducción de ancho y la igualdad de botones en Firefox a 1280 px y 4K.
+
 ## 0.0.15 — 2026-10-27
 
 - Permite reducir la barra por debajo del tamaño compacto arrastrando el borde superior hacia abajo: hasta 100 px en escritorio y 200 px en móvil. Conserva el anclaje al pie y el ancho elegido.

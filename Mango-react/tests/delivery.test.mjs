@@ -144,6 +144,121 @@ test("intervención manual o fuente incierta bloquean petición de reserva", asy
   await r.d.cycle([base()], r.snap);
   assert.equal(r.calls.length, 0);
 });
+test("diagnóstico distingue omisión local de reserva denegada sin exponer la respuesta completa", async () => {
+  const local = setup({ edited: true });
+  local.central.fillBlock = () => ({ motivo: "edicion_local" });
+  await local.d.cycle([base()], local.snap);
+  assert.deepEqual(local.d.diagnostics().omitidas, [
+    { loteria: "real", codigo: "REAL", motivo: "edicion_local" },
+  ]);
+  assert.equal(local.calls.length, 0);
+
+  const remote = setup();
+  remote.api.post = async (path, body) => {
+    remote.calls.push({ path, body });
+    return {
+      action: "wait",
+      should_paint: false,
+      reason: "row_locked",
+      token: "private-service-token",
+      operation: { client_id: "other-private-client" },
+    };
+  };
+  await remote.d.cycle([base()], remote.snap);
+  const diagnostic = remote.d.diagnostics();
+  assert.deepEqual(diagnostic.omitidas, [
+    { loteria: "real", codigo: "REAL", motivo: "servicio_no_autoriza" },
+  ]);
+  assert.equal(diagnostic.conciliaciones[0].accion, "wait");
+  assert.equal(diagnostic.conciliaciones[0].motivo_servicio, "row_locked");
+  assert.equal(diagnostic.conciliaciones[0].autoriza_llenado, false);
+  assert.equal(diagnostic.conciliaciones[0].fecha, "2026-10-27");
+  assert.ok(diagnostic.conciliaciones[0].consulta);
+  assert.equal(remote.visible.fields.primera, "");
+  assert.equal(remote.calls.length, 1);
+  assert.ok(!JSON.stringify(diagnostic).includes("private"));
+  assert.deepEqual(diagnostic.errors, []);
+});
+test("diagnóstico explica campos ausentes y coincidencias ambiguas antes de reservar", async () => {
+  const r = setup();
+  await r.d.cycle([{ ...base(), expected_fields: {} }], r.snap);
+  assert.equal(r.d.diagnostics().omitidas[0].motivo, "sin_campos_disponibles");
+  await r.d.cycle([base(), { ...base(), lottery_id: "other" }], r.snap);
+  assert.equal(r.d.diagnostics().omitidas.length, 2);
+  assert.ok(
+    r.d
+      .diagnostics()
+      .omitidas.every((x) => x.motivo === "sin_coincidencia_unica"),
+  );
+  assert.equal(r.calls.length, 0);
+});
+test("conciliaciones diagnósticas conservan el último intento y limpian otra fecha", async () => {
+  const r = setup();
+  await r.d.cycle([base()], r.snap);
+  await r.d.cycle([base()], r.snap);
+  assert.equal(r.d.diagnostics().conciliaciones.length, 1);
+  assert.equal(r.d.diagnostics().conciliaciones[0].autoriza_llenado, true);
+  r.snap.date = "2026-10-28";
+  await r.d.cycle([], r.snap);
+  assert.deepEqual(r.d.diagnostics().conciliaciones, []);
+  assert.deepEqual(r.d.diagnostics().omitidas, []);
+});
+test("resumen de conciliaciones reemplaza por lotería y retiene solo las 20 más recientes", async () => {
+  const r = setup();
+  const rows = Array.from({ length: 25 }, (_, i) => ({
+    ...base(),
+    lottery_id: `lottery${i}`,
+    row_key: `row${i}`,
+    name: `CODE${i}`,
+    aliases: [`CODE${i}`],
+  }));
+  const visible = rows.map((_, i) => ({
+    ...r.visible,
+    code: `CODE${i}`,
+    name: `CODE${i}`,
+  }));
+  r.central.rows = () => visible;
+  r.central.find = (code) => visible.find((x) => x.code === code);
+  for (const row of visible)
+    r.snap.persisted.set(row.code, { procesado: false });
+  let action = "wait";
+  r.api.post = async () => ({ action, should_paint: false });
+  await r.d.cycle(rows, r.snap);
+  assert.deepEqual(
+    r.d.diagnostics().conciliaciones.map((x) => x.loteria),
+    [
+      "lottery5",
+      "lottery6",
+      "lottery7",
+      "lottery8",
+      "lottery9",
+      "lottery10",
+      "lottery11",
+      "lottery12",
+      "lottery13",
+      "lottery14",
+      "lottery15",
+      "lottery16",
+      "lottery17",
+      "lottery18",
+      "lottery19",
+      "lottery20",
+      "lottery21",
+      "lottery22",
+      "lottery23",
+      "lottery24",
+    ],
+  );
+  action = "noop";
+  await r.d.cycle([rows[5]], r.snap);
+  const last = r.d.diagnostics().conciliaciones;
+  assert.equal(last.length, 20);
+  assert.equal(last.at(-1).loteria, "lottery5");
+  assert.equal(last.at(-1).accion, "noop");
+  assert.equal(last.filter((x) => x.loteria === "lottery5").length, 1);
+  last.at(-1).accion = "changed_by_reader";
+  assert.equal(r.d.diagnostics().conciliaciones.at(-1).accion, "noop");
+});
 test("cambio de contexto durante reserva no escribe ni presenta", async () => {
   const r = setup();
   r.api.post = async (path, body) => {

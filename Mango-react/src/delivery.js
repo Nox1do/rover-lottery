@@ -15,12 +15,47 @@ export function createDelivery({
   const operations = new Map(),
     acknowledged = new Set(),
     painted = new Map(),
-    requestIds = new Map();
+    requestIds = new Map(),
+    reconciliations = new Map();
   let errors = [],
     mismatches = [],
+    omitted = [],
     matched = 0,
     lastDate = null,
     lastEpoch = null;
+  function omit(row, code, block) {
+    omitted.push({ loteria: row.lottery_id, codigo: code, ...block });
+    return false;
+  }
+  function fillBlock(code, expected, snap) {
+    return central.fillBlock
+      ? central.fillBlock(code, expected, snap)
+      : central.canFill(code, expected, snap)
+        ? null
+        : { motivo: "llenado_no_permitido" };
+  }
+  // Only protocol labels are retained: no full response, tokens, client or operation IDs.
+  const protocolLabel = (value) =>
+    typeof value === "string" && /^[a-z][a-z0-9_]{0,79}$/.test(value)
+      ? value
+      : null;
+  function rememberReconcile(row, code, snap, response) {
+    reconciliations.delete(row.lottery_id);
+    reconciliations.set(row.lottery_id, {
+      loteria: row.lottery_id,
+      codigo: code,
+      fecha: snap.date,
+      revision: Number.isInteger(row.revision) ? row.revision : null,
+      consulta: new Date().toISOString(),
+      accion: protocolLabel(response?.action),
+      motivo_servicio: protocolLabel(response?.reason),
+      should_paint: response?.should_paint === true,
+      autoriza_llenado:
+        response?.should_paint === true && response?.action === "paint_fields",
+    });
+    if (reconciliations.size > 20)
+      reconciliations.delete(reconciliations.keys().next().value);
+  }
   function match(row, visible) {
     const labels = new Set(
       [
@@ -123,11 +158,14 @@ export function createDelivery({
       !validExpected(expected)
     )
       throw Error("invalid_paint_contract");
-    if (central.isDirty?.(code)) return false;
+    if (central.isDirty?.(code))
+      return omit(row, code, { motivo: "edicion_local" });
     const current = central.find(code);
-    if (!current || current.processed !== false) return false;
+    if (!current || current.processed !== false)
+      return omit(row, code, { motivo: "fila_bloqueada" });
     if (!equalFields(current.fields, expected, Object.keys(expected))) {
-      if (!central.canFill(code, expected, snap)) return false;
+      const block = fillBlock(code, expected, snap);
+      if (block) return omit(row, code, block);
       if (!(await central.fill(code, expected, snap, guard)))
         throw Error("write_not_retained");
     }
@@ -160,7 +198,8 @@ export function createDelivery({
     central.assert(snap);
     const stored = snap.persisted.get(code),
       visible = central.find(code);
-    if (!stored || !visible) return;
+    if (!stored || !visible)
+      return omit(row, code, { motivo: "fila_no_verificada" });
     if (stored.procesado && visible.processed === true) {
       visuals.clear(code);
       if (row.proc_state === "processed") return;
@@ -195,7 +234,8 @@ export function createDelivery({
       mismatches.push(row.lottery_id);
       return;
     }
-    if (stored.procesado || visible.processed !== false) return;
+    if (stored.procesado || visible.processed !== false)
+      return omit(row, code, { motivo: "fila_bloqueada" });
     const pending = operations.get(row.row_key);
     if (pending) {
       let fresh = true;
@@ -213,8 +253,10 @@ export function createDelivery({
     }
     const owned = names(row);
     const expected = row.expected_fields || {};
-    if (!validExpected(expected) || !central.canFill(code, expected, snap))
-      return;
+    if (!validExpected(expected))
+      return omit(row, code, { motivo: "sin_campos_disponibles" });
+    const block = fillBlock(code, expected, snap);
+    if (block) return omit(row, code, block);
     if (equalFields(visible.fields, expected, Object.keys(expected))) return;
     const before = { ...visible.fields };
     const requestId = requestIds.get(row.row_key) || uid("paint");
@@ -228,13 +270,14 @@ export function createDelivery({
       client_id: clientId,
       client_request_id: requestId,
     });
+    rememberReconcile(row, code, snap, response);
     central.assert(snap);
     const now = central.find(code);
     if (!now || !equalFields(before, now.fields) || central.isDirty?.(code))
-      return;
+      return omit(row, code, { motivo: "fila_cambio_durante_reserva" });
     if (!response.should_paint || response.action !== "paint_fields") {
       requestIds.delete(row.row_key);
-      return;
+      return omit(row, code, { motivo: "servicio_no_autoriza" });
     }
     operations.set(row.row_key, response);
     await present(row, code, snap, response);
@@ -242,12 +285,14 @@ export function createDelivery({
   async function cycle(rows, snap) {
     errors = [];
     mismatches = [];
+    omitted = [];
     matched = 0;
     if (lastDate !== snap.date) {
       operations.clear();
       acknowledged.clear();
       painted.clear();
       requestIds.clear();
+      reconciliations.clear();
       lastDate = snap.date;
     }
     if (lastEpoch !== snap.epoch) {
@@ -257,6 +302,10 @@ export function createDelivery({
     }
     central.assert(snap);
     const matches = matchingRows(rows, snap);
+    const matchedRows = new Set(matches.map((x) => x.row));
+    for (const row of rows.filter((r) => r.draw_date === snap.date))
+      if (!matchedRows.has(row))
+        omit(row, null, { motivo: "sin_coincidencia_unica" });
     updateWaiting(matches, snap);
     for (const x of matches) {
       matched++;
@@ -286,6 +335,8 @@ export function createDelivery({
       matched,
       mismatches: [...mismatches],
       errors: [...errors],
+      omitidas: omitted.map((x) => ({ ...x })),
+      conciliaciones: [...reconciliations.values()].map((x) => ({ ...x })),
     }),
   };
 }

@@ -174,7 +174,9 @@ async function waitingRuntime(r) {
     window.GM_registerMenuCommand = (name, fn) => (gmMenus[name] = fn);
     window.unsafeWindow = window;
     window.exportFunction = (fn) => fn;
-    window.alert = () => {};
+    window.alert = (message) => {
+      window.gmDiagnostic = JSON.parse(message);
+    };
     window.GM_xmlhttpRequest = (options) => {
       gmCalls.push({ url: options.url, body: options.data });
       let data;
@@ -199,14 +201,21 @@ async function waitingRuntime(r) {
               proc_state:
                 gmWaitingState === "processed" ? "processed" : "pending",
               owned_fields: ["primera", "segunda", "tercera"],
-              expected_fields: {},
-              components: [{ state: gmWaitingState, expected_fields: {} }],
+              expected_fields: window.gmExpected || {},
+              components: [
+                {
+                  state: gmWaitingState,
+                  expected_fields: window.gmExpected || {},
+                },
+              ],
               visual: {
                 state: gmWaitingState === "awaiting_result" ? "blue" : null,
               },
             },
           ],
         };
+      else if (options.url.endsWith("/reconcile") && window.gmReconcileData)
+        data = window.gmReconcileData;
       else throw Error("Unexpected Mango request: " + options.url);
       const finish = () =>
         options.onload({ status: 200, responseText: JSON.stringify(data) });
@@ -234,6 +243,47 @@ async function waitingRuntime(r) {
     .first()
     .waitFor();
 }
+test("diagnóstico completo identifica autorización denegada sin llenar ni exponer secretos", async () => {
+  const r = await setup();
+  try {
+    await waitingRuntime(r);
+    await r.page.evaluate(() => {
+      window.gmExpected = { primera: "34" };
+      window.gmReconcileData = {
+        ok: true,
+        action: "wait",
+        should_paint: false,
+        reason: "row_locked",
+        token: "private-response-token",
+      };
+      window.gmWaitingState = "ready";
+    });
+    await r.page.waitForFunction(
+      () => {
+        gmMenus["Mango React · Diagnóstico"]();
+        return gmDiagnostic.omitidas?.some(
+          (x) => x.motivo === "servicio_no_autoriza",
+        );
+      },
+      null,
+      { timeout: 10000 },
+    );
+    const diagnostic = await r.page.evaluate(() => gmDiagnostic);
+    assert.equal(diagnostic.conciliaciones[0].motivo_servicio, "row_locked");
+    assert.equal(diagnostic.conciliaciones[0].autoriza_llenado, false);
+    assert.deepEqual(diagnostic.errors, []);
+    assert.ok(!JSON.stringify(diagnostic).includes("private-response-token"));
+    assert.deepEqual(await r.vals("REAL"), ["", "", "", "", ""]);
+    assert.equal(
+      await r.page.evaluate(() =>
+        gmCalls.some((c) => c.url.endsWith("/presented")),
+      ),
+      false,
+    );
+  } finally {
+    await r.close();
+  }
+});
 test("118 filas: código BRAZIL con espacios no bloquea consultas ni azul", async () => {
   const r = await setup({
     rows: 118,
@@ -1072,6 +1122,67 @@ for (const own of [false, true])
       await r.close();
     }
   });
+test("diagnóstico de llenado identifica reglas, revisión, edición y dependiente sin alterar sus guards", async () => {
+  const r = await setup();
+  try {
+    await r.load();
+    const reason = () =>
+      r.page.evaluate(() => {
+        const snap = adapter.snapshot();
+        return {
+          block: adapter.fillBlock("REAL", { primera: "34" }, snap),
+          canFill: adapter.canFill("REAL", { primera: "34" }, snap),
+        };
+      });
+    assert.deepEqual(await reason(), { block: null, canFill: true });
+    r.state.rules = null;
+    const fetchRules = () =>
+      r.page.evaluate(() =>
+        fetch("/api/loteria/resultadosLoteria2/dependientes", {
+          headers: { "X-Servidor": "1" },
+        }).then((r) => r.json()),
+      );
+    await fetchRules();
+    await r.page.waitForTimeout(50);
+    assert.deepEqual(await reason(), {
+      block: { motivo: "reglas_no_disponibles" },
+      canFill: false,
+    });
+    r.state.rules = [{ activo: true, principal: "REAL", dependiente: "NY-BP" }];
+    await fetchRules();
+    await r.page.waitForTimeout(50);
+    await r.page.evaluate(() => fx.values("NY-BP", { primera: "99" }));
+    await r.page.waitForFunction(
+      () => adapter.find("NY-BP").fields.primera === "99",
+    );
+    assert.deepEqual(await reason(), {
+      block: { motivo: "dependiente_con_valores", dependiente: "NY-BP" },
+      canFill: false,
+    });
+    r.state.rules = [];
+    await fetchRules();
+    r.state.revision = [{ loteria: "REAL", estado: "conflicto" }];
+    await r.page.evaluate(() =>
+      fetch("/api/loteria/resultadosLoteria2/revision?fecha=10/27/2026", {
+        headers: { "X-Servidor": "1" },
+      }).then((r) => r.json()),
+    );
+    await r.page.waitForTimeout(50);
+    assert.deepEqual(await reason(), {
+      block: { motivo: "conflicto_nativo" },
+      canFill: false,
+    });
+    await r.page.locator('tr[data-code="REAL"] input').first().fill("12");
+    assert.deepEqual(await reason(), {
+      block: { motivo: "edicion_local" },
+      canFill: false,
+    });
+    assert.equal(await r.fill("REAL", { primera: "34" }), false);
+    assert.equal((await r.vals("REAL"))[0], "12");
+  } finally {
+    await r.close();
+  }
+});
 let failed = 0;
 try {
   for (const { name, fn } of tests) {

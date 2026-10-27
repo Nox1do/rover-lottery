@@ -1,4 +1,4 @@
-# Mango/Rover React · 0.1.4
+# Mango/Rover React · 0.1.5
 
 Versión independiente para **Firefox + Tampermonkey**, en https://central.roversport.net/loteria/resultados/ver. Trabaja únicamente con **PRINCIPAL** y la fecha de hoy en **America/Santo_Domingo**. Conserva el contrato 1.0 del servicio Mango existente; no requiere instalar React ni modifica el Worker.
 
@@ -32,9 +32,11 @@ El sondeo Mango utiliza 5 segundos cuando hay entregas activas, 120 segundos cua
 
 Tampermonkey ofrece **Configurar token**, **Pausar/reanudar**, **Diagnóstico** y **Regenerar identificador de PC**. El diagnóstico indica si el observador funciona, fecha verificada, servidor, última consulta y filas coincidentes, sin imprimir el token. Si la respuesta llegó pero la tabla no coincide, identifica la fila y si falla el código, PROC o los campos persistidos. Si falta contexto o falló Buscar, repetir Buscar después de revisar fecha y servidor. Si faltan reglas/revisiones nativas, Mango omite el llenado y no las configura ni las consulta por su cuenta.
 
+`omitidas` enumera las filas que no se pudieron entregar y su motivo en el último ciclo. `conciliaciones` conserva el último intento de reserva de hasta 20 loterías, con fecha, hora, revisión, acción, motivo del servicio y autorización. Una coincidencia de fila no equivale a permiso de llenado. La conciliación es histórica: no acredita que la casilla continúe llena ni que se haya procesado. No se conserva después de recargar o cambiar de fecha.
+
 ## Alcance de la verificación
 
-38 pruebas de Node y 40 escenarios en Firefox 153 con React real/contexto aislado, incluidas tabla de 241 filas, fecha/servidor, PROC con edición, picks, dependientes, intervención externa, foco/scroll y contrato de entrega. Cubren recuperación del azul, códigos con espacios y llenado sin frames parciales en tabla completa/filtrada. Dos escenarios en una extensión temporal comprueban Xrays/`exportFunction`, aislamiento de GM y cancelación ante una intervención de la página. **Las APIs GM están simuladas; no se ha probado una publicación real.** El usuario confirmó que 0.1.3 ya llena en su Firefox/Tampermonkey, pero informó llenado escalonado; falta confirmar la mejora visual de 0.1.4 en su equipo. Los tiempos de la fixture no acreditan la latencia de su sesión real.
+42 pruebas de Node y 42 escenarios en Firefox 153 con React real/contexto aislado, incluidas tabla de 241 filas, fecha/servidor, PROC con edición, picks, dependientes, intervención externa, foco/scroll y contrato de entrega. Cubren recuperación del azul, códigos con espacios y llenado sin frames parciales en tabla completa/filtrada. Dos escenarios en una extensión temporal comprueban Xrays/`exportFunction`, aislamiento de GM y cancelación ante una intervención de la página. **Las APIs GM están simuladas; no se ha probado una publicación real.** El usuario confirmó que 0.1.3 ya llena en su Firefox/Tampermonkey, pero informó llenado escalonado; falta confirmar la mejora visual de 0.1.4 en su equipo. Los tiempos de la fixture no acreditan la latencia de su sesión real. En Quinielón PM el usuario confirmó llenado manual: 0.1.5 mejora la observación de las próximas omisiones y no se presenta como corrección acreditada de ese fallo.
 
 La compatibilidad se basa en la pantalla auditada el 27/10/2026; si Central cambia la estructura, se detienen las operaciones que no pueden verificarse. No usa Fiber, propiedades privadas de React ni sustituye los manejadores de publicación.
 

@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.1.5 — 2026-10-27
+
+- El diagnóstico informa las filas omitidas y la condición que impidió reservar o llenar: reglas/revisión no recibidas, edición local, conflicto, valores incompatibles, dependientes o falta de autorización del servicio.
+- Conserva hasta 20 respuestas de conciliación, una por lotería y fecha, con hora y etiquetas de acción/motivo. No copia respuestas completas, tokens ni identificadores de otras PCs u operaciones. Se limpia al cambiar de fecha.
+- Mantiene las decisiones de llenado y el protocolo existentes. Esta entrega instrumenta el fallo de Quinielón PM: el usuario lo llenó manualmente; la lectura posterior no permite acreditar la causa anterior.
+
 ## 0.1.4 — 2026-10-27
 
 - Agrupa las entradas de una fila mediante microtareas, sin las pausas de 35 ms entre casillas. Conserva la espera final de verificación y los cálculos nativos de picks/dependientes.

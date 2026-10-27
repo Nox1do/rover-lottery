@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mango/Rover React
 // @namespace    https://github.com/Nox1do/rover-lottery/Mango-react
-// @version      0.1.4
+// @version      0.1.5
 // @description  Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida.
 // @match        https://central.roversport.net/*
 // @connect      rover-lottery-api.loteriasrovers.workers.dev
@@ -416,15 +416,23 @@
       return !data || data.some((r) => trimCode(r.loteria) === code && r.estado === "conflicto");
     }
     function canFill(code, expected, snap) {
+      return !fillBlock(code, expected, snap);
+    }
+    function fillBlock(code, expected, snap) {
       assert(snap);
-      if (!validExpected(expected)) return false;
+      if (!validExpected(expected)) return { motivo: "campos_invalidos" };
       const v = view(), row = find(code), serverKey = `${snap.server}|${snap.serverId}`, rules = rulesByServer.get(serverKey);
-      if (locked(row) || row.dirty || touched.has(touchKey(code, v)) || !rules || hasConflict(code, snap))
-        return false;
+      if (locked(row)) return { motivo: "fila_bloqueada" };
+      if (row.dirty || touched.has(touchKey(code, v)))
+        return { motivo: "edicion_local" };
+      if (!rules) return { motivo: "reglas_no_disponibles" };
+      if (!revisionByDate.has(`${serverKey}|${snap.date}`) || !revisionByDate.get(`${serverKey}|${snap.date}`))
+        return { motivo: "revision_no_disponible" };
+      if (hasConflict(code, snap)) return { motivo: "conflicto_nativo" };
       if (Object.entries(expected).some(
         ([k, value]) => row.fields[k] && row.fields[k] !== value
       ))
-        return false;
+        return { motivo: "valores_existentes_distintos" };
       const affected = { ...expected };
       if (expected.pick3) affected.primera = expected.pick3.slice(-2);
       if (expected.pick4) {
@@ -434,18 +442,25 @@
       if (Object.entries(affected).some(
         ([k, value]) => row.fields[k] && row.fields[k] !== value
       ))
-        return false;
+        return { motivo: "premios_derivados_distintos" };
       for (const rule of rules.filter(
         (r) => r.activo && trimCode(r.principal) === code
       )) {
         const dependentCode = trimCode(rule.dependiente);
-        if (!dependentCode) return false;
+        if (!dependentCode) return { motivo: "regla_dependiente_invalida" };
         if (!snap.persisted.has(dependentCode)) continue;
         const dependent = find(dependentCode);
-        if (locked(dependent) || touched.has(touchKey(dependentCode, v)) || Object.values(dependent.fields).some(Boolean))
-          return false;
+        if (locked(dependent))
+          return { motivo: "dependiente_bloqueada", dependiente: dependentCode };
+        if (touched.has(touchKey(dependentCode, v)))
+          return { motivo: "dependiente_editada", dependiente: dependentCode };
+        if (Object.values(dependent.fields).some(Boolean))
+          return {
+            motivo: "dependiente_con_valores",
+            dependiente: dependentCode
+          };
       }
-      return true;
+      return null;
     }
     async function fill(code, expected, snap, guard = () => {
     }) {
@@ -583,6 +598,7 @@
       find,
       fill,
       canFill,
+      fillBlock,
       hasConflict,
       refreshIfSafe,
       view,
@@ -737,8 +753,32 @@
     }, syncBlue() {
     } }
   }) {
-    const operations = /* @__PURE__ */ new Map(), acknowledged = /* @__PURE__ */ new Set(), painted = /* @__PURE__ */ new Map(), requestIds = /* @__PURE__ */ new Map();
-    let errors = [], mismatches = [], matched = 0, lastDate = null, lastEpoch = null;
+    const operations = /* @__PURE__ */ new Map(), acknowledged = /* @__PURE__ */ new Set(), painted = /* @__PURE__ */ new Map(), requestIds = /* @__PURE__ */ new Map(), reconciliations = /* @__PURE__ */ new Map();
+    let errors = [], mismatches = [], omitted = [], matched = 0, lastDate = null, lastEpoch = null;
+    function omit(row, code, block) {
+      omitted.push({ loteria: row.lottery_id, codigo: code, ...block });
+      return false;
+    }
+    function fillBlock(code, expected, snap) {
+      return central2.fillBlock ? central2.fillBlock(code, expected, snap) : central2.canFill(code, expected, snap) ? null : { motivo: "llenado_no_permitido" };
+    }
+    const protocolLabel = (value) => typeof value === "string" && /^[a-z][a-z0-9_]{0,79}$/.test(value) ? value : null;
+    function rememberReconcile(row, code, snap, response) {
+      reconciliations.delete(row.lottery_id);
+      reconciliations.set(row.lottery_id, {
+        loteria: row.lottery_id,
+        codigo: code,
+        fecha: snap.date,
+        revision: Number.isInteger(row.revision) ? row.revision : null,
+        consulta: (/* @__PURE__ */ new Date()).toISOString(),
+        accion: protocolLabel(response?.action),
+        motivo_servicio: protocolLabel(response?.reason),
+        should_paint: response?.should_paint === true,
+        autoriza_llenado: response?.should_paint === true && response?.action === "paint_fields"
+      });
+      if (reconciliations.size > 20)
+        reconciliations.delete(reconciliations.keys().next().value);
+    }
     function match(row, visible) {
       const labels = new Set(
         [
@@ -803,11 +843,14 @@
       const expected = response.expected_fields || response.operation?.expected_fields, operation = response.operation;
       if (!operation?.operation_id || !Number.isInteger(operation.revision) || !validExpected(expected))
         throw Error("invalid_paint_contract");
-      if (central2.isDirty?.(code)) return false;
+      if (central2.isDirty?.(code))
+        return omit(row, code, { motivo: "edicion_local" });
       const current = central2.find(code);
-      if (!current || current.processed !== false) return false;
+      if (!current || current.processed !== false)
+        return omit(row, code, { motivo: "fila_bloqueada" });
       if (!equalFields(current.fields, expected, Object.keys(expected))) {
-        if (!central2.canFill(code, expected, snap)) return false;
+        const block = fillBlock(code, expected, snap);
+        if (block) return omit(row, code, block);
         if (!await central2.fill(code, expected, snap, guard))
           throw Error("write_not_retained");
       }
@@ -834,7 +877,8 @@
     async function process(row, code, snap) {
       central2.assert(snap);
       const stored = snap.persisted.get(code), visible = central2.find(code);
-      if (!stored || !visible) return;
+      if (!stored || !visible)
+        return omit(row, code, { motivo: "fila_no_verificada" });
       if (stored.procesado && visible.processed === true) {
         visuals2.clear(code);
         if (row.proc_state === "processed") return;
@@ -867,7 +911,8 @@
         mismatches.push(row.lottery_id);
         return;
       }
-      if (stored.procesado || visible.processed !== false) return;
+      if (stored.procesado || visible.processed !== false)
+        return omit(row, code, { motivo: "fila_bloqueada" });
       const pending = operations.get(row.row_key);
       if (pending) {
         let fresh = true;
@@ -885,8 +930,10 @@
       }
       const owned = names(row);
       const expected = row.expected_fields || {};
-      if (!validExpected(expected) || !central2.canFill(code, expected, snap))
-        return;
+      if (!validExpected(expected))
+        return omit(row, code, { motivo: "sin_campos_disponibles" });
+      const block = fillBlock(code, expected, snap);
+      if (block) return omit(row, code, block);
       if (equalFields(visible.fields, expected, Object.keys(expected))) return;
       const before = { ...visible.fields };
       const requestId = requestIds.get(row.row_key) || uid("paint");
@@ -900,13 +947,14 @@
         client_id: clientId,
         client_request_id: requestId
       });
+      rememberReconcile(row, code, snap, response);
       central2.assert(snap);
       const now = central2.find(code);
       if (!now || !equalFields(before, now.fields) || central2.isDirty?.(code))
-        return;
+        return omit(row, code, { motivo: "fila_cambio_durante_reserva" });
       if (!response.should_paint || response.action !== "paint_fields") {
         requestIds.delete(row.row_key);
-        return;
+        return omit(row, code, { motivo: "servicio_no_autoriza" });
       }
       operations.set(row.row_key, response);
       await present(row, code, snap, response);
@@ -914,12 +962,14 @@
     async function cycle(rows, snap) {
       errors = [];
       mismatches = [];
+      omitted = [];
       matched = 0;
       if (lastDate !== snap.date) {
         operations.clear();
         acknowledged.clear();
         painted.clear();
         requestIds.clear();
+        reconciliations.clear();
         lastDate = snap.date;
       }
       if (lastEpoch !== snap.epoch) {
@@ -929,6 +979,10 @@
       }
       central2.assert(snap);
       const matches = matchingRows(rows, snap);
+      const matchedRows = new Set(matches.map((x) => x.row));
+      for (const row of rows.filter((r) => r.draw_date === snap.date))
+        if (!matchedRows.has(row))
+          omit(row, null, { motivo: "sin_coincidencia_unica" });
       updateWaiting(matches, snap);
       for (const x of matches) {
         matched++;
@@ -955,7 +1009,9 @@
       diagnostics: () => ({
         matched,
         mismatches: [...mismatches],
-        errors: [...errors]
+        errors: [...errors],
+        omitidas: omitted.map((x) => ({ ...x })),
+        conciliaciones: [...reconciliations.values()].map((x) => ({ ...x }))
       })
     };
   }
@@ -1040,7 +1096,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.1.4";
+  var VERSION = "0.1.5";
   var KEYS = {
     token: "mango_react_token",
     client: "mango_react_client",

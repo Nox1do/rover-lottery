@@ -239,26 +239,31 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     );
   }
   function canFill(code, expected, snap) {
+    return !fillBlock(code, expected, snap);
+  }
+  function fillBlock(code, expected, snap) {
     assert(snap);
-    if (!validExpected(expected)) return false;
+    if (!validExpected(expected)) return { motivo: "campos_invalidos" };
     const v = view(),
       row = find(code),
       serverKey = `${snap.server}|${snap.serverId}`,
       rules = rulesByServer.get(serverKey);
+    if (locked(row)) return { motivo: "fila_bloqueada" };
+    if (row.dirty || touched.has(touchKey(code, v)))
+      return { motivo: "edicion_local" };
+    if (!rules) return { motivo: "reglas_no_disponibles" };
     if (
-      locked(row) ||
-      row.dirty ||
-      touched.has(touchKey(code, v)) ||
-      !rules ||
-      hasConflict(code, snap)
+      !revisionByDate.has(`${serverKey}|${snap.date}`) ||
+      !revisionByDate.get(`${serverKey}|${snap.date}`)
     )
-      return false;
+      return { motivo: "revision_no_disponible" };
+    if (hasConflict(code, snap)) return { motivo: "conflicto_nativo" };
     if (
       Object.entries(expected).some(
         ([k, value]) => row.fields[k] && row.fields[k] !== value,
       )
     )
-      return false;
+      return { motivo: "valores_existentes_distintos" };
     // Picks overwrite derived prizes in Central; validate those even if API owns only a pick.
     const affected = { ...expected };
     if (expected.pick3) affected.primera = expected.pick3.slice(-2);
@@ -271,23 +276,26 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         ([k, value]) => row.fields[k] && row.fields[k] !== value,
       )
     )
-      return false;
+      return { motivo: "premios_derivados_distintos" };
     for (const rule of rules.filter(
       (r) => r.activo && trimCode(r.principal) === code,
     )) {
       const dependentCode = trimCode(rule.dependiente);
-      if (!dependentCode) return false;
+      if (!dependentCode) return { motivo: "regla_dependiente_invalida" };
       // An absent dependent may be hidden by a filter. Never write it blindly.
       if (!snap.persisted.has(dependentCode)) continue;
       const dependent = find(dependentCode);
-      if (
-        locked(dependent) ||
-        touched.has(touchKey(dependentCode, v)) ||
-        Object.values(dependent.fields).some(Boolean)
-      )
-        return false;
+      if (locked(dependent))
+        return { motivo: "dependiente_bloqueada", dependiente: dependentCode };
+      if (touched.has(touchKey(dependentCode, v)))
+        return { motivo: "dependiente_editada", dependiente: dependentCode };
+      if (Object.values(dependent.fields).some(Boolean))
+        return {
+          motivo: "dependiente_con_valores",
+          dependiente: dependentCode,
+        };
     }
-    return true;
+    return null;
   }
   async function fill(code, expected, snap, guard = () => {}) {
     if (!canFill(code, expected, snap)) return false;
@@ -454,6 +462,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     find,
     fill,
     canFill,
+    fillBlock,
     hasConflict,
     refreshIfSafe,
     view,

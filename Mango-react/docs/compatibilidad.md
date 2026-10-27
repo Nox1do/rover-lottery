@@ -10,6 +10,10 @@ Fuentes públicas comprobadas:
 - https://www.tampermonkey.net/documentation.php?locale=en&q=meta:sandbox
 - https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts/exportFunction
 
+## Instrumentación de omisiones · 0.1.5
+
+El adaptador comparte una única evaluación entre `canFill` y el diagnóstico de bloqueo; se conservan condiciones y orden de los guards. La entrega registra motivos de omisión y un resumen acotado de conciliaciones, sin nuevas consultas, reintentos ni efectos de escritura por abrir el diagnóstico. Inspección pública adicional: `index-kAGvESlW.js` y `VerResultados-h4jeei_q.js`; las casillas usan estado controlado y no tienen un bloqueo específico de Quinielón. El estado posterior a una publicación manual no acredita el bloqueo anterior.
+
 ## Contratos observados
 
 | Función nativa | Adaptación |

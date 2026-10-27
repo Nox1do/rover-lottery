@@ -1,5 +1,12 @@
 # Verificación
 
+## 0.1.5 — 27/10/2026
+
+- Base 0.1.4: 38 pruebas Node, 38 escenarios Firefox y dos de extensión, todos aprobados. Tres regresiones unitarias nuevas fallaron por falta de motivos/conciliaciones. La regresión del adaptador falló con `fillBlock` ausente; el diagnóstico del instalador 0.1.4 tampoco informa una denegación de reserva.
+- La entrega añade pruebas de omisión local frente a denegación del servicio, campos ausentes, identidad ambigua, limpieza por fecha, y escenarios Firefox del adaptador y del instalador completo. El caso de reserva denegada conserva casillas vacías, no reporta `presented` y excluye campos secretos adicionales de la respuesta.
+- Verificación final: `npm test` aprobó 42 pruebas Node, 40 escenarios React/Firefox y dos de extensión; cero fallos. `npm run check` confirmó el build reproducible y `git diff --check` no encontró errores. Los históricos anteriores permanecen intactos.
+- El incidente real de Quinielón PM NO tiene causa retrospectiva acreditada. La lectura posterior ocurrió después de que el usuario llenara y procesara manualmente. La nueva versión aporta observabilidad; no altera la autorización remota ni fuerza rellenados.
+
 ## 0.1.4 — 27/10/2026
 
 - Contra 0.1.3, las cuatro regresiones de presentación fallaron: tres casos de tabla completa/filtrada y un caso de picks cuyo foco nativo encontraba valores parciales. Resultado inicial: 34/38 escenarios Firefox aprobados. Otra regresión unitaria reprodujo la relectura de campos en un guard ya confirmado.

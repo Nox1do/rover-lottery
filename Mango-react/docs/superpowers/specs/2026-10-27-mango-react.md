@@ -11,3 +11,7 @@ Módulos pequeños, build reproducible, versión propia, actualización desde Gi
 ## Ajuste de llenado solicitado para 0.1.4
 
 El usuario pidió llenar los campos juntos para eliminar el aspecto escalonado. Las entradas de una fila se agrupan sin temporizadores entre ellas, conservando cesión a microtareas y guard de contexto/reserva/intervención en cada paso. La retención se comprueba después de una espera final antes de `presented`. Una intervención entre entradas cancela las restantes; si llega después del bloque, se preserva el cambio ajeno y no se confirma la entrega. No se añaden sobrescrituras ni cambios de backend. Medir frames completos/filtrados y conservar pruebas de intervención entre scripts y sandbox; no atribuir una reducción general de latencia solo a menos consultas DOM.
+
+## Instrumentación solicitada por el incidente de Quinielón · 0.1.5
+
+Informar las condiciones que antes omitían silenciosamente un llenado y conservar un resumen de las últimas conciliaciones. Reutilizar los guards existentes, sin alterar su resultado ni generar nuevas peticiones desde el diagnóstico. Distinguir coincidencia de identidad, autorización del servicio y retención visible; no atribuir una operación de otra PC a la del usuario. Mostrar solo etiquetas y metadatos necesarios, con memoria acotada y sin respuestas completas ni credenciales. La causa del incidente anterior sigue sin demostrarse; no presentar esta instrumentación como arreglo del llenado.

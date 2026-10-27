@@ -139,22 +139,30 @@ function createRoverAdapter(onChange) {
         // scroll evita un segundo desplazamiento al ejecutarse ese mismo foco.
         // No se sustituyen métodos ni manejadores de la página.
         if (picks.includes('pick3')) findFields(config).pick4.focus({ preventScroll: true });
+        function writePick(key, value) {
+            assertCurrent(snapshot);
+            const current = findFields(config)[key];
+            // Saltar el setter de la instancia permite que React detecte
+            // el cambio mediante su manejador normal de input.
+            const nativeSetter = Object.getOwnPropertyDescriptor(current.ownerDocument.defaultView.HTMLInputElement.prototype, 'value').set;
+            nativeSetter.call(current, value);
+            current.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+        }
         for (const key of picks) {
             assertCurrent(snapshot);
             const input = findFields(config)[key];
-            // Si el pick ya coincide, vaciarlo primero como una edición normal
-            // obliga a React a recalcular los premios al volver a escribirlo.
-            // Solo se tocan los picks disponibles en el resultado consultado.
-            const values = input.value === expected[key] ? ['', expected[key]] : [expected[key]];
-            for (const value of values) {
+            const value = expected[key];
+            if (input.value !== value) writePick(key, value);
+            else if (input.type === 'text') {
+                // Central normaliza espacios antes de derivar premios. Una
+                // entrada equivalente reactiva onChange incluso con el mismo
+                // pick, sin vaciado ni dos renderizados por juego.
+                writePick(key, value + ' ');
                 assertCurrent(snapshot);
-                const current = findFields(config)[key];
-                // Saltar el setter de la instancia permite que React detecte
-                // el cambio mediante su manejador normal de input.
-                const nativeSetter = Object.getOwnPropertyDescriptor(current.ownerDocument.defaultView.HTMLInputElement.prototype, 'value').set;
-                nativeSetter.call(current, value);
-                current.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-            }
+                // Si cambia el normalizador, no dejar formato transitorio:
+                // restaurar el número canónico antes de ceder el control.
+                if (findFields(config)[key].value !== value) writePick(key, value);
+            } else { writePick(key, ''); writePick(key, value); }
         }
         // Una sola cesión: los temporizadores/foco de Rover ya encuentran
         // ambos picks completos, sin pintar el estado vacío entre escrituras.

@@ -87,3 +87,13 @@ El usuario confirma que 0.0.12 no resuelve la fluidez real. La reducción de rec
 4. Añadir diagnóstico en consola por fases para distinguir demora de la fuente de la del formulario; medir operaciones y orden de tareas, sin prometer fluidez en Windows a partir del laboratorio. Ejecutar suite completa y publicar con URLs estables.
 
 La verificación móvil encontró una dependencia previa del foco: al reducir el viewport de 844 a 640 px la barra sigue midiendo 242 px y ResizeObserver no detecta su nueva posición. Añadir eventos de resize y cambios del offset visual, sin seguir el scroll manual normal, y volver a ejecutar la suite completa.
+
+## 0.0.14 — Recalcular picks iguales con una entrada por juego
+
+El diagnóstico real del 27 oct muestra Florida con 3 filas: fuente 374–617 ms/formulario 21–22 ms; con 89 filas: fuente 400 ms/formulario 287 ms y pausa de frame de 292 ms. Indiana y Tennessee tienen además esperas de fuente de 1620 y 877 ms. En todos los ejemplos se emiten cuatro inputs porque ambos picks ya coinciden. Son dos costes distintos; no atribuir toda la espera a la API ni prometer reducir su red con un cambio del adaptador.
+
+Contrato público revalidado: `VerResultados-BayYOelt.js` usa `Xe=(a,t)=>a.replace(/[^A-Za-z0-9]/g,"").slice(0,t)` antes de derivar premios y dependientes. Probar una entrada equivalente con espacio final cuando el pick de texto ya coincide: React detecta el cambio y Central lo normaliza al número original, recalculando una vez sin vaciar. Si el DOM no queda normalizado, reintroducir inmediatamente el número canónico. En tipos que no son text conservar vaciado/reentrada. Mantener validación de contexto/campos y comprobación posterior al render.
+
+1. Regresiones rojas: dos inputs para repetición completa, uno para parciales, premios y dependiente recalculados incluso con picks iguales; no exponer picks vacíos al propagar los eventos. Reflejar en la fixture el foco sobre el valor normalizado, igual que Central.
+2. Implementar solo el adaptador; sin caché, consultas nuevas, escrituras de premios duplicadas ni APIs privadas de React. Probar también fallback ante un manejador que conserve el espacio.
+3. Suite completa Firefox, build/release/check, versión propia 0.0.14 e histórico nuevo. Documentar que se reducen entradas nativas, no que la latencia de proveedor esté resuelta.

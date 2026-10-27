@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.0.14 — 2026-10-27
+
+- Reduce la repetición con picks iguales de cuatro a dos eventos nativos en los inputs de texto actuales de Central. Una entrada equivalente con espacio final se normaliza al mismo número y vuelve a calcular premios/dependientes sin vaciar el pick.
+- Verifica la normalización y reintroduce inmediatamente el número canónico si el manejador lo conserva con formato; mantiene vaciado/reentrada para otros tipos de input y la verificación final de estado React.
+- Conserva la sobrescritura de datos distintos, parciales, ceros, foco/scroll, verde y catálogo. No cambia proveedores, frescura o solicitudes de red.
+- Añade regresiones de número de entradas, ausencia de picks vacíos, dependiente desactualizada con principal ya correcta y fallback. Documenta el diagnóstico real: 21–22 ms de formulario con 3 filas frente a 287 ms con 89; la espera de fuente se mide por separado.
+
 ## 0.0.13 — 2026-10-27
 
 - Elimina las cesiones de tarea entre Pick 3/4 y entre vaciado/reentrada de picks iguales. Espera una sola vez antes de confirmar los valores de React, manteniendo las validaciones antes de cada escritura.

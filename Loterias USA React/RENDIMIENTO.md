@@ -1,4 +1,30 @@
-# Rendimiento de consulta — 0.0.13
+# Rendimiento de consulta — 0.0.14
+
+## Diagnóstico real de 0.0.13, 27 de octubre
+
+Las mediciones del usuario permiten separar la fase de consulta de la actualización de Central. Son muestras, no un benchmark estadístico ni una medición pura de red GM.
+
+| Consulta | Filas en DOM | Fuente (ms) | Cola (ms) | Formulario (ms) | Total (ms) | Mayor pausa entre frames (ms) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Florida Midday, primera muestra filtrada | 3 | 617 | 0 | 22 | 641 | 32 |
+| Florida Midday, segunda muestra filtrada | 3 | 374 | 0 | 21 | 396 | 21 |
+| Florida Midday, tabla ampliada | 89 | 400 | 1 | 287 | 691 | 292 |
+| Indiana Midday | 89 | 1620 | 0 | 184 | 1806 | 228 |
+| Tennessee Midday | 89 | 877 | 0 | 179 | 1059 | 216 |
+
+La comparación Florida 374/21 frente a 400/287 muestra un incremento concentrado en el formulario al tener más filas, con consulta de duración parecida. Cada evento input observado pasa de 2–3 ms a decenas de ms. No permite atribuir todo ese trabajo exclusivamente a React: incluye sus manejadores nativos y otros oyentes de la página. Indiana y Tennessee tienen además una espera importante en la fuente. La cola de llenado no explica las muestras.
+
+En las cinco consultas los picks ya coincidían y el adaptador generaba cuatro eventos: vaciar/reintroducir Pick 3 y vaciar/reintroducir Pick 4. La pausa grande coincide con ese trabajo. El snippet no pudo capturar la consola del sandbox (`internalTimings: null`), pero el usuario adjuntó las tablas originales del userscript; por eso sí se dispone de las fases internas. `gmNetworkMs: null` no significa que la red tardara cero.
+
+## Cambio acotado en 0.0.14
+
+Se revalidó el bundle público `/assets/VerResultados-BayYOelt.js`: el manejador usa `a.replace(/[^A-Za-z0-9]/g, "").slice(0, t)` antes de calcular premios/dependientes y programar el foco. Una entrada de texto con el mismo pick más un espacio final se normaliza al pick original, pero activa el cambio de React. Permite repetir el cálculo con **un evento por juego**, sin vaciar previamente el campo. Si el valor no queda normalizado, el adaptador restaura inmediatamente el número canónico mediante otra entrada; otros tipos de input conservan la ruta anterior.
+
+Las regresiones de repetición verifican dos eventos para resultado completo y uno para cada parcial o Pick 3 solo, valores exactos después de otro render y dependientes actualizadas incluso cuando los cinco campos principales ya estaban correctos. También se prueba un manejador que no elimina el formato. El foco se prueba sobre el valor normalizado, igual que en Central.
+
+Esto reduce entradas y cálculos nativos redundantes en el llenado repetido. **No modifica las solicitudes ni añade caché; no promete eliminar los 374–1620 ms observados en la fase de fuente.** Tampoco demuestra un porcentaje de mejora de latencia en Windows: falta una medición posterior del usuario. La comparación con la versión clásica 0.6.7 sigue siendo cualitativa; no hay un registro pareado de sus tiempos de consulta en estas muestras. El diagnóstico de consola sigue siendo compatible y puede repetirse con la tabla completa tras actualizar.
+
+# Historial: medición de 0.0.13
 
 ## Corrección tras la prueba real de 0.0.12
 

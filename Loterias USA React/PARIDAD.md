@@ -53,3 +53,7 @@ El verde se conserva con Web Animations (1 s fijo y 1 s de desvanecimiento; movi
 ## Actualización 0.0.13: confirmación fija y llenado consecutivo
 
 El verde suave se conserva durante un segundo, con retirada directa. Se elimina intencionalmente el segundo de desvanecimiento para evitar animar los colores de cinco inputs dentro de la tabla. La negrita se conserva y se limpia al editar/cambiar el contexto. El foco sigue en Pick 4; se prepara sin scroll antes del llenado para que la llamada posterior de Rover al mismo campo no vuelva a mover la vista. Los picks iguales siguen vaciándose y reintroduciéndose con eventos nativos, pero sin ceder una tarea entre esos pasos. Solo se cede al terminar ambos picks, antes de verificar que React conserve el resultado.
+
+## Actualización 0.0.14: recálculo sin vaciar picks de texto
+
+Sigue permitiéndose volver a llenar aunque haya datos, incluidos picks iguales y premios/dependientes incorrectos. Bajo el normalizador nativo verificado, un espacio final temporal provoca el evento de cambio y Central conserva el número canónico, con un recálculo por juego. No se omite la fila porque sus cinco campos coincidan: también debe poder actualizar sus dependientes. Si el formato no se normaliza, se restaura el número inmediatamente; para otros tipos de input se conserva el vaciado/reentrada anterior. La verificación tras el render impide confirmar valores con formato retenido o premios incorrectos. Los proveedores siguen consultándose de nuevo, sin caché.

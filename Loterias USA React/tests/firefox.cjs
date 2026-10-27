@@ -662,6 +662,12 @@ for (const mode of ['', 'partial', 'partial4', 'washington']) test(`Volver a lle
     await r.bind();
     const code = mode === 'washington' ? 'WST-NG' : 'GE-MD';
     await r.page.evaluate(code => window.fixtureValues(code, { primera: '11', segunda: '22', tercera: '33', pick3: code === 'WST-NG' ? '035' : '027', pick4: '0987' }), code);
+    await r.page.evaluate(code => {
+      window.repeatInputs = [];
+      window.addEventListener('input', event => {
+        if (event.target.closest(`tr[data-code="${code}"]`)) window.repeatInputs.push([...event.target.closest('tr').querySelectorAll('input')].map(el => el.value));
+      });
+    }, code);
     if (mode === 'washington') await r.page.locator('[data-category="NOCHE"]').click();
     const b = await r.click(mode === 'washington' ? 'wa-night' : 'ga-am');
     assert.equal(await b.getAttribute('data-status-code'), mode.startsWith('partial') ? 'partial' : 'success');
@@ -672,6 +678,35 @@ for (const mode of ['', 'partial', 'partial4', 'washington']) test(`Volver a lle
       : ['27', '09', '87', '027', '0987'];
     assert.deepEqual(await r.values(code), expected);
     if (mode !== 'washington') assert.deepEqual(await r.values('GE-MD-MR'), expected);
+    const inputs = await r.page.evaluate(() => window.repeatInputs);
+    assert.equal(inputs.length, mode ? 1 : 2, 'Recalcular cada pick con una sola entrada nativa');
+    assert.ok(inputs.every(values => values[3] === (code === 'WST-NG' ? '035' : '027') && values[4] === '0987'), 'No exponer picks vacíos durante el recálculo');
+  } finally { await r.close(); }
+});
+test('Repetición: recalcula dependiente aunque todos los campos de la principal ya coincidan', async () => {
+  const r = await setup({ rows: 241 }); try {
+    await r.bind(); await r.page.evaluate(() => {
+      window.fixtureValues('GE-MD', { primera: '27', segunda: '09', tercera: '87', pick3: '027', pick4: '0987' });
+      window.fixtureValues('GE-MD-MR', { primera: '11', segunda: '22', tercera: '33', pick3: '111', pick4: '2233' });
+      window.repeatInputCount = 0;
+      document.addEventListener('input', event => { if (event.target.closest('tr[data-code="GE-MD"]')) window.repeatInputCount++; });
+    });
+    await r.click('ga-am'); await r.page.evaluate(() => window.fixtureRender());
+    assert.deepEqual(await r.values('GE-MD-MR'), ['27', '09', '87', '027', '0987']);
+    assert.equal(await r.page.evaluate(() => window.repeatInputCount), 2, 'No omitir el recálculo ni usar cuatro eventos');
+  } finally { await r.close(); }
+});
+test('Repetición: restaura número canónico si el manejador no normaliza formato', async () => {
+  const r = await setup(); try {
+    await r.bind(); await r.page.evaluate(() => {
+      window.fixtureKeepFormatting = true;
+      window.fixtureValues('GE-MD', { primera: '11', segunda: '22', tercera: '33', pick3: '027', pick4: '0987' });
+    });
+    const button = await r.click('ga-am');
+    assert.equal(await button.getAttribute('data-status-code'), 'success');
+    await r.page.evaluate(() => window.fixtureRender());
+    assert.deepEqual(await r.values('GE-MD'), ['27', '09', '87', '027', '0987']);
+    assert.deepEqual(await r.values('GE-MD-MR'), ['27', '09', '87', '027', '0987']);
   } finally { await r.close(); }
 });
 test('Cambio de fecha en vuelo: descarta el resultado', async () => {

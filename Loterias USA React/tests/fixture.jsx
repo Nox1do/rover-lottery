@@ -31,10 +31,11 @@ function App() {
   window.fixtureDuplicate = false;
   function change(code, key, raw) {
     if (window.fixtureIgnoreInput) return;
+    const value = window.fixtureKeepFormatting ? raw : raw.replace(/[^A-Za-z0-9]/g, '').slice(0, key.startsWith('pick') ? 4 : 2);
     // Rover enfoca Pick 4 después de completar Pick 3.
-    if (key === 'pick3' && raw.length === 3) setTimeout(() => document.querySelector(`tr[data-code="${code}"] td:nth-child(7) input`)?.focus());
+    if (key === 'pick3' && value.length === 3) setTimeout(() => document.querySelector(`tr[data-code="${code}"] td:nth-child(7) input`)?.focus());
     setValues(old => {
-      const row = { ...old[code] }, value = raw.replace(/[^A-Za-z0-9]/g, '').slice(0, key.startsWith('pick') ? 4 : 2);
+      const row = { ...old[code] };
       row[key] = value;
       if (key === 'pick3') row.primera = value.length === 3 ? value.slice(-2) : '';
       if (key === 'pick4') { row.segunda = value.length === 4 ? value.slice(0, 2) : ''; row.tercera = value.length === 4 ? value.slice(-2) : ''; }

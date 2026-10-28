@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.10
+// @version      0.0.11
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,7 +16,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.10';
+  const VERSION = '0.0.11';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
@@ -350,10 +350,14 @@ SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
     return [line.slice(0, delimiter).trim(), line.slice(delimiter + 1).trim()];
   });
   function photoIdentityKey(value) {
-    return normalize(value).replace(/[^A-Z0-9]/g, '');
+    // Conservar los guiones de los identificadores: LA-CHICA y LACHICA
+    // son DOS loterías distintas. Sólo normalizar acentos, mayúsculas,
+    // espacios y puntuación no significativa alrededor del código.
+    return normalize(value).replace(/[^A-Z0-9-]/g, '');
   }
-  // Reglas exactas de nombre + código. Un nombre repetido NO basta para
-  // excluir fotos. Ej.: LA CHICA (LA-CHICA) sí, LA CHICA (otro) no.
+  // Reglas exactas de nombre + código (incluidos guiones).
+  // Un nombre repetido NO basta para excluir fotos.
+  // LA CHICA (LA-CHICA) sí; LA CHICA (LACHICA) no.
   // NEW YORK AM (NEW YORK PM) sí, NEW YORK PM (NY-PM) no.
   const PHOTO_EXCLUSION_PAIRS = new Map();
   const PHOTO_EXCLUSION_REVERSED_PAIRS = new Map();

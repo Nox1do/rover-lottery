@@ -1,6 +1,6 @@
 {
   "name": "Rovs Loterias USA React 0.0.1",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "namespace": "https://github.com/Nox1do/rover-lottery/Loterias-USA-React",
   "connect": [
     "lotteryusa.com",

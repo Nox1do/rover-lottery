@@ -2,9 +2,9 @@ function createInterface(onQuery) {
     const feedback = createFillFeedback();
     const style = document.createElement('style');
     style.textContent = `
-      #rlur-host { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; --rlur-font: clamp(.875rem, calc(.625rem + .208334vw), 1.125rem); --rlur-small: clamp(.75rem, calc(.625rem + .104167vw), .875rem); --rlur-row: clamp(44px, calc(32px + .625vw), 56px); font-size: var(--rlur-font); line-height: 1.4; color: var(--foreground, #0f172a); }
+      #rlur-host { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; --rlur-font: clamp(.875rem, calc(.625rem + .208334vw), 1.125rem); --rlur-row: 34px; font-size: var(--rlur-font); line-height: 1.4; color: var(--foreground, #0f172a); }
       #rlur-host * { box-sizing: border-box; }
-      #rlur-bar { position: fixed; z-index: 40; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border, #cbd5e1); border-radius: var(--radius, 10px) var(--radius, 10px) 0 0; background: var(--card, #fff); box-shadow: 0 -4px 24px #0002; visibility: hidden; transform: translateY(100vh); transition: transform .18s ease, visibility .18s; }
+      #rlur-bar { position: fixed; z-index: 40; display: grid; grid-template-columns: max-content minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 4px 10px; padding: 6px 10px 2px; border: 1px solid var(--border, #cbd5e1); border-radius: var(--radius, 10px) var(--radius, 10px) 0 0; background: var(--card, #fff); box-shadow: 0 -4px 24px #0002; visibility: hidden; transform: translateY(100vh); transition: transform .18s ease, visibility .18s; }
       #rlur-bar[data-period="DIA"] { --rlur-accent: #2563eb; border-top: 3px solid #93c5fd; }
       #rlur-bar[data-period="NOCHE"] { --rlur-accent: #b45309; border-top: 3px solid #fcd34d; }
       .dark #rlur-bar[data-period="DIA"] { --rlur-accent: #93c5fd; }
@@ -16,22 +16,21 @@ function createInterface(onQuery) {
       #rlur-host button { cursor: pointer; font-weight: 500; }
       #rlur-host button:disabled { cursor: wait; opacity: .6; }
       #rlur-host button:focus-visible, #rlur-host input:focus-visible { outline: 2px solid var(--ring, #94a3b8); outline-offset: 2px; }
-      .rlur-controls { display: grid; grid-template-columns: auto 132px minmax(120px, 1fr) auto; gap: 10px; align-items: start; flex-shrink: 0; min-width: 0; }
-      .rlur-title { display: flex; align-items: center; min-height: 38px; font-size: var(--rlur-font); font-weight: 600; white-space: nowrap; }
+      .rlur-controls { display: grid; grid-template-columns: 10.8em 10.4em auto; gap: 6px; align-items: start; align-content: start; flex-shrink: 0; min-width: 0; }
       .rlur-actions { display: flex; gap: 4px; }
-      .rlur-close, .rlur-compact { min-height: 36px; border: 1px solid var(--border, #cbd5e1); background: transparent; color: var(--muted-foreground, #64748b); padding: 4px 7px; border-radius: 6px; }
-      .rlur-compact { display: grid; place-items: center; width: 36px; padding: 5px; }
+      .rlur-close, .rlur-compact { height: var(--rlur-row); border: 1px solid var(--border, #cbd5e1); background: transparent; color: var(--muted-foreground, #64748b); padding: 0; border-radius: 6px; }
+      .rlur-compact { display: grid; place-items: center; width: 34px; }
       #rlur-host .rlur-compact svg { width: 18px; height: 18px; stroke-width: 2; }
-      .rlur-close { min-width: 32px; font-size: 18px !important; }
-      .rlur-tabs { display: flex; gap: 3px; padding: 3px; border-radius: 6px; background: var(--muted, #f1f5f9); }
-      .rlur-tabs button { flex: 1; min-height: 30px; margin-inline: 1px; border: 0; padding: 4px 7px; border-radius: 4px; background: transparent; color: var(--muted-foreground, #64748b); white-space: nowrap; }
+      .rlur-close { width: 34px; font-size: 18px !important; }
+      .rlur-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); height: var(--rlur-row); gap: 3px; padding: 3px; border-radius: 6px; background: var(--muted, #f1f5f9); }
+      .rlur-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; border: 0; padding: 0 4px; border-radius: 4px; background: transparent; color: var(--muted-foreground, #64748b); white-space: nowrap; }
+      .rlur-tabs svg { flex-shrink: 0; }
       .rlur-tabs button[aria-pressed="true"] { background: var(--card, #fff); color: var(--rlur-accent, var(--foreground, #0f172a)); box-shadow: 0 1px 3px #0001; font-weight: 600; }
       .rlur-search-wrap { min-width: 0; }
-      #rlur-search { width: 100%; min-height: 38px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; padding: 6px 9px; }
-      .rlur-version { display: block; margin-top: 3px; font-size: var(--rlur-small); font-weight: 700; color: #c45b62; }
-      .rlur-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(160px, 10vw, 240px)), 1fr)); grid-auto-rows: var(--rlur-row); gap: 4px; overflow-y: auto; overflow-x: hidden; min-height: 0; min-width: 0; flex: 1; padding: 2px; align-content: start; scrollbar-width: thin; overscroll-behavior: contain; }
-      .rlur-lottery { display: flex; gap: 4px; align-items: center; justify-content: space-between; padding: 1px 5px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; text-align: left; min-height: 42px; min-width: 0; }
-      .rlur-lottery > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+      #rlur-search { width: 100%; height: var(--rlur-row); min-width: 0; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; padding: 0 9px; }
+      .rlur-grid { display: grid; grid-template-columns: none; grid-template-rows: repeat(var(--rlur-rows, 1), var(--rlur-row)); grid-auto-flow: column; grid-auto-columns: max-content; grid-auto-rows: var(--rlur-row); gap: 4px; overflow-y: hidden; overflow-x: auto; min-height: 0; min-width: 0; flex: 1; padding: 0 2px 2px; align-content: start; scrollbar-width: thin; overscroll-behavior: contain; }
+      .rlur-lottery { display: flex; gap: 4px; align-items: center; justify-content: space-between; padding: 1px 5px; border: 1px solid var(--border, #cbd5e1); border-radius: 6px; background: transparent; color: inherit; text-align: left; min-width: 0; }
+      .rlur-lottery > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .rlur-lottery:hover { background: var(--muted, #f1f5f9); }
       .rlur-lottery[data-status="success"] { border-color: #10b981; }
       .rlur-lottery[data-status="error"] { border-color: #d97777; }
@@ -48,38 +47,27 @@ function createInterface(onQuery) {
       #rlur-host svg { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
       #rlur-host .rlur-resize { position: absolute; z-index: 2; padding: 0; border: 0; background: transparent; touch-action: none; }
       .rlur-resize[data-resize="n"], .rlur-resize[data-resize="s"] { left: 24px; right: 24px; height: 20px; cursor: ns-resize; }
-      .rlur-resize[data-resize="n"] { top: -9px; }
-      .rlur-resize[data-resize="s"] { bottom: -9px; }
+      .rlur-resize[data-resize="n"] { top: -9px; height: 12px; }
+      .rlur-resize[data-resize="s"] { bottom: -7px; height: 8px; }
       .rlur-resize[data-resize="n"]::after { content: ''; position: absolute; left: calc(50% - 20px); top: 8px; width: 40px; height: 3px; border-radius: 4px; background: var(--muted-foreground, #64748b); opacity: .45; }
-      .rlur-resize[data-resize="w"], .rlur-resize[data-resize="e"] { top: 24px; bottom: 24px; width: 20px; cursor: ew-resize; }
+      .rlur-resize[data-resize="w"], .rlur-resize[data-resize="e"] { top: 24px; bottom: 24px; width: 12px; cursor: ew-resize; }
       .rlur-resize[data-resize="w"] { left: -9px; }
       .rlur-resize[data-resize="e"] { right: -9px; }
       .rlur-resize[data-resize="nw"], .rlur-resize[data-resize="ne"], .rlur-resize[data-resize="sw"], .rlur-resize[data-resize="se"] { width: 24px; height: 24px; }
-      .rlur-resize[data-resize="nw"] { top: -9px; left: -9px; cursor: nwse-resize; }
-      .rlur-resize[data-resize="ne"] { top: -9px; right: -9px; cursor: nesw-resize; }
-      .rlur-resize[data-resize="sw"] { bottom: -9px; left: -9px; cursor: nesw-resize; }
-      .rlur-resize[data-resize="se"] { bottom: -9px; right: -9px; cursor: nwse-resize; }
-      #rlur-bar[data-narrow="false"] { display: grid; grid-template-columns: clamp(280px, 19vw, 360px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 6px 16px; }
-      #rlur-bar[data-narrow="false"] .rlur-controls { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-content: start; }
-      #rlur-bar[data-narrow="false"] .rlur-grid { grid-template-columns: none; grid-template-rows: repeat(var(--rlur-rows, 2), var(--rlur-row)); grid-auto-flow: column; grid-auto-columns: clamp(166px, calc(10vw - 2px), 238px); overflow-x: auto; overflow-y: hidden; }
-      #rlur-bar[data-narrow="false"] .rlur-title { display: none; }
-      #rlur-bar[data-narrow="false"] .rlur-tabs { grid-column: 1; grid-row: 1; }
-      #rlur-bar[data-narrow="false"] .rlur-actions { grid-column: 2; grid-row: 1; }
-      #rlur-bar[data-narrow="false"] .rlur-search-wrap { grid-column: 1 / -1; grid-row: 2; }
-      #rlur-bar[data-narrow="false"][data-shallow="true"] { grid-template-columns: max-content minmax(0, 1fr); }
-      #rlur-bar[data-shallow="true"] .rlur-controls { grid-template-columns: 12em clamp(114px, calc(21vw - 116px), calc(280px - 4em)) auto; }
-      #rlur-bar[data-shallow="true"] .rlur-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      #rlur-bar[data-shallow="true"] .rlur-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; }
-      #rlur-bar[data-shallow="true"] .rlur-tabs svg { flex-shrink: 0; }
-      #rlur-bar[data-shallow="true"] .rlur-search-wrap { grid-column: 2; grid-row: 1; }
-      #rlur-bar[data-shallow="true"] .rlur-actions { grid-column: 3; grid-row: 1; }
-      #rlur-bar[data-narrow="true"] .rlur-controls { grid-template-columns: minmax(144px, .9fr) minmax(0, 1fr); gap: 6px 8px; }
-      #rlur-bar[data-narrow="true"] .rlur-lottery { width: calc(100% - 2px); justify-self: center; }
-      #rlur-bar[data-narrow="true"] .rlur-title { grid-column: 1; grid-row: 1; font-size: var(--rlur-font); }
-      #rlur-bar[data-narrow="true"] .rlur-actions { grid-column: 2; grid-row: 1; justify-content: end; }
-      #rlur-bar[data-narrow="true"] .rlur-tabs { grid-column: 1; grid-row: 2; }
-      #rlur-bar[data-narrow="true"] .rlur-search-wrap { grid-column: 2; grid-row: 2; }
-      @media (max-width: 640px), (pointer: coarse) { #rlur-host .rlur-compact, #rlur-host .rlur-close { min-width: 42px; } #rlur-host .rlur-close, #rlur-host .rlur-compact { min-height: 42px; } #rlur-search, .rlur-title { min-height: 44px; } .rlur-tabs { padding: 0; } .rlur-tabs button { min-height: 42px; } #rlur-search { font-size: 16px !important; } }
+      .rlur-resize[data-resize="nw"] { top: -19px; left: -9px; cursor: nwse-resize; }
+      .rlur-resize[data-resize="ne"] { top: -19px; right: -9px; cursor: nesw-resize; }
+      .rlur-resize[data-resize="sw"] { bottom: -23px; left: -9px; cursor: nesw-resize; }
+      .rlur-resize[data-resize="se"] { bottom: -23px; right: -9px; cursor: nwse-resize; }
+      #rlur-bar[data-narrow="true"] { column-gap: 4px; padding-inline: 6px; }
+      #rlur-bar[data-narrow="true"] .rlur-controls { grid-template-columns: 84px clamp(72px, 20vw, 80px) auto; gap: 4px; }
+      #rlur-bar[data-narrow="true"] #rlur-search { padding-inline: 4px; }
+      #rlur-bar[data-narrow="true"] .rlur-tabs { gap: 0; padding: 0; }
+      #rlur-bar[data-narrow="true"] .rlur-tab-label { display: none; }
+      #rlur-bar[data-narrow="true"] .rlur-compact, #rlur-bar[data-narrow="true"] .rlur-close { width: 42px; }
+      #rlur-bar[data-narrow="true"] .rlur-grid { grid-auto-columns: 100%; }
+      #rlur-bar[data-narrow="true"][data-single-row="false"] { display: flex; flex-direction: column; gap: 6px; }
+      #rlur-bar[data-narrow="true"][data-single-row="false"] .rlur-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); grid-template-rows: none; grid-auto-flow: row; grid-auto-columns: auto; overflow-y: auto; overflow-x: hidden; }
+      @media (max-width: 639px), (pointer: coarse) { .rlur-tabs { padding: 0; } .rlur-tabs button { min-height: 42px; } #rlur-host .rlur-compact, #rlur-host .rlur-close { width: 42px; } #rlur-search { font-size: 16px !important; } }
       @keyframes rlur-spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) { #rlur-bar { transition: none; } }
     `;
@@ -87,8 +75,7 @@ function createInterface(onQuery) {
     const host = document.createElement('div'); host.id = 'rlur-host';
     const bar = document.createElement('section'); bar.id = 'rlur-bar'; bar.setAttribute('aria-label', 'Loterías USA');
     const left = document.createElement('div'); left.className = 'rlur-controls';
-    const title = document.createElement('div'); title.className = 'rlur-title'; title.textContent = 'Rovs Loterias USA';
-    const close = document.createElement('button'); close.type = 'button'; close.className = 'rlur-close'; close.textContent = '×'; close.title = 'Cerrar barra'; close.setAttribute('aria-label', 'Cerrar barra'); left.append(title);
+    const close = document.createElement('button'); close.type = 'button'; close.className = 'rlur-close'; close.textContent = '×'; close.title = 'Cerrar barra'; close.setAttribute('aria-label', 'Cerrar barra');
     const compact = document.createElement('button'); compact.type = 'button'; compact.className = 'rlur-compact'; compact.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 6 6M4 10h6V4m10 16-6-6m6 0h-6v6"/></svg>'; compact.title = 'Restablecer tamaño compacto (ancho completo)'; compact.setAttribute('aria-label', 'Restablecer tamaño compacto');
     const actions = document.createElement('div'); actions.className = 'rlur-actions'; actions.append(compact, close);
     const tabs = document.createElement('div'); tabs.className = 'rlur-tabs'; tabs.setAttribute('aria-label', 'Categoría');
@@ -102,13 +89,14 @@ function createInterface(onQuery) {
     const categoryButtons = new Map(), buttons = new Map();
     for (const [id, label, icon] of [['DIA', 'Día', 'day'], ['NOCHE', 'Noche', 'night']]) {
         const button = document.createElement('button'); button.type = 'button'; button.dataset.category = id;
-        button.innerHTML = svg(icon); button.append(document.createTextNode(' ' + label));
+        const text = document.createElement('span'); text.className = 'rlur-tab-label'; text.textContent = label;
+        button.innerHTML = svg(icon); button.append(text); button.setAttribute('aria-label', label);
         button.setAttribute('aria-pressed', String(id === category)); button.onclick = () => { category = id; filter(); };
         categoryButtons.set(id, button); tabs.append(button);
     }
     left.append(tabs);
-    const search = document.createElement('input'); search.id = 'rlur-search'; search.placeholder = 'Buscar lotería…'; search.setAttribute('aria-label', 'Filtrar botones de loterías'); const searchWrap = document.createElement('div'); searchWrap.className = 'rlur-search-wrap'; searchWrap.append(search); left.append(searchWrap);
-    const version = document.createElement('strong'); version.className = 'rlur-version'; version.textContent = 'v' + (typeof GM_info !== 'undefined' ? GM_info.script?.version || APP_VERSION : APP_VERSION); searchWrap.append(version); left.append(actions);
+    const version = typeof GM_info !== 'undefined' ? GM_info.script?.version || APP_VERSION : APP_VERSION;
+    const search = document.createElement('input'); search.id = 'rlur-search'; search.placeholder = 'Buscar · v' + version; search.setAttribute('aria-label', 'Filtrar botones de loterías. Versión ' + version); const searchWrap = document.createElement('div'); searchWrap.className = 'rlur-search-wrap'; searchWrap.append(search); left.append(searchWrap, actions);
     const grid = document.createElement('div'); grid.className = 'rlur-grid';
     for (const config of LOTERIAS) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'rlur-lottery'; button.dataset.lotteryId = config.id;
@@ -133,6 +121,9 @@ function createInterface(onQuery) {
     const toggle = document.createElement('button'); toggle.type = 'button'; toggle.id = 'rlur-toggle'; toggle.innerHTML = svg('panel'); toggle.append(document.createTextNode('Loterías USA'));
     // Geometry is local to this page: every reload starts compact.
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const rowHeightFor = width => width < 640 || matchMedia('(pointer: coarse)').matches ? 42 : clamp(26 + window.innerWidth / 240, 34, 42);
+    // 12 px de bordes/padding y 20 px para padding de cuadrícula + scrollbar clásico.
+    const minimumHeight = width => Math.ceil(rowHeightFor(width) + 32);
     let geometry = null, resized = false, drag = null, widthFraction = 1, chosenHeight = 0;
     function limits() {
         const viewport = window.visualViewport;
@@ -142,12 +133,12 @@ function createInterface(onQuery) {
         const left = viewport?.offsetLeft || 0, top = (viewport?.offsetTop || 0) + margin;
         const maxWidth = Math.max(1, width), maxHeight = Math.max(1, height - margin);
         return { left, top, right: left + maxWidth, bottom: top + maxHeight, maxWidth, maxHeight,
-            minWidth: Math.min(360, maxWidth), minHeight: Math.min(width <= 640 || matchMedia('(pointer: coarse)').matches ? 200 : 100, maxHeight) };
+            minWidth: Math.min(360, maxWidth) };
     }
     function paint(next) {
         const bounds = limits();
         const width = clamp(next.width, bounds.minWidth, bounds.maxWidth);
-        const minHeight = Math.min(bounds.maxHeight, width < 700 ? Math.max(186, bounds.minHeight) : bounds.minHeight);
+        const minHeight = Math.min(bounds.maxHeight, minimumHeight(width));
         const height = clamp(next.height, minHeight, bounds.maxHeight);
         geometry = { left: clamp(next.left, bounds.left, bounds.right - width), top: bounds.bottom - height, width, height };
         // Anclar con right/bottom evita conservar un top obsoleto durante el zoom.
@@ -155,26 +146,25 @@ function createInterface(onQuery) {
             right: ((document.documentElement.clientWidth || window.innerWidth) - geometry.left - width) + 'px',
             bottom: (window.innerHeight - geometry.top - height) + 'px',
             width: width + 'px', height: height + 'px' });
-        bar.dataset.narrow = String(width < 700);
-        // Una sola fila de controles permite bajar del compacto sin recortar el buscador o la versión.
-        bar.dataset.shallow = String(width >= 700 && height < 138);
+        bar.style.setProperty('--rlur-row', rowHeightFor(width) + 'px');
+        bar.dataset.narrow = String(width < 640);
+        bar.dataset.singleRow = String(height < minHeight + rowHeightFor(width) + 4);
+        const placeholder = (width < 640 ? 'v' : 'Buscar · v') + version;
+        if (search.placeholder !== placeholder) search.placeholder = placeholder;
         requestAnimationFrame(updateGridRows);
     }
     function resetSize() {
         resized = false; widthFraction = 1;
         const b = limits(), width = b.maxWidth;
-        // Dos filas legibles y espacio para scrollbars clásicos de Firefox en Windows.
-        const compactHeight = 144 + clamp((window.innerWidth - 1920) / 80, 0, 24);
-        const height = Math.min(b.maxHeight, width < 700 ? 242 : Math.ceil(compactHeight));
+        const height = Math.min(b.maxHeight, minimumHeight(width));
         paint({ left: b.right - width, top: b.bottom - height, width, height });
     }
     function resizeFrom(start, edge, dx, dy) {
         const b = limits();
         let left = start.left, top = start.top, right = left + start.width, bottom = top + start.height;
-        // A narrow desktop panel needs two control rows too.
-        const minHeight = Math.min(b.maxHeight, start.width < 700 ? Math.max(186, b.minHeight) : b.minHeight);
         if (edge.includes('w')) left = clamp(left + dx, b.left, right - b.minWidth);
         if (edge.includes('e')) right = clamp(right + dx, left + b.minWidth, b.right);
+        const minHeight = Math.min(b.maxHeight, minimumHeight(right - left));
         if (edge.includes('n')) top = clamp(top + dy, b.top, bottom - minHeight);
         if (edge.includes('s')) bottom = clamp(bottom + dy, top + minHeight, b.bottom);
         resized = true;

@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.0.17 — 2026-10-28
+
+- Implementa el mockup aprobado: una sola fila al iniciar y al compactar, a ancho completo y pegada al pie. Día/Noche conservan el mismo tamaño; buscador, compactar/cerrar y loterías se alinean horizontalmente.
+- Retira el rótulo de versión inferior y muestra la versión instalada en el placeholder (`Buscar · v…`; solo `v…` en barras estrechas). Mantiene nombre accesible, filtro, GM_info y respaldo de versión del script.
+- Buscador de 145.6 px a 14 px de texto, un 20 % menos que los 182 px del primer mockup; escala con la tipografía 4K. Etiquetas de lotería sin saltos de línea.
+- Altura mínima de 66–74 px, reservando espacio para scrollbar clásico. Conserva ampliación, teclado, esquinas, anclaje, zoom, tema y objetivos táctiles de 42 px desde 320 px; móvil ampliado conserva cuadrícula vertical.
+- Retira las zonas de redimensionado de encima de controles y scrollbar; verifica hit-testing en 320/640/1280 px y alinea el breakpoint de 640 px.
+- Proveedores, transporte, fecha, llenado y resaltado sin cambios. Pruebas Firefox de una fila, versión/filtro, geometría, 4K y reserva clásica simulada de 17 px.
+
 ## 0.0.16 — 2026-10-27
 
 - Reduce aproximadamente un 50 % el ancho del buscador solo en la vista baja, al arrastrar el borde superior hacia abajo. El espacio liberado amplía la cuadrícula de loterías.

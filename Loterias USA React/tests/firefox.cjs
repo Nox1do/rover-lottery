@@ -11,7 +11,7 @@ const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 let browser, server, origin;
 
-async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = false, deviceScaleFactor = 1, rows = 5, privateConsole = false } = {}) {
+async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = false, deviceScaleFactor = 1, rows = 5, privateConsole = false, installedVersion = require('../metadata.json').version, gmInfo = true } = {}) {
   const page = await browser.newPage({ ...(viewport ? { viewport } : {}), hasTouch, deviceScaleFactor });
   page.setDefaultTimeout(5000);
   page.setDefaultNavigationTimeout(10000);
@@ -24,8 +24,8 @@ async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = fal
   await page.goto(origin + '/loteria/resultados/ver', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window.fixtureDate === 'function');
   if (date !== '24 oct 2026') await page.evaluate(date => window.fixtureDate(date), date);
-  await page.evaluate(({ mode, version }) => {
-    window.GM_info = { script: { version } };
+  await page.evaluate(({ mode, version, gmInfo }) => {
+    if (gmInfo) window.GM_info = { script: { version } };
     window.externalRequests = [];
     window.queryReports = []; window.queryErrors = []; window.contextReports = [];
     const originalTable = console.table.bind(console), originalError = console.error.bind(console), originalInfo = console.info.bind(console);
@@ -53,7 +53,7 @@ async function setup({ mode = '', date = '24 oct 2026', viewport, hasTouch = fal
       }, mode === 'slow' ? 200 : 0);
       return { abort() {} };
     };
-  }, { mode, version: require('../metadata.json').version });
+  }, { mode, version: installedVersion, gmInfo });
   await page.addScriptTag({ content: privateConsole ? `((console) => {${script}\n})({info: console.info.bind(console), error: console.error.bind(console), table: console.table.bind(console)});` : script });
   const bar = page.locator('#rlur-bar');
   await bar.waitFor({ state: 'attached', timeout: 3000 });
@@ -125,11 +125,29 @@ test('Barra nativa independiente: 75 botones, versión y categoría', async () =
   const r = await setup(); try {
     assert.equal(await r.page.locator('#rlur-context').count(), 0, 'El pie no debe ocupar espacio para mensajes');
     assert.equal(await r.page.locator('[data-lottery-id]').count(), 75);
-    assert.equal(await r.page.locator('.rlur-version').textContent(), 'v' + require('../metadata.json').version);
+    assert.equal(await r.page.locator('.rlur-version').count(), 0);
+    assert.equal(await r.page.locator('#rlur-search').getAttribute('placeholder'), 'Buscar · v' + require('../metadata.json').version);
     assert.equal(await r.page.locator('[data-lottery-id="wa-night"]').isVisible(), false);
     await r.page.locator('[data-category="NOCHE"]').click();
     assert.equal(await r.page.locator('[data-lottery-id="wa-night"]').isVisible(), true);
     assert.equal(await r.page.locator('[data-lottery-id="ga-am"]').isVisible(), false);
+  } finally { await r.close(); }
+});
+for (const [label, options, version] of [
+  ['instalada', { installedVersion: '9.8.7' }, '9.8.7'],
+  ['sin GM_info', { gmInfo: false }, require('../metadata.json').version],
+  ['GM_info sin versión', { installedVersion: '' }, require('../metadata.json').version]
+]) test(`Versión: placeholder ${label} sin alterar el filtro`, async () => {
+  const r = await setup(options); try {
+    const search = r.page.locator('#rlur-search');
+    assert.equal(await search.getAttribute('placeholder'), 'Buscar · v' + version);
+    assert.equal(await r.page.locator('.rlur-version').count(), 0);
+    assert.match(await search.getAttribute('aria-label'), new RegExp(version.replaceAll('.', '\\.')));
+    await search.fill('Georgia');
+    assert.equal(await r.page.locator('[data-lottery-id]:not([hidden])').count(), 1);
+    await search.fill('');
+    assert.ok(await r.page.locator('[data-lottery-id]:not([hidden])').count() > 1);
+    assert.equal(await search.getAttribute('placeholder'), 'Buscar · v' + version);
   } finally { await r.close(); }
 });
 for (const [mode, code, label] of [
@@ -206,7 +224,7 @@ test('Paridad visual: banderas, Día/Noche y navegación horizontal en el orden 
     const before = await r.page.locator('#rlur-bar').evaluate(el => getComputedStyle(el).borderTopColor);
     const first = await r.page.locator('[data-lottery-id="tn-morning"]').boundingBox();
     const second = await r.page.locator('[data-lottery-id="tx-morning"]').boundingBox();
-    assert.ok(Math.abs(first.x - second.x) <= 1 && second.y > first.y, 'Orden por columnas como antes');
+    assert.ok(second.x > first.x && Math.abs(first.y - second.y) <= 1, 'Una fila inicial en el orden heredado');
     assert.equal(await r.page.locator('.rlur-grid').evaluate(el => getComputedStyle(el).overflowX), 'auto');
     await r.page.locator('[data-category="NOCHE"]').click();
     assert.notEqual(await r.page.locator('#rlur-bar').evaluate(el => getComputedStyle(el).borderTopColor), before);
@@ -273,9 +291,11 @@ for (const mode of ['', 'pending', 'network']) test(`Registro completo: ${mode |
 async function dragEdge(page, edge, dx, dy) {
   const box = await page.locator(`[data-resize="${edge}"]`).boundingBox();
   assert.ok(box, `Borde ${edge} visible`);
-  const x = box.x + box.width / 2, y = box.y + box.height / 2;
-  await page.mouse.move(x, y); await page.mouse.down();
   const viewport = page.viewportSize();
+  // Los bordes del panel pegado al pie solo se pueden tomar por su parte visible.
+  const x = Math.max(1, Math.min(viewport.width - 1, box.x + box.width / 2));
+  const y = Math.max(1, Math.min(viewport.height - 1, box.y + box.height / 2));
+  await page.mouse.move(x, y); await page.mouse.down();
   await page.mouse.move(Math.max(1, Math.min(viewport.width - 1, x + dx)), Math.max(1, Math.min(viewport.height - 1, y + dy)), { steps: 8 }); await page.mouse.up();
 }
 async function panelBox(page) { return page.locator('#rlur-bar').boundingBox(); }
@@ -286,7 +306,8 @@ function assertInside(box, width, height) {
 test('Tamaño: compacto inicial, borde superior y Compactar', async () => {
   const r = await setup(); try {
     const initial = await panelBox(r.page);
-    assert.ok(initial.height <= 150, 'El espacio del pie debe reducir la altura compacta');
+    assert.ok(initial.height <= 70, 'Una fila compacta al iniciar');
+    assert.equal(await r.page.locator('.rlur-grid').evaluate(el => el.style.getPropertyValue('--rlur-rows')), '1');
     assert.ok(initial.x <= 1 && initial.width >= 1279, 'La barra ocupa toda la ventana de izquierda a derecha');
     const visibleCount = () => r.page.locator('[data-lottery-id]:not([hidden])').evaluateAll(nodes => nodes.filter(n => {
       const b = n.getBoundingClientRect(), g = n.parentElement.getBoundingClientRect(); return b.top >= g.top && b.bottom <= g.bottom && b.left >= g.left && b.right <= g.right;
@@ -300,15 +321,18 @@ test('Tamaño: compacto inicial, borde superior y Compactar', async () => {
     assert.ok(Math.abs((await panelBox(r.page)).height - initial.height) <= 1);
   } finally { await r.close(); }
 });
-for (const viewport of [{ width: 1280, height: 720 }, { width: 3840, height: 2160 }]) test(`Tamaño: reducir hacia abajo desde compacto (${viewport.width})`, async () => {
+for (const viewport of [{ width: 1280, height: 720 }, { width: 3840, height: 2160 }]) test(`Tamaño: una fila inicial y regreso al bajar (${viewport.width})`, async () => {
   const r = await setup({ viewport }); try {
     const initial = await panelBox(r.page);
+    assert.ok(initial.height <= 76, 'Iniciar bajo sin arrastrar');
+    await dragEdge(r.page, 'n', 0, -150);
+    assert.ok((await panelBox(r.page)).height >= initial.height + 145);
     await dragEdge(r.page, 'n', 0, 400);
     const lower = await panelBox(r.page);
-    assert.ok(lower.height <= initial.height - 40, 'Debe poder reducir claramente la altura inicial');
+    assert.ok(Math.abs(lower.height - initial.height) <= 1, 'Bajar vuelve a una fila completa');
     assert.ok(Math.abs(lower.y + lower.height - viewport.height) < 1, 'Conservar el anclaje inferior');
     assert.ok(lower.width >= viewport.width - 1, 'Conservar el ancho completo');
-    for (const selector of ['.rlur-tabs', '#rlur-search', '.rlur-version', '.rlur-actions']) {
+    for (const selector of ['.rlur-tabs', '#rlur-search', '.rlur-actions']) {
       const box = await r.page.locator(selector).boundingBox();
       assert.ok(box.y >= lower.y && box.y + box.height <= lower.y + lower.height - 1, `${selector} no debe quedar cortado`);
     }
@@ -316,10 +340,15 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 3840, height: 216
     const tabs = await r.page.locator('.rlur-tabs button').all();
     const dayBox = await tabs[0].boundingBox(), nightBox = await tabs[1].boundingBox();
     assert.ok(Math.abs(dayBox.width - nightBox.width) < 1 && Math.abs(dayBox.height - nightBox.height) < 1, 'Día/Noche deben tener igual ancho y alto');
-    // Medidas de la versión 0.0.15 en esta reproducción Firefox, antes del cambio.
-    const previousSearchWidth = viewport.width === 1280 ? 304.23 : 416.82;
-    assert.ok(Math.abs(searchBox.width - previousSearchWidth / 2) < 4, 'Buscador a la mitad del ancho anterior');
-    for (const tab of tabs) assert.ok(await tab.evaluate(el => el.scrollWidth <= el.clientWidth), 'Icono y texto completos');
+    assert.ok(Math.abs(searchBox.width - (viewport.width === 1280 ? 145.6 : 187.2)) < 1, 'Buscador del mockup reducido otro 20 %, adaptado a 14/18 px');
+    assert.equal(await r.page.locator('.rlur-version').count(), 0, 'La versión no ocupa otra fila');
+    for (const tab of tabs) {
+      const size = await tab.evaluate(el => ({ label: el.textContent, client: el.clientWidth, scroll: el.scrollWidth }));
+      assert.ok(size.scroll <= size.client, 'Icono y texto completos: ' + JSON.stringify(size));
+    }
+    await r.page.locator('[data-category="NOCHE"]').click();
+    assert.ok(await r.page.locator('[data-category="NOCHE"]').evaluate(el => el.scrollWidth <= el.clientWidth), 'Noche activa conserva texto completo en negrita');
+    await r.page.locator('[data-category="DIA"]').click();
     for (const tab of await r.page.locator('.rlur-tabs button').all()) {
       const box = await tab.boundingBox();
       assert.ok(box.x + box.width <= searchBox.x, 'Día/Noche no debe solaparse con el buscador en 4K');
@@ -327,6 +356,8 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 3840, height: 216
     const visibleButton = r.page.locator('[data-lottery-id]:not([hidden])').first();
     const buttonBox = await visibleButton.boundingBox();
     assert.ok(buttonBox.y >= lower.y && buttonBox.y + buttonBox.height <= viewport.height - 1, 'Una fila completa de loterías');
+    assert.ok(Math.abs(buttonBox.y - searchBox.y) <= 3, 'Controles y loterías alineados en la misma fila');
+    assert.equal(await visibleButton.locator('span').first().evaluate(el => getComputedStyle(el).whiteSpace), 'nowrap');
     await r.page.locator('#rlur-search').fill('Georgia');
     await r.bind(); await r.click('ga-am');
     assert.deepEqual((await r.values('GE-MD')).slice(3), ['027', '0987']);
@@ -337,17 +368,31 @@ for (const viewport of [{ width: 1280, height: 720 }, { width: 3840, height: 216
     assert.ok(Math.abs((await panelBox(r.page)).height - initial.height) <= 1);
   } finally { await r.close(); }
 });
-test('Tamaño: móvil permite reducir hacia abajo sin cortar la fila táctil', async () => {
-  const r = await setup({ viewport: { width: 390, height: 844 }, hasTouch: true }); try {
+for (const width of [320, 390]) test(`Tamaño: una fila móvil y regreso al bajar (${width})`, async () => {
+  const r = await setup({ viewport: { width, height: 844 }, hasTouch: true }); try {
     const initial = await panelBox(r.page), handle = r.page.locator('[data-resize="n"]'), box = await handle.boundingBox();
     const pointer = { pointerId: 7, pointerType: 'touch', isPrimary: true, clientX: box.x + box.width / 2, clientY: box.y + box.height / 2, buttons: 1, bubbles: true };
     await handle.dispatchEvent('pointerdown', pointer);
+    await handle.dispatchEvent('pointermove', { ...pointer, clientY: pointer.clientY - 120 });
+    assert.ok((await panelBox(r.page)).height >= initial.height + 115);
     await handle.dispatchEvent('pointermove', { ...pointer, clientY: pointer.clientY + 300 });
     await handle.dispatchEvent('pointerup', { ...pointer, clientY: pointer.clientY + 300, buttons: 0 });
     const lower = await panelBox(r.page), button = await r.page.locator('[data-lottery-id]:not([hidden])').first().boundingBox();
-    assert.ok(lower.height <= initial.height - 30, 'Reducir también con el dedo');
+    assert.ok(initial.height <= 76 && Math.abs(lower.height - initial.height) <= 1, 'Una fila al iniciar y al reducir con el dedo');
     assert.ok(Math.abs(lower.y + lower.height - 844) < 1);
-    assert.ok(button.height >= 42 && button.y + button.height <= 843, 'Una fila táctil completa');
+    assert.ok(button.width >= 42 && button.height >= 42 && button.y + button.height <= 843, 'Una fila táctil completa');
+    assert.equal(await r.page.locator('#rlur-search').getAttribute('placeholder'), 'v' + require('../metadata.json').version);
+    const placeholderSize = await r.page.locator('#rlur-search').evaluate(el => {
+      const css = getComputedStyle(el), context = document.createElement('canvas').getContext('2d');
+      context.font = css.font;
+      const available = el.getBoundingClientRect().width - parseFloat(css.borderLeftWidth) - parseFloat(css.borderRightWidth) - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight);
+      return { text: context.measureText(el.placeholder).width, available, font: css.font };
+    });
+    assert.ok(placeholderSize.text <= placeholderSize.available, 'Versión completa en el placeholder móvil: ' + JSON.stringify(placeholderSize));
+    for (const selector of ['[data-category="DIA"]', '[data-category="NOCHE"]', '.rlur-close', '.rlur-compact']) {
+      const box = await r.page.locator(selector).boundingBox();
+      assert.ok(box.width >= 42 && box.height >= 42, `${selector}: objetivo táctil`);
+    }
     await r.page.screenshot({ path: path.join(root, 'test-results', 'barra-altura-minima-mobile.png') });
   } finally { await r.close(); }
 });
@@ -361,7 +406,7 @@ test('Tamaño: bordes, esquinas, teclado y límites de pantalla', async () => {
     assert.ok((await panelBox(r.page)).height < before.height);
     await dragEdge(r.page, 'ne', 2000, -2000); assertInside(await panelBox(r.page), 1280, 720);
     await dragEdge(r.page, 'sw', 2000, 2000);
-    const small = await panelBox(r.page); assertInside(small, 1280, 720); assert.ok(small.width >= 360 && small.height >= 150);
+    const small = await panelBox(r.page); assertInside(small, 1280, 720); assert.ok(small.width >= 360 && small.height >= 66);
     await r.page.setViewportSize({ width: 320, height: 380 });
     await r.page.waitForTimeout(100); assertInside(await panelBox(r.page), 320, 380);
     await r.page.locator('.rlur-close').click();
@@ -369,6 +414,35 @@ test('Tamaño: bordes, esquinas, teclado y límites de pantalla', async () => {
     await r.page.locator('#rlur-toggle').click();
     await r.page.waitForFunction(() => getComputedStyle(document.querySelector('#rlur-bar')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
     assertInside(await panelBox(r.page), 320, 380);
+  } finally { await r.close(); }
+});
+for (const width of [320, 640, 1280]) test(`Bordes: no interceptan controles ni scrollbar (${width})`, async () => {
+  const r = await setup({ viewport: { width, height: 720 }, hasTouch: width === 320 }); try {
+    for (const selector of ['[data-category="DIA"]', '[data-category="NOCHE"]', '#rlur-search', '.rlur-compact', '.rlur-close']) {
+      const hits = await r.page.locator(selector).evaluate(el => {
+        const b = el.getBoundingClientRect();
+        return [[b.x + b.width / 2, b.top + 1], [b.left + 1, b.y + b.height / 2], [b.right - 1, b.y + b.height / 2]].map(([x, y]) => {
+          const target = document.elementFromPoint(x, y);
+          return { intended: el === target || el.contains(target), edge: target?.closest('[data-resize]')?.dataset.resize };
+        });
+      });
+      for (const hit of hits) assert.equal(hit.intended, true, `${selector}: interceptado por ${hit.edge}`);
+    }
+    const scrollbar = await r.page.locator('.rlur-grid').evaluate(el => {
+      const b = el.getBoundingClientRect(), thickness = el.offsetHeight - el.clientHeight;
+      const target = document.elementFromPoint(b.x + b.width / 2, b.bottom - Math.max(1, thickness / 2));
+      return { thickness, intended: target === el || el.contains(target), edge: target?.closest('[data-resize]')?.dataset.resize };
+    });
+    assert.equal(scrollbar.intended, true, `Scrollbar interceptado por ${scrollbar.edge}`);
+  } finally { await r.close(); }
+});
+test('Límite 640 px: categorías dentro de su fila', async () => {
+  const r = await setup({ viewport: { width: 640, height: 720 } }); try {
+    const tabs = await r.page.locator('.rlur-tabs').boundingBox();
+    for (const tab of await r.page.locator('.rlur-tabs button').all()) {
+      const b = await tab.boundingBox();
+      assert.ok(b.y + b.height <= tabs.y + tabs.height + 1, 'Categoría no debe desbordar su contenedor');
+    }
   } finally { await r.close(); }
 });
 for (const [label, viewport, scale, minFont] of [
@@ -379,7 +453,7 @@ for (const [label, viewport, scale, minFont] of [
   const r = await setup({ viewport, deviceScaleFactor: scale }); try {
     const box = await panelBox(r.page);
     assert.ok(box.x <= 1 && Math.abs(box.width - viewport.width) <= 1);
-    assert.ok(box.height <= 220, 'Conservar altura compacta');
+    assert.ok(box.height <= 76, 'Conservar una fila compacta');
     const typography = await r.page.locator('[data-lottery-id="ga-am"]').evaluate(el => {
       const s = getComputedStyle(el); return { font: parseFloat(s.fontSize), weight: Number(s.fontWeight), lineHeight: parseFloat(s.lineHeight) };
     });
@@ -389,9 +463,11 @@ for (const [label, viewport, scale, minFont] of [
     const controls = await r.page.locator('.rlur-controls').boundingBox();
     assert.ok(controls.x + controls.width <= grid.x + 1, 'Controles a la izquierda como la referencia');
     // Reservar 17 px extra simula el espacio de una barra clásica, sin depender del SO de pruebas.
-    await r.page.locator('.rlur-grid').evaluate(el => el.style.paddingBottom = '19px');
-    await r.page.waitForFunction(() => Number(document.querySelector('.rlur-grid').style.getPropertyValue('--rlur-rows')) >= 2);
-    await r.page.locator('.rlur-grid').evaluate(el => el.style.paddingBottom = '');
+    await r.page.locator('.rlur-grid').evaluate(el => { el.style.scrollbarWidth = 'none'; el.style.paddingBottom = '19px'; });
+    const firstButton = await r.page.locator('[data-lottery-id]:not([hidden])').first().boundingBox();
+    const usableBottom = await r.page.locator('.rlur-grid').evaluate(el => el.getBoundingClientRect().top + el.clientHeight - 19);
+    assert.ok(firstButton.y + firstButton.height <= usableBottom + 1, 'Una fila completa con scrollbar clásico de 17 px');
+    await r.page.locator('.rlur-grid').evaluate(el => { el.style.scrollbarWidth = ''; el.style.paddingBottom = ''; });
     await r.page.getByRole('button', { name: 'Restablecer tamaño compacto' }).click();
     assert.ok(Math.abs((await panelBox(r.page)).width - viewport.width) <= 1);
     await r.page.screenshot({ path: path.join(root, 'test-results', `barra-${label.replaceAll(' ', '-')}.png`), scale: 'css' });
@@ -852,6 +928,7 @@ test('Tema oscuro y navegación SPA: no duplica ni deja la barra fuera de la rut
       launch.firefoxUserPrefs = { 'security.sandbox.content.level': 0, 'security.sandbox.rdd.level': 0, 'security.sandbox.socket.process.level': 0, 'media.rdd-process.enabled': false, 'media.utility-process.enabled': false };
       launch.env = { ...process.env, MOZ_DISABLE_CONTENT_SANDBOX: '1', MOZ_DISABLE_RDD_SANDBOX: '1', MOZ_DISABLE_SOCKET_PROCESS_SANDBOX: '1', MOZ_DISABLE_GPU_SANDBOX: '1', MOZ_DISABLE_GMP_SANDBOX: '1' };
     }
+    if (process.env.ROVS_FIREFOX_CLASSIC_SCROLLBARS === '1') launch.firefoxUserPrefs = { ...launch.firefoxUserPrefs, 'widget.gtk.overlay-scrollbars.enabled': false, 'ui.useOverlayScrollbars': 0 };
     browser = await firefox.launch(launch);
     console.log('Firefox', browser.version(), '+ React', require('react/package.json').version);
     const selectedTests = tests.filter(t => !process.env.TEST_FILTER || t.name.includes(process.env.TEST_FILTER));

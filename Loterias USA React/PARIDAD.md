@@ -57,3 +57,7 @@ El verde suave se conserva durante un segundo, con retirada directa. Se elimina 
 ## Actualización 0.0.14: recálculo sin vaciar picks de texto
 
 Sigue permitiéndose volver a llenar aunque haya datos, incluidos picks iguales y premios/dependientes incorrectos. Bajo el normalizador nativo verificado, un espacio final temporal provoca el evento de cambio y Central conserva el número canónico, con un recálculo por juego. No se omite la fila porque sus cinco campos coincidan: también debe poder actualizar sus dependientes. Si el formato no se normaliza, se restaura el número inmediatamente; para otros tipos de input se conserva el vaciado/reentrada anterior. La verificación tras el render impide confirmar valores con formato retenido o premios incorrectos. Los proveedores siguen consultándose de nuevo, sin caché.
+
+## Actualización 0.0.17: fila inicial aprobada
+
+Cambio intencional de presentación: el inicio compacto pasa de dos filas a una, con controles en la misma línea y versión en el placeholder. Más altura sigue mostrando más loterías. El orden de configuración se conserva; la barra estrecha ampliada usa cuadrícula vertical y la compacta horizontal. Se conservan los 75 sorteos, fuentes, entrada nativa, colores, estados, accesibilidad, móvil táctil, zoom y controles de tamaño. La versión procede de GM_info y, si falta, del script.

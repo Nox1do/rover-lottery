@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.9
+// @version      0.0.10
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,7 +16,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.9';
+  const VERSION = '0.0.10';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
@@ -352,32 +352,50 @@ SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
   function photoIdentityKey(value) {
     return normalize(value).replace(/[^A-Z0-9]/g, '');
   }
-  // Coincidencias completas únicamente: nunca coincidencias parciales del código.
-  const PHOTO_EXCLUSION_NAMES = new Set(PHOTO_EXCLUSION_ROWS.map(([name]) => photoIdentityKey(name)));
-  const PHOTO_EXCLUSION_PAIRS = new Set(PHOTO_EXCLUSION_ROWS.map(([name, code]) =>
-    photoIdentityKey(name) + photoIdentityKey(code)));
-  const PHOTO_EXCLUSION_REVERSED_PAIRS = new Set(PHOTO_EXCLUSION_ROWS.map(([name, code]) =>
-    photoIdentityKey(code) + photoIdentityKey(name)));
+  // Reglas exactas de nombre + código. Un nombre repetido NO basta para
+  // excluir fotos. Ej.: LA CHICA (LA-CHICA) sí, LA CHICA (otro) no.
+  // NEW YORK AM (NEW YORK PM) sí, NEW YORK PM (NY-PM) no.
+  const PHOTO_EXCLUSION_PAIRS = new Map();
+  const PHOTO_EXCLUSION_REVERSED_PAIRS = new Map();
+  const PHOTO_EXCLUSION_BY_NAME = new Map();
+  for (const [name, code] of PHOTO_EXCLUSION_ROWS) {
+    const nameKey = photoIdentityKey(name);
+    const codeKey = photoIdentityKey(code);
+    if (!nameKey || !codeKey) continue;
+    const matched = Object.freeze({ name, code, nameKey, codeKey });
+    PHOTO_EXCLUSION_PAIRS.set(nameKey + codeKey, matched);
+    PHOTO_EXCLUSION_REVERSED_PAIRS.set(codeKey + nameKey, matched);
+    if (!PHOTO_EXCLUSION_BY_NAME.has(nameKey)) PHOTO_EXCLUSION_BY_NAME.set(nameKey, new Map());
+    PHOTO_EXCLUSION_BY_NAME.get(nameKey).set(codeKey, matched);
+  }
 
-  function isPhotoExcluded(lotteryCell) {
-    if (!lotteryCell) return false;
+  function photoExclusionMatch(lotteryCell) {
+    if (!lotteryCell) return null;
     const fullKey = photoIdentityKey(lotteryCell.textContent);
-    if (!fullKey) return false;
-    if (PHOTO_EXCLUSION_PAIRS.has(fullKey) || PHOTO_EXCLUSION_REVERSED_PAIRS.has(fullKey) ||
-        PHOTO_EXCLUSION_NAMES.has(fullKey)) return true;
-    // En la interfaz React el nombre y el código suelen vivir en <span>/<div>
-    // separados. Comprobar los valores hoja exactos, no el texto de toda la fila.
+    if (!fullKey) return null;
+    const exact = PHOTO_EXCLUSION_PAIRS.get(fullKey) || PHOTO_EXCLUSION_REVERSED_PAIRS.get(fullKey);
+    if (exact) return exact;
+
+    // React puede renderizar nombre y código en elementos diferentes.
+    // Requerimos AMBOS valores exactos dentro de la celda LOTERIA.
+    // Nunca coincidencias de subcadenas, nombre solo o código solo.
     const fragments = new Set();
     for (const node of lotteryCell.querySelectorAll('span, small, strong, b, div, p, [data-code]')) {
       if (node.childElementCount > 0 && !node.hasAttribute('data-code')) continue;
       const key = photoIdentityKey(node.textContent);
       if (key) fragments.add(key);
     }
-    if ([...fragments].some((key) => PHOTO_EXCLUSION_NAMES.has(key))) return true;
-    // No basarse nunca exclusivamente en códigos: NEW YORK AM se suministró
-    // con el código NEW YORK PM. Una coincidencia de código aislada podría
-    // ocultar por error los botones de un sorteo que NO está en la lista.
-    return false;
+    for (const [nameKey, codes] of PHOTO_EXCLUSION_BY_NAME) {
+      if (!fragments.has(nameKey)) continue;
+      for (const [codeKey, pair] of codes) {
+        if (fragments.has(codeKey)) return pair;
+      }
+    }
+    return null;
+  }
+
+  function isPhotoExcluded(lotteryCell) {
+    return Boolean(photoExclusionMatch(lotteryCell));
   }
 
   function annotatePhotoCell(row, cells) {
@@ -961,6 +979,10 @@ SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
       return {
         lottery: lottery?.textContent?.trim().slice(0, 100) || '',
         excluded: row.getAttribute('data-clr-no-photos') === 'true',
+        exactMatch: lottery ? (() => {
+          const matched = photoExclusionMatch(lottery);
+          return matched ? `${matched.name} (${matched.code})` : null;
+        })() : null,
         buttonsInPhotos: photo?.querySelectorAll('button, [role="button"]').length || 0,
         photoColumnFound: Boolean(photo),
       };

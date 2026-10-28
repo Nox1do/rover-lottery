@@ -1,5 +1,13 @@
 # Verificación
 
+## 0.1.6 — 28/10/2026
+
+- Base 0.1.5: 42 pruebas Node, 40 escenarios React/Firefox y dos de extensión aprobados. Antes del arreglo, las regresiones de ambos órdenes de llegada y Buscar intermedio fallaron: 47/50 Firefox. El instalador 0.1.5 también se detuvo después de presentar Pick 3 en la prueba de dos revisiones sucesivas.
+- Se reprodujo el motivo: las dependientes generadas por Central conservan valores/X después del primer componente y el guard los considera ajenos. La lectura operativa acredita entregas parciales y completa de la misma PC; no se conserva el diagnóstico anterior a F5, por lo que la reproducción no equivale a una traza completa de esa sesión.
+- `npm test`: 45 pruebas Node, 52 escenarios React/Firefox y dos de extensión aislada; cero fallos. `npm run check` y `git diff --check` aprobados. Los históricos 0.1.0–0.1.5 permanecen intactos.
+- Cobertura nueva: reglas conocidas/desconocidas, segmentos y ceros; ambos órdenes de picks; Buscar entre componentes; reserva/presentación por revisión en el instalador; limpieza/edición manual aun con restauración al mismo valor, intervención de otro script, cambio silencioso de valores, reglas cambiadas, dependiente procesada/ausente y otra principal que comparte la dependiente. Esa última regresión falló antes de invalidar atribución por otra principal.
+- GM y servicios simulados. Se mantienen las pruebas reales de aislamiento Firefox, pero no se realizó una publicación financiera ni se acredita resuelto el incidente anterior de Quinielón PM.
+
 ## 0.1.5 — 27/10/2026
 
 - Base 0.1.4: 38 pruebas Node, 38 escenarios Firefox y dos de extensión, todos aprobados. Tres regresiones unitarias nuevas fallaron por falta de motivos/conciliaciones. La regresión del adaptador falló con `fillBlock` ausente; el diagnóstico del instalador 0.1.4 tampoco informa una denegación de reserva.

@@ -108,7 +108,7 @@ function App() {
         row.tercera = val.length === 4 ? val.slice(2) : "";
       }
       const next = { ...old, [code]: row };
-      if (code === "NY-AM")
+      if (code === "NY-AM" || (window.fxSharedDependent && code === "REAL"))
         next["NY-BP"] = {
           ...old["NY-BP"],
           primera: row.pick4.length === 4 ? row.pick4.slice(2) : "",

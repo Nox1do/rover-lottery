@@ -10,6 +10,12 @@ Fuentes públicas comprobadas:
 - https://www.tampermonkey.net/documentation.php?locale=en&q=meta:sandbox
 - https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts/exportFunction
 
+## Componentes sucesivos y dependientes · 0.1.6
+
+Inspección pública del 28/10/2026: `index-BcE53Pt2.js`, `VerResultados-BX9GQnTL.js` y `PublicarFlujo-CdWenogO.js`. El manejador aplica las reglas activas después de cada entrada de la principal, incluso si todavía falta un pick. Las reglas admiten X, copias de premios/picks, segmentos de picks y campos sin tocar. `dependencies.js` reproduce únicamente la proyección para verificar los efectos observados; no sustituye el cálculo nativo. Un token desconocido no acredita atribución.
+
+Solo se reutilizan valores derivados tras un llenado propio exitoso si coinciden todos los campos, las reglas, la principal y el baseline de ambas filas en el mismo contexto operativo. La prueba completa solicita una nueva reserva al cambiar la revisión; la atribución no sustituye ese permiso. Cualquier intervención detectada en una fila relacionada conserva la protección del trabajo ajeno. Los campos pendientes derivados propios se incluyen al verificar la retención tras Buscar.
+
 ## Instrumentación de omisiones · 0.1.5
 
 El adaptador comparte una única evaluación entre `canFill` y el diagnóstico de bloqueo; se conservan condiciones y orden de los guards. La entrega registra motivos de omisión y un resumen acotado de conciliaciones, sin nuevas consultas, reintentos ni efectos de escritura por abrir el diagnóstico. Inspección pública adicional: `index-kAGvESlW.js` y `VerResultados-h4jeei_q.js`; las casillas usan estado controlado y no tienen un bloqueo específico de Quinielón. El estado posterior a una publicación manual no acredita el bloqueo anterior.

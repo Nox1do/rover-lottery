@@ -1,8 +1,10 @@
 # Guía de continuidad — Mango React
 
-Actualizada el **27 de octubre de 2026**. Sirve para retomar el proyecto en otra conversación sin reconstruir sus decisiones ni confundirlo con USA React. Antes de trabajar, contrastar esta guía con la rama `main`: puede haber cambios posteriores.
+Actualizada el **28 de octubre de 2026**. Sirve para retomar el proyecto en otra conversación sin reconstruir sus decisiones ni confundirlo con USA React. Antes de trabajar, contrastar esta guía con la rama `main`: puede haber cambios posteriores.
 
-**Versión vigente: 0.1.5.** Añade `omitidas` por motivo y `conciliaciones` (último intento de hasta 20 loterías, sin respuesta completa, tokens ni IDs de operaciones/otras PCs). Conserva guards y protocolo. El fallo de Quinielón PM sigue pendiente de causa: resultado 34 disponible, PC del usuario sin llenar y diagnóstico 0.1.4 sin errores; una operación presentada a las 19:08 correspondía a otra PC. El usuario confirmó que llenó manualmente antes de procesar a las 19:12. La captura posterior de `EQN-PM` acredita procesado 34/X/X, campos habilitados, sin reglas ni revisiones para esa fila; estaba oculta por el filtro. No extrapolar ese estado al instante del fallo. La nueva instrumentación debe capturar la próxima omisión antes de resolverla manualmente.
+**Versión vigente: 0.1.6.** El usuario informó New York AM: se llenó Pick 3, Pick 4 quedó pendiente y apareció al recargar con F5. Los registros de su PC acreditan una entrega inicial solo Pick 3 y otra completa tras la recarga. Se reprodujo en Firefox: Central genera valores/X en las dependientes durante la primera entrada y el guard anterior los bloquea como trabajo ajeno. Se atribuyen solo proyecciones nativas retenidas tras escritura propia; para continuar se exige misma principal/servidor/fecha/reglas, campos y baseline intactos. Se invalida la atribución ante intervención en principal, dependiente u otra principal que la comparta, aunque queden los mismos valores. Buscar reconoce las dependientes propias como trabajo local. Verificación: 45 Node, 52 escenarios React/Firefox y dos de extensión. Falta confirmación en la sesión del usuario. No extrapolar este arreglo al incidente de Quinielón, cuya causa sigue pendiente.
+
+**Entrega anterior 0.1.5:** Añade `omitidas` por motivo y `conciliaciones` (último intento de hasta 20 loterías, sin respuesta completa, tokens ni IDs de operaciones/otras PCs). Conserva guards y protocolo. El fallo de Quinielón PM sigue pendiente de causa: resultado 34 disponible, PC del usuario sin llenar y diagnóstico 0.1.4 sin errores; una operación presentada a las 19:08 correspondía a otra PC. El usuario confirmó que llenó manualmente antes de procesar a las 19:12. La captura posterior de `EQN-PM` acredita procesado 34/X/X, campos habilitados, sin reglas ni revisiones para esa fila; estaba oculta por el filtro. No extrapolar ese estado al instante del fallo. La nueva instrumentación debe capturar la próxima omisión antes de resolverla manualmente.
 
 **Entrega anterior 0.1.4:** El usuario confirmó que 0.1.3 ya llena, pero pidió eliminar el llenado escalonado. Se sustituyen las pausas de 35 ms entre casillas por cesión a microtareas, con guard en cada paso y comprobación final de retención de 35 ms antes de `presented`. Las pruebas muestran cero frames parciales en tablas completas/filtradas; conservan intervención entre entradas y tardía, también desde una extensión Firefox aislada. El guard estable evita releer toda la tabla, pero cada nueva respuesta vuelve a compararse completa. Verificación: 38 pruebas Node, 38 escenarios React/Firefox y dos de extensión aislada. Falta confirmar la mejora visual en el equipo del usuario; no afirmar una mejora global de latencia solo por reducir lecturas. Ver [CHANGELOG](CHANGELOG.md), [compatibilidad](docs/compatibilidad.md) y [verificación](docs/verificacion.md).
 
@@ -56,7 +58,8 @@ Leer cualquier `AGENTS.md` aplicable que exista al retomar el trabajo. El de `Lo
 | `src/helpers.js` | Campos conocidos, normalización, validación de números y fechas, zona operativa e identificadores. |
 | `src/native.js` | Observación transparente de solicitudes nativas conocidas de Central. |
 | `src/context.js` | Contexto invalidable, fecha realmente cargada, respuestas fuera de orden y valores persistidos. |
-| `src/central.js` | Reconocimiento de tabla/filas, permisos, conflictos, dependencias, edición local y llenado React. |
+| `src/central.js` | Reconocimiento de tabla/filas, permisos, conflictos, atribución de dependientes, edición local y llenado React. |
+| `src/dependencies.js` | Proyección pura de reglas nativas conocidas para verificar atribución; no escribe casillas. |
 | `src/api.js` | Solicitudes Mango mediante GM; autenticación privada y tratamiento de errores. |
 | `src/delivery.js` | Identidad de loterías, reservas, presentación, ACK y discordancias. |
 | `src/polling.js` | Intervalo según componentes activos o agotados/procesados. |
@@ -91,7 +94,7 @@ Se exporta únicamente el envoltorio necesario con `exportFunction`; el token y 
 - Los campos son `primera`, `segunda`, `tercera`, `pick3`, `pick4`; conservar cadenas y ceros iniciales.
 - Usar setter nativo más evento `input`; comprobar que React retenga los valores después de actualizarse. No usar Fiber ni propiedades privadas de React.
 - Pick 3 deriva 1era; Pick 4 deriva 2da/3ra. No escribir otra vez esos premios cuando el pick ya los calcula.
-- Revisar también las dependientes afectadas antes de llenar la principal. Si hay trabajo local, bloqueo o incertidumbre, omitir el llenado.
+- Revisar también las dependientes afectadas antes de llenar la principal. Si hay trabajo ajeno, bloqueo o incertidumbre, omitir el llenado. La continuación de un componente puede conservar dependientes atribuidas a una entrada propia anterior solo con reglas, valores y baseline intactos; no basta con que contengan X o coincidan numéricamente.
 - No restaurar indiscriminadamente un campo borrado. El registro de intervención local es intencional. Tampoco revertir cambios ajenos si el llenado se interrumpe.
 - Diálogos, carga, publicación, falta de permisos, fecha histórica, otra vista o servidor distinto suspenden los efectos.
 

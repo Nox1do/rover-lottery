@@ -160,8 +160,9 @@ async function setup({ overrides = {}, rows = 3, processedIcon } = {}) {
   };
   return r;
 }
-async function waitingRuntime(r) {
-  await r.page.evaluate(() => {
+async function waitingRuntime(r, rowConfig = {}) {
+  await r.page.evaluate((rowConfig) => {
+    window.gmRowConfig = rowConfig;
     window.gmCalls = [];
     window.gmMenus = {};
     window.gmWaitingState = "awaiting_result";
@@ -184,7 +185,8 @@ async function waitingRuntime(r) {
         data = {
           ok: true,
           date: "2026-10-27",
-          revision: gmWaitingState === "awaiting_result" ? 2 : 3,
+          revision:
+            window.gmRevision ?? (gmWaitingState === "awaiting_result" ? 2 : 3),
         };
       else if (options.url.includes("/rows?"))
         data = {
@@ -197,7 +199,9 @@ async function waitingRuntime(r) {
               name: "REAL",
               aliases: ["REAL"],
               draw_date: "2026-10-27",
-              revision: gmWaitingState === "awaiting_result" ? 2 : 3,
+              revision:
+                window.gmRevision ??
+                (gmWaitingState === "awaiting_result" ? 2 : 3),
               proc_state:
                 gmWaitingState === "processed" ? "processed" : "pending",
               owned_fields: ["primera", "segunda", "tercera"],
@@ -211,11 +215,16 @@ async function waitingRuntime(r) {
               visual: {
                 state: gmWaitingState === "awaiting_result" ? "blue" : null,
               },
+              ...gmRowConfig,
             },
           ],
         };
       else if (options.url.endsWith("/reconcile") && window.gmReconcileData)
-        data = window.gmReconcileData;
+        data =
+          typeof gmReconcileData === "function"
+            ? gmReconcileData()
+            : gmReconcileData;
+      else if (options.url.endsWith("/presented")) data = { ok: true };
       else throw Error("Unexpected Mango request: " + options.url);
       const finish = () =>
         options.onload({ status: 200, responseText: JSON.stringify(data) });
@@ -223,7 +232,7 @@ async function waitingRuntime(r) {
         gmHeldRequests.push(finish);
       else setTimeout(finish, 0);
     };
-  });
+  }, rowConfig);
   await r.page.addScriptTag({
     content: await readFile("Mango-Rover-React.user.js", "utf8"),
   });
@@ -239,10 +248,83 @@ async function waitingRuntime(r) {
   );
   await r.load();
   await r.page
-    .locator('tr[data-code="REAL"] input[data-mango-react-visual="blue"]')
+    .locator(
+      `tr[data-code="${rowConfig.aliases?.[0] || "REAL"}"] input[data-mango-react-visual="blue"]`,
+    )
     .first()
     .waitFor();
 }
+test("runtime NY AM completa Pick 4 al llegar después de Pick 3 sin recargar ni procesar", async () => {
+  const r = await setup();
+  try {
+    await waitingRuntime(r, {
+      lottery_id: "newyorkam",
+      row_key: "newyorkam|2026-10-27",
+      name: "NEW YORK AM",
+      aliases: ["NY-AM"],
+      owned_fields: ["primera", "segunda", "tercera", "pick3", "pick4"],
+    });
+    await r.page.evaluate(() => {
+      window.gmExpected = { pick3: "005", primera: "05" };
+      window.gmRevision = 3;
+      window.gmWaitingState = "ready";
+      window.gmReconcileData = () => ({
+        ok: true,
+        action: "paint_fields",
+        should_paint: true,
+        expected_fields: { ...gmExpected },
+        operation: {
+          operation_id: "progressive-" + gmRevision,
+          revision: gmRevision,
+          status: "reserved",
+          expires_at: new Date(Date.now() + 60000).toISOString(),
+        },
+      });
+    });
+    const presented = () =>
+      r.page.evaluate(() =>
+        gmCalls
+          .filter((c) => c.url.endsWith("/presented"))
+          .map((c) => JSON.parse(c.body)),
+      );
+    await r.page.waitForFunction(
+      () => gmCalls.filter((c) => c.url.endsWith("/presented")).length === 1,
+      null,
+      { timeout: 10000 },
+    );
+    assert.deepEqual(await r.vals("NY-AM"), ["05", "", "", "005", ""]);
+    assert.deepEqual(await r.vals("NY-BP"), ["", "X", "X", "", ""]);
+    await r.page.evaluate(() => {
+      gmExpected = {
+        pick3: "005",
+        primera: "05",
+        pick4: "0123",
+        segunda: "01",
+        tercera: "23",
+      };
+      gmRevision = 4;
+    });
+    await r.page.waitForFunction(
+      () => gmCalls.filter((c) => c.url.endsWith("/presented")).length === 2,
+      null,
+      { timeout: 10000 },
+    );
+    assert.deepEqual(await r.vals("NY-AM"), ["05", "01", "23", "005", "0123"]);
+    assert.deepEqual(await r.vals("NY-BP"), ["23", "X", "X", "", ""]);
+    const observations = await presented();
+    assert.deepEqual(
+      observations.map((x) => x.operation_id),
+      ["progressive-3", "progressive-4"],
+    );
+    assert.deepEqual(observations[0].presented_fields, {
+      pick3: "005",
+      primera: "05",
+    });
+    assert.equal(observations[1].presented_fields.pick4, "0123");
+  } finally {
+    await r.close();
+  }
+});
 test("diagnóstico completo identifica autorización denegada sin llenar ni exponer secretos", async () => {
   const r = await setup();
   try {
@@ -792,6 +874,135 @@ test("dependiente con trabajo local bloquea la principal antes de escribir", asy
     assert.equal(await r.fill("NY-AM", { pick4: "0123" }), false);
     assert.deepEqual(await r.vals("NY-AM"), ["", "", "", "", ""]);
     assert.equal((await r.vals("NY-BP"))[0], "99");
+  } finally {
+    await r.close();
+  }
+});
+for (const first of ["pick3", "pick4"])
+  test(`NY AM: ${first} primero no bloquea el siguiente pick por sus propias dependientes`, async () => {
+    const r = await setup();
+    try {
+      await r.load();
+      assert.equal(
+        await r.fill(
+          "NY-AM",
+          first === "pick3" ? { pick3: "005" } : { pick4: "0123" },
+        ),
+        true,
+      );
+      assert.deepEqual(
+        await r.vals("NY-BP"),
+        first === "pick3" ? ["", "X", "X", "", ""] : ["23", "X", "X", "", ""],
+      );
+      await r.page.evaluate(() => fx.render());
+      assert.equal(
+        await r.fill("NY-AM", {
+          pick3: "005",
+          primera: "05",
+          pick4: "0123",
+          segunda: "01",
+          tercera: "23",
+        }),
+        true,
+      );
+      assert.deepEqual(await r.vals("NY-AM"), [
+        "05",
+        "01",
+        "23",
+        "005",
+        "0123",
+      ]);
+      assert.deepEqual(await r.vals("NY-BP"), ["23", "X", "X", "", ""]);
+    } finally {
+      await r.close();
+    }
+  });
+for (const change of [
+  "manual",
+  "clear",
+  "script",
+  "silent",
+  "rules",
+  "processed",
+  "hidden",
+])
+  test(`continuación de picks preserva dependiente intervenida: ${change}`, async () => {
+    const r = await setup();
+    try {
+      await r.load();
+      assert.equal(await r.fill("NY-AM", { pick3: "005" }), true);
+      if (["manual", "clear"].includes(change)) {
+        const input = r.page.locator('tr[data-code="NY-BP"] input').nth(1);
+        await input.fill("");
+        if (change === "manual") await input.fill("X");
+      } else if (change === "script") {
+        await r.page.evaluate(() => {
+          const input = adapter.find("NY-BP").inputs.segunda;
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      } else if (change === "silent") {
+        await r.page.evaluate(() => fx.values("NY-BP", { primera: "99" }));
+        await r.page.waitForFunction(
+          () => adapter.find("NY-BP").fields.primera === "99",
+        );
+      } else if (change === "rules") {
+        r.state.rules[0].primera = "p4:1-2";
+        await r.page.evaluate(() =>
+          fetch("/api/loteria/resultadosLoteria2/dependientes", {
+            headers: { "X-Servidor": "1" },
+          }).then((r) => r.json()),
+        );
+        await r.page.waitForTimeout(50);
+      } else if (change === "processed") {
+        await r.page
+          .locator('tr[data-code="NY-BP"] td')
+          .nth(9)
+          .locator("svg")
+          .evaluate((el) => el.setAttribute("class", "lucide-circle-check"));
+      } else {
+        await r.page
+          .locator('input[placeholder="Buscar lotería"]')
+          .fill("NY-AM");
+        await r.page.waitForFunction(() => !adapter.find("NY-BP"));
+      }
+      assert.equal(await r.fill("NY-AM", { pick4: "0123" }), false);
+      assert.equal((await r.vals("NY-AM"))[4], "");
+      if (change === "silent") assert.equal((await r.vals("NY-BP"))[0], "99");
+    } finally {
+      await r.close();
+    }
+  });
+test("Buscar entre picks conserva baseline y origen de dependientes propias", async () => {
+  const r = await setup();
+  try {
+    await r.load();
+    assert.equal(await r.fill("NY-AM", { pick3: "005" }), true);
+    await r.load();
+    assert.equal(await r.fill("NY-AM", { pick4: "0123" }), true);
+    assert.deepEqual(await r.vals("NY-BP"), ["23", "X", "X", "", ""]);
+  } finally {
+    await r.close();
+  }
+});
+test("otra principal intervenida invalida el origen aunque la dependiente conserve los mismos valores", async () => {
+  const r = await setup();
+  try {
+    await r.load();
+    r.state.rules.push({ ...r.state.rules[0], principal: "REAL" });
+    await r.page.evaluate(() =>
+      fetch("/api/loteria/resultadosLoteria2/dependientes", {
+        headers: { "X-Servidor": "1" },
+      }).then((r) => r.json()),
+    );
+    await r.page.waitForTimeout(50);
+    assert.equal(await r.fill("NY-AM", { pick3: "005" }), true);
+    await r.page.evaluate(() => {
+      window.fxSharedDependent = true;
+    });
+    await r.page.locator('tr[data-code="REAL"] input').first().fill("99");
+    assert.deepEqual(await r.vals("NY-BP"), ["", "X", "X", "", ""]);
+    assert.equal(await r.fill("NY-AM", { pick4: "0123" }), false);
+    assert.equal((await r.vals("NY-AM"))[4], "");
   } finally {
     await r.close();
   }

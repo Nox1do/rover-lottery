@@ -15,3 +15,9 @@ El usuario pidió llenar los campos juntos para eliminar el aspecto escalonado. 
 ## Instrumentación solicitada por el incidente de Quinielón · 0.1.5
 
 Informar las condiciones que antes omitían silenciosamente un llenado y conservar un resumen de las últimas conciliaciones. Reutilizar los guards existentes, sin alterar su resultado ni generar nuevas peticiones desde el diagnóstico. Distinguir coincidencia de identidad, autorización del servicio y retención visible; no atribuir una operación de otra PC a la del usuario. Mostrar solo etiquetas y metadatos necesarios, con memoria acotada y sin respuestas completas ni credenciales. La causa del incidente anterior sigue sin demostrarse; no presentar esta instrumentación como arreglo del llenado.
+
+## Continuación de componentes y atribución de dependientes · 0.1.6
+
+Un componente nuevo puede completar una fila previamente llenada por Mango sin exigir F5. Se conserva el diseño aprobado de proteger trabajo ajeno: los valores de dependientes solo se exceptúan del bloqueo por estar ocupados si una escritura propia anterior los produjo y se verificaron contra reglas conocidas y valores retenidos. La prueba de origen depende de principal, contexto, reglas, valores completos y baseline persistido; no de X, color o igualdad parcial. Una intervención en cualquier principal que comparta esa dependiente invalida el origen. El permiso del servicio, reservas/revisiones y PROC siguen siendo necesarios.
+
+La opción elegida es conservar atribución verificada en memoria de la sesión. Vaciar/rellenar dependientes o ignorar sus números perdería protección; esperar ambos picks retrasaría el primer resultado y no respetaría las entregas por componentes. No se modifican backend, horarios ni publicación.

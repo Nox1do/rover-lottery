@@ -1,4 +1,4 @@
-# Mango/Rover React · 0.1.5
+# Mango/Rover React · 0.1.6
 
 Versión independiente para **Firefox + Tampermonkey**, en https://central.roversport.net/loteria/resultados/ver. Trabaja únicamente con **PRINCIPAL** y la fecha de hoy en **America/Santo_Domingo**. Conserva el contrato 1.0 del servicio Mango existente; no requiere instalar React ni modifica el Worker.
 
@@ -20,7 +20,8 @@ Las actualizaciones utilizan los archivos `.meta.js` y `.user.js` de esta carpet
 - El estado procesado se confirma con fecha/servidor verificados, PROC de la fila y números persistidos recibidos de Central. Si se editaron los campos después de procesar, se confirman los números publicados, no la edición sin guardar.
 - Una publicación manual también se reconoce aunque el proveedor oficial todavía no tenga resultado.
 - Si Mango dice procesado y Central sigue pendiente, se conserva todo y se muestra la discordancia en diagnóstico. No se resetea el estado compartido.
-- Se respetan ediciones, limpiezas y otros scripts. Ante trabajo local o dependencias con números se omite el llenado; no se restaura indiscriminadamente un campo vacío. Recargar Central inicia una nueva sesión de edición.
+- Se respetan ediciones, limpiezas y otros scripts. Ante trabajo local o dependencias con valores ajenos se omite el llenado; no se restaura indiscriminadamente un campo vacío. Recargar Central inicia una nueva sesión de edición.
+- Si Pick 3 y Pick 4 llegan por separado, puede completar el segundo sin recargar: reconoce los valores que sus propias entradas generaron en las dependientes solo mientras conserven reglas, valores y baseline verificados. Una edición o limpieza manual, incluso restaurada al mismo valor, vuelve a bloquearlos.
 - Picks conservan ceros iniciales y actualizan premios mediante los eventos normales de Central. Las reglas nativas siguen calculando dependientes; Mango no procesa las dependientes.
 - Filtros y orden no definen identidad. Se exige coincidencia única por nombre/código/alias exacto; filas ocultas o duplicadas se omiten. Los códigos nativos se comparan recortando espacios exteriores de forma consistente; una colisión tras el recorte bloquea la verificación.
 - Se suspenden efectos mientras hay diálogos, publicación, carga, servidor distinto, fecha histórica, lectura o permisos insuficientes.
@@ -36,7 +37,7 @@ Tampermonkey ofrece **Configurar token**, **Pausar/reanudar**, **Diagnóstico** 
 
 ## Alcance de la verificación
 
-42 pruebas de Node y 42 escenarios en Firefox 153 con React real/contexto aislado, incluidas tabla de 241 filas, fecha/servidor, PROC con edición, picks, dependientes, intervención externa, foco/scroll y contrato de entrega. Cubren recuperación del azul, códigos con espacios y llenado sin frames parciales en tabla completa/filtrada. Dos escenarios en una extensión temporal comprueban Xrays/`exportFunction`, aislamiento de GM y cancelación ante una intervención de la página. **Las APIs GM están simuladas; no se ha probado una publicación real.** El usuario confirmó que 0.1.3 ya llena en su Firefox/Tampermonkey, pero informó llenado escalonado; falta confirmar la mejora visual de 0.1.4 en su equipo. Los tiempos de la fixture no acreditan la latencia de su sesión real. En Quinielón PM el usuario confirmó llenado manual: 0.1.5 mejora la observación de las próximas omisiones y no se presenta como corrección acreditada de ese fallo.
+45 pruebas de Node y 54 escenarios en Firefox 153 con React real/contexto aislado, incluidas tabla de 241 filas, fecha/servidor, PROC con edición, picks, dependientes, intervención externa, foco/scroll y contrato de entrega. Cubren recuperación del azul, códigos con espacios y llenado sin frames parciales en tabla completa/filtrada. Dos escenarios en una extensión temporal comprueban Xrays/`exportFunction`, aislamiento de GM y cancelación ante una intervención de la página. **Las APIs GM están simuladas; no se ha probado una publicación real.** El usuario confirmó que 0.1.3 ya llena en su Firefox/Tampermonkey, pero informó llenado escalonado; falta confirmar la mejora visual de 0.1.4 en su equipo. Los tiempos de la fixture no acreditan la latencia de su sesión real. La secuencia de picks separados se reprodujo bloqueada con 0.1.5 y aprobada con 0.1.6 en ambos órdenes y mediante el instalador completo. Falta confirmar esa mejora en la sesión real del usuario. En Quinielón PM el usuario confirmó llenado manual: 0.1.5 mejora la observación de las próximas omisiones y no se presenta como corrección acreditada de ese fallo.
 
 La compatibilidad se basa en la pantalla auditada el 27/10/2026; si Central cambia la estructura, se detienen las operaciones que no pueden verificarse. No usa Fiber, propiedades privadas de React ni sustituye los manejadores de publicación.
 

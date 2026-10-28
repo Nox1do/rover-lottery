@@ -10,6 +10,7 @@ import {
   trimCode,
 } from "./helpers.js";
 import { createContext } from "./context.js";
+import { projectRule } from "./dependencies.js";
 const HEADERS = {
   primera: "1ERA",
   segunda: "2DA",
@@ -26,6 +27,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     publishedBusy = 0;
   const ownEvents = new WeakSet(),
     sessionWrites = new Map(),
+    dependentWrites = new Map(),
     touched = new Set(),
     nativeRequests = new Map(),
     rulesByServer = new Map(),
@@ -144,7 +146,8 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
           ...r,
           dirty:
             touched.has(touchKey(r.code, current)) ||
-            sessionWrites.has(touchKey(r.code, current)),
+            sessionWrites.has(touchKey(r.code, current)) ||
+            dependentWrites.has(touchKey(r.code, current)),
         })));
       },
     };
@@ -241,6 +244,37 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
   function canFill(code, expected, snap) {
     return !fillBlock(code, expected, snap);
   }
+  function dependentGroups(code, rules) {
+    const groups = new Map();
+    for (const rule of rules.filter(
+      (r) => r.activo && trimCode(r.principal) === code,
+    )) {
+      const dependent = trimCode(rule.dependiente);
+      if (!groups.has(dependent)) groups.set(dependent, []);
+      groups.get(dependent).push(rule);
+    }
+    return groups;
+  }
+  const ruleSignature = (rules) =>
+    JSON.stringify(rules.map((rule) => FIELD_NAMES.map((k) => rule[k] ?? "")));
+  const baseline = (stored) => ({
+    ...fields(stored),
+    procesado: stored?.procesado,
+  });
+  const sameBaseline = (a, b) =>
+    !!a && !!b && a.procesado === b.procesado && equalFields(a, b);
+  function isOwnDependent(code, row, dependent, rules, snap, v) {
+    const own = dependentWrites.get(touchKey(dependent.code, v));
+    return (
+      own?.principal === code &&
+      own.serverId === snap.serverId &&
+      own.signature === ruleSignature(rules) &&
+      equalFields(own.sourceFields, row.fields) &&
+      equalFields(own.fields, dependent.fields) &&
+      sameBaseline(own.sourceBaseline, snap.persisted.get(code)) &&
+      sameBaseline(own.baseline, snap.persisted.get(dependent.code))
+    );
+  }
   function fillBlock(code, expected, snap) {
     assert(snap);
     if (!validExpected(expected)) return { motivo: "campos_invalidos" };
@@ -277,10 +311,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       )
     )
       return { motivo: "premios_derivados_distintos" };
-    for (const rule of rules.filter(
-      (r) => r.activo && trimCode(r.principal) === code,
-    )) {
-      const dependentCode = trimCode(rule.dependiente);
+    for (const [dependentCode, group] of dependentGroups(code, rules)) {
       if (!dependentCode) return { motivo: "regla_dependiente_invalida" };
       // An absent dependent may be hidden by a filter. Never write it blindly.
       if (!snap.persisted.has(dependentCode)) continue;
@@ -289,11 +320,19 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         return { motivo: "dependiente_bloqueada", dependiente: dependentCode };
       if (touched.has(touchKey(dependentCode, v)))
         return { motivo: "dependiente_editada", dependiente: dependentCode };
-      if (Object.values(dependent.fields).some(Boolean))
+      if (
+        Object.values(dependent.fields).some(Boolean) &&
+        !isOwnDependent(code, row, dependent, group, snap, v)
+      )
         return {
           motivo: "dependiente_con_valores",
           dependiente: dependentCode,
         };
+      if (
+        Object.values(dependent.fields).some(Boolean) &&
+        hasConflict(dependentCode, snap)
+      )
+        return { motivo: "conflicto_dependiente", dependiente: dependentCode };
     }
     return null;
   }
@@ -302,6 +341,31 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     const v = view(),
       userActivity = activity,
       focus = doc.activeElement;
+    const sourceFields = { ...find(code).fields, ...expected };
+    if (expected.pick3) sourceFields.primera = expected.pick3.slice(-2);
+    if (expected.pick4) {
+      sourceFields.segunda = expected.pick4.slice(0, 2);
+      sourceFields.tercera = expected.pick4.slice(2);
+    }
+    const dependentPlan = [];
+    const rules = rulesByServer.get(`${snap.server}|${snap.serverId}`);
+    for (const [dependentCode, group] of dependentGroups(code, rules)) {
+      const dependent = find(dependentCode);
+      if (!dependent || !snap.persisted.has(dependentCode)) continue;
+      const projections = group.map((rule) => projectRule(rule, sourceFields));
+      if (projections.some((projection) => projection === null)) continue;
+      dependentPlan.push({
+        code: dependentCode,
+        principal: code,
+        date: snap.date,
+        serverId: snap.serverId,
+        signature: ruleSignature(group),
+        sourceFields,
+        sourceBaseline: baseline(snap.persisted.get(code)),
+        baseline: baseline(snap.persisted.get(dependentCode)),
+        fields: Object.assign({ ...dependent.fields }, ...projections),
+      });
+    }
     const scrolling = [...doc.querySelectorAll("#root div")]
       .filter((x) => x.scrollTop || x.scrollLeft)
       .map((el) => ({ el, top: el.scrollTop, left: el.scrollLeft }));
@@ -382,8 +446,27 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       context.invalidate(
         "Central no retuvo el llenado esperado. Revisa y pulsa Buscar.",
       );
-    if (ok)
+    if (ok) {
       sessionWrites.set(touchKey(code, v), { code, expected: { ...expected } });
+      for (const [key, own] of dependentWrites)
+        if (own.date !== snap.date || own.serverId !== snap.serverId)
+          dependentWrites.delete(key);
+      for (const plan of dependentPlan) {
+        const key = touchKey(plan.code, v),
+          dependent = find(plan.code);
+        dependentWrites.delete(key);
+        // Attribute only retained, independently predicted native effects.
+        // A touched field stays foreign even if it was restored to the same value.
+        if (
+          !locked(dependent) &&
+          !touched.has(key) &&
+          !hasConflict(plan.code, snap) &&
+          equalFields(find(code).fields, sourceFields) &&
+          equalFields(dependent.fields, plan.fields)
+        )
+          dependentWrites.set(key, plan);
+      }
+    }
     return ok;
   }
   function refreshIfSafe(snap) {
@@ -421,7 +504,25 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         Object.values(r.inputs).includes(event.target),
       );
       if (row && !ownEvents.has(event)) {
-        touched.add(touchKey(row.code, view()));
+        const v = view();
+        touched.add(touchKey(row.code, v));
+        for (const [key, own] of dependentWrites) {
+          if (own.date !== v.selectedDate) continue;
+          const rules = rulesByServer.get(`${v.server}|${own.serverId}`) || [];
+          if (
+            own.principal === row.code ||
+            own.code === row.code ||
+            rules.some(
+              (rule) =>
+                rule.activo &&
+                trimCode(rule.principal) === row.code &&
+                trimCode(rule.dependiente) === own.code,
+            )
+          ) {
+            dependentWrites.delete(key);
+            touched.add(key);
+          }
+        }
         activity++;
         onChange();
       }

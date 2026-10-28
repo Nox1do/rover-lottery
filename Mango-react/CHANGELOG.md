@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.1.6 — 2026-10-28
+
+- Corrige el bloqueo reproducido al recibir los picks de New York por separado: los valores calculados por Central en las dependientes durante el primer llenado ya no impiden completar el siguiente pick.
+- Atribuye únicamente efectos que coincidan con la proyección de las reglas nativas después de una escritura propia retenida. Exige misma principal, servidor, fecha, reglas, valores y baseline persistido; las reglas desconocidas no autorizan reutilización. Central sigue calculando todas las dependientes.
+- Conserva la protección ante edición/limpieza manual, otros scripts, otra principal con la misma dependiente, cambio de reglas, valores ajenos, filas ausentes y procesadas. Las dependientes propias también cuentan como trabajo local al verificar una nueva respuesta de Buscar.
+- Regresiones de ambos órdenes de llegada, Buscar entre componentes, entrega completa con dos revisiones Mango y pruebas de reglas/atribución. No requiere F5 para la secuencia reproducida.
+
 ## 0.1.5 — 2026-10-27
 
 - El diagnóstico informa las filas omitidas y la condición que impidió reservar o llenar: reglas/revisión no recibidas, edición local, conflicto, valores incompatibles, dependientes o falta de autorización del servicio.

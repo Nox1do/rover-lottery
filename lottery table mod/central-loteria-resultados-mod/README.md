@@ -3,7 +3,7 @@
 Userscript independiente para la pantalla React de resultados de loterías de Rover Central.
 
 - **Script:** `central-loterias-resultados-react.user.js`
-- **Versión actual:** `0.0.11` (inicial: `0.0.1`)
+- **Versión actual:** `0.0.12` (inicial: `0.0.1`)
 - **Página objetivo:** `https://central.roversport.net/loteria/resultados/ver`
 - **Navegadores:** Firefox y Opera con Tampermonkey
 
@@ -46,6 +46,7 @@ El mod anterior `Rs-loteria-res-tabla-mod.user.js`, ubicado en el directorio pad
 
 ## Cambios recientes
 
+- **v0.0.12 (indicador FOTOS):** mockup aprobado implementado. Cuando el botón de galería muestra un contador entero **>= 1**, se destaca en azul claro (#c9e1ff), texto azul oscuro (#153f7f), borde azul (#5d9df5) y resplandor discreto. Con **0** o sin contador, permanece el aspecto gris original. El botón **+** no cambia; los botones ocultos por las 111 exclusiones siguen ocultos. El indicador reacciona a cambios dinámicos de React y no modifica tamaño ni distribución. En Firefox: `__CENTRAL_LOTERIAS_REACT_QA__.photoAudit(200)` muestra `photoCount` y `bluePhotoButtons`. Pruebas de lógica (13/13), sintaxis y actualización de 0→3 y 2→0 correctas; pendiente validación visual en Central autenticado.
 - **v0.0.11 (LA CHICA):** corrige la colisión entre los códigos `LA-CHICA` y `LACHICA`. Se conserva el guion en la clave de coincidencia de nombre/código. **LA CHICA (LA-CHICA)**: ocultar los dos botones FOTOS; **LA CHICA (LACHICA)**: mantenerlos. **NEW YORK AM (NEW YORK PM)** sigue excluida; **NEW YORK PM (NY-PM)** conserva sus botones. Se mantienen 111 exclusiones y el alcance exclusivo sobre FOTOS. QA: 126 casos positivos/negativos con 126 aciertos; validación final en Firefox pendiente.
 - **v0.0.10 (coincidencia exacta FOTOS):** corrige falsos positivos en nombres repetidos. Una exclusión requiere el **par completo nombre + código** de la celda LOTERIA, ya sea texto concatenado o nodos hijos separados. **LA CHICA (LA-CHICA):** ocultar; **LA CHICA (otro código):** mantener. **NEW YORK AM (NEW YORK PM):** ocultar; **NEW YORK PM (NY-PM):** mantener. Se elimina la coincidencia por nombre solo. `photoAudit()` incluye el campo `exactMatch` para auditar las coincidencias. Se conservaron las 111 entradas, y pasaron 126 pruebas de identidad/anti-colisión. Validación en Firefox autenticado pendiente.
 - **v0.0.9 (FOTOS):** exclusión visual de los dos botones dentro de la celda **FOTOS** para las **111 entradas** de la lista proporcionada. Identificación exacta y normalizada por nombre y par nombre/código; nunca por subcadenas ni por código aislado. La entrada literal **NEW YORK AM (NEW YORK PM)** permanece identificada por **nombre** para evitar ocultar NEW YORK PM. Reconoce el índice de FOTOS a partir de los encabezados, evita modificar ACCIÓN u otras columnas y vuelve a comprobar la identidad cuando React reutiliza una fila o la tabla se reconstruye. El mod sólo oculta botones en el DOM, no bloquea cargas de fotos por servidor/API. Diagnóstico: `__CENTRAL_LOTERIAS_REACT_QA__.status().photoExclusions` y `__CENTRAL_LOTERIAS_REACT_QA__.photoAudit(200)`. QA unitario: 111 casos positivos y 9 comprobaciones de exclusión, cambio de fila y alcance de CSS, todas correctas; pendiente inspección en Firefox autenticado.

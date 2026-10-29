@@ -181,13 +181,7 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
   }
   function snapshot(view) {
     sync(view);
-    if (
-      !confirmed ||
-      view.busy ||
-      view.dialog ||
-      !(view.rowCount ?? view.rows?.length)
-    )
-      return null;
+    if (!confirmed || view.busy || view.dialog) return null;
     return confirmed;
   }
   function assert(snap, view) {

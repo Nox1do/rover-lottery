@@ -1,5 +1,13 @@
 # Verificación
 
+## 0.1.9 — 29/10/2026
+
+- Reporte: Anguilla 9 AM con azul tardío y sin verde. SELECT de la PC indicada: listening12:57:53.585Z, ready13:01:05Z, presented13:01:08.938Z y reconocimiento de procesado nativo13:01:19.637Z. Acredita entrega, no el DOM/color histórico ni una interacción concreta. No mezclar el reloj del diagnóstico del cliente con el servidor para calcular latencias precisas.
+- Firefox inicial: 1/5 escenarios nuevos. Fallaron ambos verdes al filtrar, la detección con revisión constante y el refresco después de una publicación propia persistida. Las pruebas unitarias reprodujeron plazo perdido y ventana ausente antes del arreglo.
+- Se comprueban plazo original, valor/PROC/intervención/contexto distintos, ventana RD válida12/24horas, límites temporales, exclusión de mañana y backoff30s pese a cercanía.
+- La revisión independiente encontró dos límites importantes: Buscar rápido heredaba verdes y una dependiente oculta pendiente permitía refrescar. Ambas regresiones fallaron antes de ligar colores a época/fecha/servidor y añadir todos los registros propios/dependientes al bloqueo. La dependiente se prueba con principal visible y filtro totalmente vacío; cuando ambas están procesadas/coincidentes y disponibles sí se permite refresco.
+- Verificación final: `npm test` aprobó 67 pruebas Node, 75 escenarios React/Firefox y cuatro de extensión aislada; cero fallos. `npm run check` y `git diff --check` aprobados. Históricos0.1.0–0.1.8 conservados; no se cambió el backend ni se realizó ninguna publicación financiera.
+
 ## 0.1.8 — 28/10/2026
 
 - Base: 49 pruebas Node aprobadas. Tres regresiones de contexto fallaron por el bloqueo global: RHOD incompatible, duplicado nativo aislable y fila nunca verificada. El comparador puro y rowBlock no existían. La retención fallida impedía a REAL continuar con `context_changed`.

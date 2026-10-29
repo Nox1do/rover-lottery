@@ -25,6 +25,7 @@ let paused = !!GM_getValue(KEYS.paused, false),
   lastError = null,
   auth = "sin comprobar",
   lastCheck = null,
+  retryAt = 0,
   wake = null;
 const central = createCentralAdapter(document, window, () => {
   if (!wake)
@@ -62,6 +63,7 @@ function install() {
 if (document.documentElement) install();
 else document.addEventListener("DOMContentLoaded", install, { once: true });
 async function poll(snap) {
+  const startedAt = Date.now();
   const version = await api.get(
     `/v1/mango/version?date=${snap.date}&ts=${Date.now()}`,
   );
@@ -77,7 +79,7 @@ async function poll(snap) {
     !cache ||
     cache.date !== snap.date ||
     cache.revision !== version.revision ||
-    Date.now() - cache.at > 120000
+    Date.now() - cache.at >= 15000
   ) {
     const response = await api.get(
       `/v1/mango/rows?date=${snap.date}&client_id=${encodeURIComponent(client)}&revision=${version.revision}`,
@@ -94,7 +96,7 @@ async function poll(snap) {
       date: snap.date,
       revision: version.revision,
       rows: response.rows,
-      at: Date.now(),
+      at: startedAt,
     };
     auth = "válido";
   }
@@ -102,7 +104,8 @@ async function poll(snap) {
   await delivery.cycle(cache.rows, snap);
   central.assert(snap);
   lastCheck = new Date().toISOString();
-  delay = nextDelay(cache.rows);
+  retryAt = 0;
+  delay = nextDelay(cache.rows, central.hasImminentDraw(snap));
   const d = delivery.diagnostics();
   lastError = d.errors.length
     ? d.errors.map((x) => `${x.lottery}: ${x.error}`).join("; ")
@@ -114,6 +117,7 @@ async function poll(snap) {
 async function tick() {
   if (paused || !observing) return;
   const snap = central.snapshot();
+  visuals.setContext(snap);
   if (!snap) {
     visuals.clearAll();
     return;
@@ -125,6 +129,8 @@ async function tick() {
   if (cache?.date === snap.date && cache.epoch === snap.epoch)
     delivery.syncVisuals(cache.rows, snap);
   else visuals.syncBlue([]);
+  if (Date.now() < retryAt) return;
+  delay = nextDelay(cache?.rows || [], central.hasImminentDraw(snap));
   if (busy || Date.now() - lastApiAt < delay) return;
   busy = true;
   lastApiAt = Date.now();
@@ -142,6 +148,7 @@ async function tick() {
     if (e.message !== "context_changed") {
       lastError = e.message;
       delay = 30000;
+      retryAt = Date.now() + 30000;
     }
   } finally {
     busy = false;
@@ -175,6 +182,7 @@ function diagnostic() {
 function reset(reason) {
   cache = null;
   lastApiAt = 0;
+  retryAt = 0;
   delay = 5000;
   visuals.clearAll();
   central.invalidate(reason);

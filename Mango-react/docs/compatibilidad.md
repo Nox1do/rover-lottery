@@ -10,6 +10,12 @@ Fuentes públicas comprobadas:
 - https://www.tampermonkey.net/documentation.php?locale=en&q=meta:sandbox
 - https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts/exportFunction
 
+## Sondeo y colores · 0.1.9
+
+La columna HORA solo decide la cadencia de lectura; no autoriza pintar ni escribir ni modifica horarios. El verde conserva una referencia de valor/plazo dentro de una época/fecha/servidor; remapear un input no reinicia su duración. Otra carga descarta las referencias incluso si termina entre dos ticks. El filtro sin coincidencias mantiene únicamente una carga ya probada; no habilita la carga inicial vacía.
+
+Documentación primaria releída: [setTimeout](https://developer.mozilla.org/en-US/docs/Web/API/Window/setTimeout) y [MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver). La suspensión de pestañas y la red pueden añadir latencia; no se promete un plazo absoluto. Inspección pública29/10: `index-12EnU488.js`, `VerResultados-C9mEoWBT.js`, `index-DRf8nnVt.css`. Firefox verifica también el verde CSS computado tras remonte. Se reproduce un mecanismo de pérdida sin atribuirlo con certeza al DOM histórico del usuario.
+
 ## Verificación por lotería · 0.1.8
 
 El flujo por fila aprobado reemplaza la exigencia anterior de igualdad global de casillas. `context.js` prueba la carga nativa/época y conserva índices y pruebas por campo; `row-context.js` comprueba la fila que la operación necesita. Una fila nunca verificada no obtiene confianza de otras filas. Los fallos locales no bloquean loterías independientes. Se conserva la comparación de PROC y campos relevantes con persistencia, incluidas referencias previas válidas para ediciones conocidas.

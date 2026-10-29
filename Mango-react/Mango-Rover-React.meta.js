@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mango/Rover React
 // @namespace    https://github.com/Nox1do/rover-lottery/Mango-react
-// @version      0.1.8
+// @version      0.1.9
 // @description  Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida.
 // @match        https://central.roversport.net/*
 // @connect      rover-lottery-api.loteriasrovers.workers.dev

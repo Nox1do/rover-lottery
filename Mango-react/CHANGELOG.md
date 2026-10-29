@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.1.9 — 2026-10-29
+
+- La proximidad de un horario nativo pendiente sale del modo lento sin esperar dos minutos; ventana RD de tres minutos antes/cinco después, solo para lecturas. La autorización sigue siendo del servicio.
+- Caché de filas de 15 segundos durante el sondeo aunque la revisión no cambie; conserva backoff de 30 segundos tras errores.
+- Verde ligado a código/campo/valor/plazo/contexto: recupera tiempo restante tras remontes/filtros, sin reiniciar dos segundos ni repetir entregas. Otra carga descarta los indicadores anteriores.
+- Un filtro vacío conserva una carga ya verificada; una carga inicial vacía no la acredita. No permite operar sobre filas ausentes.
+- Una escritura propia realmente procesada y coincidente ya no bloquea el refresco; siguen bloqueando trabajo manual, propio y dependientes pendientes u ocultos.
+
 ## 0.1.8 — 2026-10-28
 
 - Separa la fecha/servidor de la verificación de cada lotería, siguiendo el flujo por fila de Mango Rover v2. Las diferencias de Rhode Island o de otra fila ajena ya no bloquean entregas independientes.

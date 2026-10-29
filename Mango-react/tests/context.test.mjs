@@ -456,3 +456,18 @@ test("la tabla puede montarse después de comenzar la primera petición", () => 
   advance();
   assert.ok(c.snapshot(view));
 });
+
+test("filtro vacío conserva contexto probado pero una carga inicial vacía no lo acredita", () => {
+  const { c, view, load } = setup();
+  load();
+  const snap = c.snapshot(view);
+  view.rows = [];
+  view.rowCount = 0;
+  assert.equal(c.snapshot(view), snap);
+  c.assert(snap, view);
+  const other = setup();
+  other.view.rows = [];
+  other.view.rowCount = 0;
+  other.load();
+  assert.equal(other.c.snapshot(other.view), null);
+});

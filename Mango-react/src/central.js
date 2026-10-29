@@ -12,6 +12,7 @@ import {
 import { createContext } from "./context.js";
 import { projectRule } from "./dependencies.js";
 import { checkRow } from "./row-context.js";
+import { isNearDraw } from "./polling.js";
 const HEADERS = {
   primera: "1ERA",
   segunda: "2DA",
@@ -670,27 +671,45 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     }
     return ok;
   }
+  function hasImminentDraw(snap) {
+    assert(snap);
+    const t = table(),
+      column = t?.headers.indexOf("HORA"),
+      now = Date.now();
+    if (column == null || column < 0) return false;
+    return indexedRows().some(
+      (row) =>
+        row.procCell?.querySelector(".lucide-circle-x") &&
+        isNearDraw(row.el.cells[column]?.textContent, now),
+    );
+  }
   function refreshIfSafe(snap) {
     assert(snap);
     if (Date.now() - lastRefresh < 120000) return false;
     const v = view();
+    const prefix = `${snap.server}|${snap.date}|`;
+    const published = (code) => {
+      const row = find(code),
+        stored = snap.persisted.get(code);
+      return (
+        stored?.procesado === true &&
+        row?.processed === true &&
+        equalFields(row.fields, stored)
+      );
+    };
     if (
       v.dialog ||
       v.busy ||
-      [...touched].some((key) =>
-        key.startsWith(`${snap.server}|${snap.date}|`),
+      [...touched].some(
+        (key) => key.startsWith(prefix) && !published(key.slice(prefix.length)),
       ) ||
-      [...sessionWrites].some(
-        ([key, write]) =>
-          key.startsWith(`${snap.server}|${snap.date}|`) &&
-          !equalFields(
-            snap.persisted.get(write.code),
-            write.expected,
-            Object.keys(write.expected),
-          ),
+      [...sessionWrites, ...dependentWrites].some(
+        ([key, write]) => key.startsWith(prefix) && !published(write.code),
       ) ||
       v.rows.some(
-        (r) => r.dirty || !equalFields(r.fields, snap.persisted.get(r.code)),
+        (r) =>
+          (r.dirty && !published(r.code)) ||
+          !equalFields(r.fields, snap.persisted.get(r.code)),
       )
     )
       return false;
@@ -769,6 +788,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     presentationBlock,
     hasConflict,
     refreshIfSafe,
+    hasImminentDraw,
     view,
     isDirty: (code) => touched.has(touchKey(code, view())),
     get message() {

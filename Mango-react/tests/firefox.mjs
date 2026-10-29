@@ -2108,6 +2108,292 @@ test("prueba parcial: nueva revisión amplía campos propios sin bloquear valore
     await r.close();
   }
 });
+for (const filter of ["NEW YORK", "NO EXISTE"])
+  test(`colores: verde sobrevive filtro ${filter} sin repetir entrega`, async () => {
+    const r = await setup();
+    try {
+      await waitingRuntime(r);
+      await r.page.evaluate(() => {
+        const Before = Date;
+        window.Date = class extends Before {
+          static now() {
+            return Before.now() + 6000;
+          }
+        };
+        gmWaitingState = "ready";
+        gmExpected = { primera: "05", segunda: "00", tercera: "09" };
+        gmReconcileData = {
+          should_paint: true,
+          action: "paint_fields",
+          expected_fields: gmExpected,
+          operation: {
+            operation_id: "green-filter",
+            status: "reserved",
+            revision: 3,
+            expires_at: new Date(Date.now() + 60000).toISOString(),
+          },
+        };
+        fx.render();
+      });
+      await r.page.waitForFunction(() =>
+        gmCalls.some((c) => c.url.endsWith("/presented")),
+      );
+      assert.equal(
+        await r.page.locator('input[data-mango-react-visual="green"]').count(),
+        3,
+      );
+      const requests = await r.page.evaluate(() => gmCalls.length);
+      const search = r.page.locator('input[placeholder="Buscar lotería"]');
+      await search.fill(filter);
+      await r.page
+        .locator('tr[data-code="REAL"]')
+        .waitFor({ state: "detached" });
+      await r.page.waitForTimeout(250);
+      await search.fill("REAL");
+      await r.page
+        .locator('tr[data-code="REAL"] input[data-mango-react-visual="green"]')
+        .first()
+        .waitFor({ timeout: 700 });
+      assert.equal(
+        await r.page
+          .locator('tr[data-code="REAL"] input')
+          .first()
+          .evaluate((el) => getComputedStyle(el).backgroundColor),
+        "rgb(212, 237, 218)",
+      );
+      assert.deepEqual(await r.vals("REAL"), ["05", "00", "09", "", ""]);
+      assert.equal(await r.page.evaluate(() => gmCalls.length), requests);
+      await r.page.waitForTimeout(2100);
+      assert.equal(
+        await r.page.locator('input[data-mango-react-visual="green"]').count(),
+        0,
+      );
+    } finally {
+      await r.close();
+    }
+  });
+test("colores: vigilancia nueva sale del modo lento sin cambiar la revisión global", async () => {
+  const r = await setup();
+  try {
+    await waitingRuntime(r);
+    await r.page.evaluate(() => {
+      gmWaitingState = "processed";
+      gmRevision = 3;
+      const Before = Date;
+      window.Date = class extends Before {
+        static now() {
+          return Before.now() + 3606000;
+        }
+      };
+      fx.render();
+    });
+    await r.page.waitForFunction(() => {
+      gmMenus["Mango React · Diagnóstico"]();
+      return (
+        gmDiagnostic.intervalo_segundos === 120 &&
+        gmCalls.filter((c) => c.url.includes("/rows?")).length >= 2
+      );
+    });
+    await r.page.evaluate(() => {
+      gmWaitingState = "awaiting_result";
+      const Before = Date;
+      window.Date = class extends Before {
+        static now() {
+          return Before.now() + 16000;
+        }
+      };
+      document.querySelector('tr[data-code="REAL"]').cells[2].textContent =
+        "2:03 PM";
+      fx.render();
+    });
+    await r.page
+      .locator('tr[data-code="REAL"] input[data-mango-react-visual="blue"]')
+      .first()
+      .waitFor({ timeout: 1800 });
+    assert.ok(
+      await r.page.evaluate(
+        () => gmCalls.filter((c) => c.url.includes("/rows?")).length >= 3,
+      ),
+    );
+    assert.equal(
+      await r.page.evaluate(() =>
+        gmCalls.some((c) => c.url.endsWith("/reconcile")),
+      ),
+      false,
+    );
+  } finally {
+    await r.close();
+  }
+});
+for (const edit of [false, true])
+  test(`colores: publicación persistida libera refresco salvo edición nueva ${edit}`, async () => {
+    const r = await setup();
+    try {
+      await r.load();
+      await r.fill("REAL", { primera: "05" });
+      r.state.overrides.REAL = { procesado: true, primera: "05" };
+      await r.load();
+      if (edit)
+        await r.page.locator('tr[data-code="REAL"] input').first().fill("98");
+      const refreshed = await r.page.evaluate(() => {
+        const Before = Date;
+        window.Date = class extends Before {
+          static now() {
+            return Before.now() + 121000;
+          }
+        };
+        return adapter.refreshIfSafe(adapter.snapshot());
+      });
+      assert.equal(refreshed, !edit);
+    } finally {
+      await r.close();
+    }
+  });
+test("colores: ventana cercana respeta los 30 segundos de espera tras error", async () => {
+  const r = await setup();
+  try {
+    await waitingRuntime(r);
+    await r.page.evaluate(() => {
+      const original = GM_xmlhttpRequest;
+      window.GM_xmlhttpRequest = (o) => {
+        if (o.url.includes("/version?")) {
+          gmCalls.push({ url: o.url });
+          setTimeout(() => o.onerror(), 0);
+        } else original(o);
+      };
+      const Before = Date;
+      window.Date = class extends Before {
+        static now() {
+          return Before.now() + 6000;
+        }
+      };
+      fx.render();
+    });
+    await r.page.waitForFunction(() => {
+      gmMenus["Mango React · Diagnóstico"]();
+      return (
+        gmDiagnostic.ultimo_error === "network_error" &&
+        gmDiagnostic.intervalo_segundos === 30
+      );
+    });
+    const calls = await r.page.evaluate(() => gmCalls.length);
+    await r.page.evaluate(() => {
+      const Before = Date;
+      window.Date = class extends Before {
+        static now() {
+          return Before.now() + 6000;
+        }
+      };
+      fx.render();
+    });
+    await r.page.waitForTimeout(500);
+    assert.equal(await r.page.evaluate(() => gmCalls.length), calls);
+    await r.page.evaluate(() => {
+      const Before = Date;
+      window.Date = class extends Before {
+        static now() {
+          return Before.now() + 25000;
+        }
+      };
+      fx.render();
+    });
+    await r.page.waitForFunction((before) => gmCalls.length > before, calls);
+  } finally {
+    await r.close();
+  }
+});
+test("colores: Buscar rápido no hereda el verde de una carga anterior", async () => {
+  const r = await setup();
+  try {
+    await r.page.evaluate(() => {
+      const interval = setInterval;
+      window.setInterval = (fn, ms, ...args) =>
+        ms === 1000 ? ((window.colorTick = fn), 0) : interval(fn, ms, ...args);
+    });
+    await waitingRuntime(r);
+    await r.page.evaluate(() => {
+      const Before = Date;
+      window.Date = class extends Before {
+        static now() {
+          return Before.now() + 6000;
+        }
+      };
+      gmWaitingState = "ready";
+      gmExpected = { primera: "05", segunda: "00", tercera: "09" };
+      gmReconcileData = {
+        should_paint: true,
+        action: "paint_fields",
+        expected_fields: gmExpected,
+        operation: {
+          operation_id: "green-scope",
+          status: "reserved",
+          revision: 3,
+          expires_at: new Date(Date.now() + 60000).toISOString(),
+        },
+      };
+      colorTick();
+    });
+    await r.page.waitForFunction(() =>
+      gmCalls.some((c) => c.url.endsWith("/presented")),
+    );
+    assert.equal(
+      await r.page.locator('input[data-mango-react-visual="green"]').count(),
+      3,
+    );
+    await r.page.evaluate(() => document.querySelector("form").requestSubmit());
+    await r.page.waitForTimeout(400);
+    assert.equal(
+      await r.page.locator('input[data-mango-react-visual="green"]').count(),
+      0,
+    );
+    assert.deepEqual(await r.vals("REAL"), ["05", "00", "09", "", ""]);
+  } finally {
+    await r.close();
+  }
+});
+test("colores: dependiente pendiente oculta bloquea refresco tras publicar la principal", async () => {
+  const r = await setup();
+  try {
+    await r.load();
+    await r.fill("NY-AM", { pick4: "1234" });
+    r.state.overrides["NY-AM"] = {
+      procesado: true,
+      pick4: "1234",
+      segunda: "12",
+      tercera: "34",
+    };
+    await r.load();
+    for (const filter of ["NO EXISTE", "NY-AM"]) {
+      await r.page.locator('input[placeholder="Buscar lotería"]').fill(filter);
+      await r.page.waitForTimeout(30);
+      const refresh = await r.page.evaluate(() => {
+        const Before = Date;
+        window.Date = class extends Before {
+          static now() {
+            return Before.now() + 121000;
+          }
+        };
+        return adapter.refreshIfSafe(adapter.snapshot());
+      });
+      assert.equal(refresh, false, filter);
+    }
+    await r.page.locator('input[placeholder="Buscar lotería"]').fill("");
+    assert.deepEqual(await r.vals("NY-BP"), ["34", "X", "X", "", ""]);
+    r.state.overrides["NY-BP"] = {
+      procesado: true,
+      primera: "34",
+      segunda: "X",
+      tercera: "X",
+    };
+    await r.load();
+    assert.equal(
+      await r.page.evaluate(() => adapter.refreshIfSafe(adapter.snapshot())),
+      true,
+    );
+  } finally {
+    await r.close();
+  }
+});
 let failed = 0;
 try {
   for (const { name, fn } of tests.filter(

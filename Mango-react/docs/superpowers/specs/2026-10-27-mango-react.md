@@ -29,3 +29,7 @@ La suspensión externa de Mango debe invalidar las operaciones sin perder la ref
 ## Flujo por lotería · 0.1.8
 
 El usuario aprobó separar la carga general de la autorización por fila y sus efectos, siguiendo Mango Rover v2. El diseño [2026-10-28-row-isolation-design.md](2026-10-28-row-isolation-design.md) sustituye la exigencia previa de igualdad global de casillas: una incompatibilidad desconocida bloquea únicamente las operaciones relacionadas. Las pruebas previas, contexto general y respeto del trabajo local se conservan; los fallos de retención también se aíslan por grupo afectado.
+
+## Vigilancia y plazo visual · 0.1.9
+
+La cercanía de HORA adelanta solo lecturas; una revisión constante no debe ocultar estados nuevos por dos minutos. Los colores siguen dependiendo del servicio. El verde se puede remapear solo con valor, pendiente, contexto y plazo originales. Un filtro vacío mantiene la carga previamente probada. Una fila propia ya procesada y totalmente coincidente deja de ser trabajo pendiente para refrescar; registros ocultos o de dependientes sin esa prueba siguen bloqueando.

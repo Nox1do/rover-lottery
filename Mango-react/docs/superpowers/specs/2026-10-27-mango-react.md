@@ -25,3 +25,7 @@ La opción elegida es conservar atribución verificada en memoria de la sesión.
 ## Reinicios y referencia de edición local · 0.1.7
 
 La suspensión externa de Mango debe invalidar las operaciones sin perder la referencia persistida de una tabla ya verificada, igual que Buscar. Reanudar exige una respuesta nativa nueva con la misma fecha, servidor e ID y datos persistidos sin cambios para justificar ediciones locales conocidas. La alternativa elegida reutiliza `prepareSearch`; omitir globalmente los errores numéricos o ignorar una fila sin prueba previa debilitaría la verificación aprobada. No se reusan tokens, reservas ni caché remota. Se preservan mensajes específicos del reinicio.
+
+## Flujo por lotería · 0.1.8
+
+El usuario aprobó separar la carga general de la autorización por fila y sus efectos, siguiendo Mango Rover v2. El diseño [2026-10-28-row-isolation-design.md](2026-10-28-row-isolation-design.md) sustituye la exigencia previa de igualdad global de casillas: una incompatibilidad desconocida bloquea únicamente las operaciones relacionadas. Las pruebas previas, contexto general y respeto del trabajo local se conservan; los fallos de retención también se aíslan por grupo afectado.

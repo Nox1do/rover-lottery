@@ -1,5 +1,16 @@
 # Verificación
 
+## 0.1.8 — 28/10/2026
+
+- Base: 49 pruebas Node aprobadas. Tres regresiones de contexto fallaron por el bloqueo global: RHOD incompatible, duplicado nativo aislable y fila nunca verificada. El comparador puro y rowBlock no existían. La retención fallida impedía a REAL continuar con `context_changed`.
+- Dos regresiones de entrega fallaron antes de integrar rowBlock: A incompatible todavía reservaba y el ACK sin campos administrados infería todos los inputs. Se conservaron pruebas negativas y se actualizaron deliberadamente las expectativas que exigían bloquear toda la tabla por una sola fila.
+- Tres escenarios nuevos del instalador fallaron por diagnóstico ausente; después comprobaron azul y dos entregas independientes junto a RHOD-MD incompatible, primera retención fallida con segunda entrega válida, y 25 incidencias nativas resumidas en 20 que se limpian al cambiar contexto. No hay reserva ni ACK de Rhode Island y no se pulsa Procesar.
+- Regresiones de copias defensivas y primer montaje asíncrono de tabla también se observaron fallando antes de sus correcciones. Los escenarios previos de picks separados, Buscar y filtros siguen incluidos.
+- Verificación completa: `npm test` aprobó 61 pruebas Node, 67 escenarios React/Firefox y cuatro de extensión aislada; cero fallos. `npm run check` reproducible y `git diff --check` aprobados. Los históricos 0.1.0–0.1.7 se conservan.
+- La revisión independiente encontró dos fallos importantes: pruebas parciales que bloqueaban campos nuevos ya coincidentes y alcance de dependientes no revalidado durante el llenado. Se añadieron regresiones Node y Firefox que fallaron antes del arreglo. Las pruebas de reglas cambiadas en microtarea, dependiente cambiada durante asentamiento/entre entradas y cambio entre fill/presented exigen conservar el cambio ajeno, omitir NY y continuar REAL. La prueba de ampliación de expected_fields exige dos reservas/presentaciones sucesivas y conserva el campo ajeno. También se incluyó el propósito en los fallos de comprobación por campo.
+- Para dejar que React muestre trabajo pendiente de otras microtareas, las filas con dependientes ceden la cola mediante MessageChannel entre entradas; no se agregan pausas fijas de 35 ms por campo. Esto puede adelantar el foco nativo antes de completar ambos picks, por lo que la regresión comprueba valores finales y restauración del foco del usuario. Se conservan los tres escenarios de frames agrupados para filas sin dependientes. La extensión aislada añade éxito e intervención sobre dependientes; el caso de intervención falló contra el instalador anterior al arreglo.
+- GM/servicio simulados con Firefox y React reales; no se realizó una publicación financiera. La diferencia exacta del RHOD-MD de la sesión anterior sigue desconocida; esta actualización corrige el alcance del bloqueo, sin atribuir al usuario una edición no acreditada.
+
 ## 0.1.7 — 28/10/2026
 
 - Con 0.1.6 se reprodujo el JSON del usuario: tras una edición de RHOD-MD y un cambio remoto de configuración, Buscar deja `fecha_verificada: null`, `filas_api: 0`, token sin comprobar y el mismo error de campos distintos. Pausar/reanudar también pierde la referencia. Ambas regresiones completas fallaron: 52/54 escenarios React/Firefox. Una regresión unitaria del motivo de suspensión falló: 48/49 Node.

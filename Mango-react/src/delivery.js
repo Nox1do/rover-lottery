@@ -5,6 +5,7 @@ import {
   clean,
   uid,
   validExpected,
+  sleep,
 } from "./helpers.js";
 export function createDelivery({
   central,
@@ -16,7 +17,9 @@ export function createDelivery({
     acknowledged = new Set(),
     painted = new Map(),
     requestIds = new Map(),
-    reconciliations = new Map();
+    reconciliations = new Map(),
+    verified = new Set(),
+    matchedCodes = new Set();
   let errors = [],
     mismatches = [],
     omitted = [],
@@ -24,8 +27,12 @@ export function createDelivery({
     lastDate = null,
     lastEpoch = null;
   function omit(row, code, block) {
+    verified.delete(row.lottery_id);
     omitted.push({ loteria: row.lottery_id, codigo: code, ...block });
     return false;
+  }
+  function rowBlock(code, keys, snap, purpose) {
+    return central.rowBlock?.(code, keys, snap, purpose) || null;
   }
   function fillBlock(code, expected, snap) {
     return central.fillBlock
@@ -99,7 +106,8 @@ export function createDelivery({
             row.visual?.state === "blue" &&
             row.proc_state !== "processed" &&
             visible.processed === false &&
-            snap.persisted.get(visible.code)?.procesado === false,
+            snap.persisted.get(visible.code)?.procesado === false &&
+            !rowBlock(visible.code, names(row), snap, "blue"),
         )
         .map(({ row, visible }) => ({
           code: visible.code,
@@ -158,6 +166,8 @@ export function createDelivery({
       !validExpected(expected)
     )
       throw Error("invalid_paint_contract");
+    const localBlock = rowBlock(code, names(row), snap, "fill");
+    if (localBlock) return omit(row, code, localBlock);
     if (central.isDirty?.(code))
       return omit(row, code, { motivo: "edicion_local" });
     const current = central.find(code);
@@ -178,6 +188,14 @@ export function createDelivery({
       !equalFields(after.fields, expected, Object.keys(expected))
     )
       throw Error("write_not_retained");
+    const afterBlock = rowBlock(code, names(row), snap, "fill");
+    if (afterBlock) return omit(row, code, afterBlock);
+    if (central.presentationBlock) {
+      await sleep(0);
+      guard();
+    }
+    const effectsBlock = central.presentationBlock?.(code, expected, snap);
+    if (effectsBlock) return omit(row, code, effectsBlock);
     const observed = Object.fromEntries(
       Object.keys(expected).map((k) => [k, after.fields[k]]),
     );
@@ -200,11 +218,21 @@ export function createDelivery({
       visible = central.find(code);
     if (!stored || !visible)
       return omit(row, code, { motivo: "fila_no_verificada" });
+    const ownedKeys = names(row);
+    if (!ownedKeys.length)
+      return omit(row, code, { motivo: "sin_campos_administrados" });
+    const verificationBlock = rowBlock(
+      code,
+      ownedKeys,
+      snap,
+      stored.procesado ? "ack" : "blue",
+    );
+    if (verificationBlock) return omit(row, code, verificationBlock);
+    verified.add(row.lottery_id);
     if (stored.procesado && visible.processed === true) {
       visuals.clear(code);
       if (row.proc_state === "processed") return;
-      let owned = names(row);
-      if (!owned.length) owned = FIELD_NAMES.filter((k) => clean(stored[k]));
+      const owned = ownedKeys;
       if (!owned.length || owned.every((k) => !clean(stored[k]))) return;
       const observed = Object.fromEntries(
         owned.map((k) => [k, clean(stored[k])]),
@@ -232,6 +260,7 @@ export function createDelivery({
     if (row.proc_state === "processed") {
       visuals.clear(code);
       mismatches.push(row.lottery_id);
+      verified.delete(row.lottery_id);
       return;
     }
     if (stored.procesado || visible.processed !== false)
@@ -253,8 +282,14 @@ export function createDelivery({
     }
     const owned = names(row);
     const expected = row.expected_fields || {};
-    if (!validExpected(expected))
+    if (!validExpected(expected)) {
+      if (
+        !Object.keys(expected).length &&
+        (row.components || []).some((c) => c.state === "awaiting_result")
+      )
+        return;
       return omit(row, code, { motivo: "sin_campos_disponibles" });
+    }
     const block = fillBlock(code, expected, snap);
     if (block) return omit(row, code, block);
     if (equalFields(visible.fields, expected, Object.keys(expected))) return;
@@ -287,6 +322,8 @@ export function createDelivery({
     mismatches = [];
     omitted = [];
     matched = 0;
+    verified.clear();
+    matchedCodes.clear();
     if (lastDate !== snap.date) {
       operations.clear();
       acknowledged.clear();
@@ -303,6 +340,7 @@ export function createDelivery({
     central.assert(snap);
     const matches = matchingRows(rows, snap);
     const matchedRows = new Set(matches.map((x) => x.row));
+    for (const x of matches) matchedCodes.add(x.visible.code);
     for (const row of rows.filter((r) => r.draw_date === snap.date))
       if (!matchedRows.has(row))
         omit(row, null, { motivo: "sin_coincidencia_unica" });
@@ -312,6 +350,7 @@ export function createDelivery({
       try {
         await process(x.row, x.visible.code, snap);
       } catch (e) {
+        verified.delete(x.row.lottery_id);
         errors.push({ lottery: x.row.lottery_id, error: e.message });
         if (
           [
@@ -319,6 +358,7 @@ export function createDelivery({
             "operation_unavailable",
             "stale_revision",
             "client_lock_lost",
+            "write_not_retained",
           ].includes(e.message)
         ) {
           operations.delete(x.row.row_key);
@@ -331,11 +371,27 @@ export function createDelivery({
   return {
     cycle,
     syncVisuals,
+    nativeIncidences: (snap) => {
+      const sameContext = lastDate === snap.date && lastEpoch === snap.epoch;
+      const list = (snap.incidences || []).filter(
+        (x) => !sameContext || !matchedCodes.has(x.codigo),
+      );
+      return {
+        incidencias_tabla_total: list.length,
+        incidencias_tabla: list
+          .slice(0, 20)
+          .map((x) => ({ ...x, proposito: "carga", campos: [...x.campos] })),
+      };
+    },
     diagnostics: () => ({
       matched,
+      filas_verificadas: verified.size,
       mismatches: [...mismatches],
       errors: [...errors],
-      omitidas: omitted.map((x) => ({ ...x })),
+      omitidas: omitted.map((x) => ({
+        ...x,
+        ...(x.campos ? { campos: [...x.campos] } : {}),
+      })),
       conciliaciones: [...reconciliations.values()].map((x) => ({ ...x })),
     }),
   };

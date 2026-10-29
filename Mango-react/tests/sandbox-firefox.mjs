@@ -36,7 +36,7 @@ await writeFile(
     ],
   }),
 );
-const gm = `const unsafeWindow=window.wrappedJSObject;const store={mango_react_token:'isolated-secret'};function GM_getValue(k,d){return store[k]??d;}function GM_setValue(k,v){store[k]=v;}function GM_addValueChangeListener(){}function GM_registerMenuCommand(n,f){if(n.includes('Diagnóstico'))document.addEventListener('mango-test-diagnostic',()=>f());}window.alert=message=>document.documentElement.dataset.mangoDiagnostic=message;function GM_xmlhttpRequest(o){const fields={primera:'05',segunda:'00',tercera:'09'};const row={lottery_id:'real',row_key:'real|2026-10-27',name:'REAL',aliases:['REAL'],draw_date:'2026-10-27',revision:2,proc_state:'pending',owned_fields:['primera','segunda','tercera'],expected_fields:fields,components:[{state:'ready',expected_fields:fields}]};let data=o.url.includes('/version?')?{ok:true,date:'2026-10-27',revision:2}:o.url.includes('/rows?')?{contract_version:'1.0',date:'2026-10-27',rows:[row]}:o.url.endsWith('/reconcile')?{ok:true,action:'paint_fields',should_paint:true,expected_fields:fields,operation:{operation_id:'sandbox-op',revision:2,status:'reserved',expires_at:new Date(Date.now()+60000).toISOString()}}:{ok:true};if(o.url.endsWith('/presented'))document.documentElement.dataset.mangoSandboxPresented=o.data;setTimeout(()=>o.onload({status:200,responseText:JSON.stringify(data)}),0);}\n`;
+const gm = `const unsafeWindow=window.wrappedJSObject;const store={mango_react_token:'isolated-secret'};function GM_getValue(k,d){return store[k]??d;}function GM_setValue(k,v){store[k]=v;}function GM_addValueChangeListener(){}function GM_registerMenuCommand(n,f){if(n.includes('Diagnóstico'))document.addEventListener('mango-test-diagnostic',()=>f());}window.alert=message=>document.documentElement.dataset.mangoDiagnostic=message;function GM_xmlhttpRequest(o){const dependency=location.search.includes('sandbox-dependency');const fields=dependency?{pick3:'005',pick4:'0123'}:{primera:'05',segunda:'00',tercera:'09'};const code=dependency?'NY-AM':'REAL';const row={lottery_id:code,row_key:code+'|2026-10-27',name:code,aliases:[code],draw_date:'2026-10-27',revision:2,proc_state:'pending',owned_fields:Object.keys(fields),expected_fields:fields,components:[{state:'ready',expected_fields:fields}]};let data=o.url.includes('/version?')?{ok:true,date:'2026-10-27',revision:2}:o.url.includes('/rows?')?{contract_version:'1.0',date:'2026-10-27',rows:[row]}:o.url.endsWith('/reconcile')?{ok:true,action:'paint_fields',should_paint:true,expected_fields:fields,operation:{operation_id:'sandbox-op',revision:2,status:'reserved',expires_at:new Date(Date.now()+60000).toISOString()}}:{ok:true};if(o.url.endsWith('/presented'))document.documentElement.dataset.mangoSandboxPresented=o.data;setTimeout(()=>o.onload({status:200,responseText:JSON.stringify(data)}),0);}\n`;
 await writeFile(
   path.join(addon, "content.js"),
   clockSource("lexical") +
@@ -52,7 +52,21 @@ const server = createServer(async (req, res) => {
   }
   if (req.url.startsWith("/api/")) {
     res.setHeader("Content-Type", "application/json");
-    if (req.url.includes("/dependientes")) res.end('{"reglas":[]}');
+    if (req.url.includes("/dependientes"))
+      res.end(
+        JSON.stringify({
+          reglas: [
+            {
+              activo: true,
+              principal: "NY-AM",
+              dependiente: "NY-BP",
+              primera: "p4:3-4",
+              segunda: "X",
+              tercera: "X",
+            },
+          ],
+        }),
+      );
     else if (req.url.includes("/revision")) res.end('{"revisiones":[]}');
     else {
       res.end(
@@ -246,6 +260,83 @@ try {
   console.log(
     "PASS Firefox isolated extension: page microtask intervention stops remaining fields and prevents presented",
   );
+  for (const interrupt of [false, true]) {
+    const dependent = await browser.newPage();
+    dependent.on("pageerror", (e) => errors.push(e.message));
+    await dependent.goto(
+      "http://127.0.0.1:" +
+        server.address().port +
+        "/loteria/resultados/ver?sandbox-dependency=1",
+    );
+    await dependent.waitForFunction(() => !!window.fx);
+    if (interrupt)
+      await dependent.evaluate(() => {
+        let fired = false;
+        document.addEventListener("input", (e) => {
+          if (fired || e.target.closest("tr")?.dataset.code !== "NY-AM") return;
+          fired = true;
+          queueMicrotask(() => fx.values("NY-BP", { primera: "99" }));
+        });
+      });
+    await dependent.locator('form button[type="submit"]').click();
+    if (interrupt) {
+      await dependent.waitForFunction(
+        () => {
+          document.dispatchEvent(new Event("mango-test-diagnostic"));
+          const raw = document.documentElement.dataset.mangoDiagnostic;
+          return (
+            raw &&
+            JSON.parse(raw).errors.some((e) => e.error === "write_not_retained")
+          );
+        },
+        null,
+        { timeout: 6000 },
+      );
+      assert.equal(
+        await dependent
+          .locator('tr[data-code="NY-BP"] input')
+          .first()
+          .inputValue(),
+        "99",
+      );
+      assert.equal(
+        await dependent.evaluate(
+          () => document.documentElement.dataset.mangoSandboxPresented,
+        ),
+        undefined,
+      );
+    } else {
+      await dependent.waitForFunction(
+        () => !!document.documentElement.dataset.mangoSandboxPresented,
+        null,
+        { timeout: 6000 },
+      );
+      assert.deepEqual(
+        await dependent
+          .locator('tr[data-code="NY-AM"] input')
+          .evaluateAll((inputs) => inputs.map((i) => i.value)),
+        ["05", "01", "23", "005", "0123"],
+      );
+      assert.equal(
+        await dependent
+          .locator('tr[data-code="NY-BP"] input')
+          .first()
+          .inputValue(),
+        "23",
+      );
+    }
+    assert.equal(
+      await dependent.evaluate(() => typeof GM_xmlhttpRequest),
+      "undefined",
+    );
+    assert.equal(await dependent.evaluate(() => window.processClicks || 0), 0);
+    assert.deepEqual(errors, []);
+    console.log(
+      "PASS Firefox isolated extension: dependent queue and retained effects, interrupted " +
+        interrupt,
+    );
+    await dependent.close();
+  }
 } finally {
   socket?.destroy();
   await browser.close();

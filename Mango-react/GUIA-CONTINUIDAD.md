@@ -2,7 +2,11 @@
 
 Actualizada el **28 de octubre de 2026**. Sirve para retomar el proyecto en otra conversación sin reconstruir sus decisiones ni confundirlo con USA React. Antes de trabajar, contrastar esta guía con la rama `main`: puede haber cambios posteriores.
 
-**Versión vigente: 0.1.7.** El usuario informó falta de azul/llenado en Anguilla 8 PM y Real PM con 0.1.6. El servicio había iniciado vigilancia y obtenido resultados; los reconocimientos fueron manuales. Su diagnóstico posterior mostró `RHOD-MD` con campos incompatibles, caché vacía, token sin comprobar y una consulta anterior. Se reprodujo exactamente mediante un cambio remoto de configuración con una edición local: `reset` borraba el baseline verificado mientras Central conservaba las casillas. Ahora la invalidación externa del adaptador utiliza la misma suspensión que Buscar, conservando únicamente la referencia verificada. Siguen exigiéndose respuesta nueva, fecha/servidor iguales y persistencia intacta para reconocer una edición conocida. No se cambió a verificación parcial por fila ni se ignoran diferencias desconocidas. La traza no identifica quién originó el reinicio en la sesión real ni demuestra retrospectivamente la causa antes del llenado manual.
+**Versión vigente: 0.1.8.** Verificación: 61 Node, 67 escenarios React/Firefox y cuatro de extensión aislada, cero fallos. El usuario explicó que Rhode Island solo admite Pick 4 y no pertenece a Mango, y aprobó recuperar el flujo por lotería de v2. Se verificó Mango Rover v2.0.13 del archivo Mango-Rover-v2.0.13.user.txt: recorre filas Mango, utiliza sus campos y captura errores por fila. React bloqueaba antes de ese bucle al exigir igualdad de toda la tabla. La nueva versión conserva la prueba general de carga y verifica por fila/campo/efecto; diferencias locales y fallos de retención no detienen entregas independientes. Las dependientes afectadas siguen protegidas. La revisión detectó y se corrigieron el alcance asíncrono de dependientes/reglas y la ampliación de pruebas parciales. Una cesión de cola MessageChannel entre entradas de filas con dependientes deja que React confirme cambios pendientes; se conserva foco final, pero ya no se garantiza que el foco nativo intermedio espere todos los picks. Diseño y plan: [aislamiento](docs/superpowers/specs/2026-10-28-row-isolation-design.md), [implementación](docs/superpowers/plans/2026-10-28-row-isolation.md).
+
+El usuario confirmó contexto válido con 0.1.7, pero la captura de Rhode Island no demuestra cuál campo discrepaba antes. La explicación anterior que daba por cierta una edición pendiente del usuario fue demasiado categórica. No atribuirle esa edición ni asegurar que X/XX causaran el incidente histórico. `X`, `XX` y `XXX` conservan su diferencia; solo se acota dónde importa comprobarlos.
+
+**Entrega anterior 0.1.7:** El usuario informó falta de azul/llenado en Anguilla 8 PM y Real PM con 0.1.6. El servicio había iniciado vigilancia y obtenido resultados; los reconocimientos fueron manuales. Su diagnóstico posterior mostró `RHOD-MD` con campos incompatibles, caché vacía, token sin comprobar y una consulta anterior. Se reprodujo exactamente mediante un cambio remoto de configuración con una edición local: `reset` borraba el baseline verificado mientras Central conservaba las casillas. Ahora la invalidación externa del adaptador utiliza la misma suspensión que Buscar, conservando únicamente la referencia verificada. Siguen exigiéndose respuesta nueva, fecha/servidor iguales y persistencia intacta para reconocer una edición conocida. En esa versión todavía no se había cambiado a verificación por fila; esa limitación se reemplaza con aprobación en 0.1.8. La traza no identifica quién originó el reinicio en la sesión real ni demuestra retrospectivamente la causa antes del llenado manual.
 
 **Entrega anterior 0.1.6:** El usuario informó New York AM: se llenó Pick 3, Pick 4 quedó pendiente y apareció al recargar con F5. Los registros de su PC acreditan una entrega inicial solo Pick 3 y otra completa tras la recarga. Se reprodujo en Firefox: Central genera valores/X en las dependientes durante la primera entrada y el guard anterior los bloquea como trabajo ajeno. Se atribuyen solo proyecciones nativas retenidas tras escritura propia; para continuar se exige misma principal/servidor/fecha/reglas, campos y baseline intactos. Se invalida la atribución ante intervención en principal, dependiente u otra principal que la comparta, aunque queden los mismos valores. Buscar reconoce las dependientes propias como trabajo local. Verificación: 45 Node, 52 escenarios React/Firefox y dos de extensión. Falta confirmación en la sesión del usuario. No extrapolar este arreglo al incidente de Quinielón, cuya causa sigue pendiente.
 
@@ -27,7 +31,7 @@ Repositorio: <https://github.com/Nox1do/rover-lottery>.
 
 **Mango React ya está implementado y publicado. No empezar otra adaptación desde cero.** Su diseño y plan aprobados están en esta carpeta y sus tareas aparecen completadas. El siguiente trabajo consiste en validar o mejorar la implementación existente según la petición concreta del usuario.
 
-Esta entrega solo añade esta guía; no cambia código, comportamiento, versión del userscript ni backend.
+La 0.1.8 cambia únicamente el cliente Mango-react; no modifica backend, fuentes ni publicación de resultados.
 
 ## 2. Objetivo y decisiones vigentes
 
@@ -59,7 +63,8 @@ Leer cualquier `AGENTS.md` aplicable que exista al retomar el trabajo. El de `Lo
 | `src/main.js` | Ensamblado, menús GM, configuración, caché de filas API, coordinación y sondeo. |
 | `src/helpers.js` | Campos conocidos, normalización, validación de números y fechas, zona operativa e identificadores. |
 | `src/native.js` | Observación transparente de solicitudes nativas conocidas de Central. |
-| `src/context.js` | Contexto invalidable, fecha realmente cargada, respuestas fuera de orden y valores persistidos. |
+| `src/context.js` | Contexto general invalidable, carga real, índices persistidos y prueba previa por fila/campo. |
+| `src/row-context.js` | Comparación pura de identidad, PROC y campos relevantes de una operación. |
 | `src/central.js` | Reconocimiento de tabla/filas, permisos, conflictos, atribución de dependientes, edición local y llenado React. |
 | `src/dependencies.js` | Proyección pura de reglas nativas conocidas para verificar atribución; no escribe casillas. |
 | `src/api.js` | Solicitudes Mango mediante GM; autenticación privada y tratamiento de errores. |
@@ -75,7 +80,7 @@ Leer cualquier `AGENTS.md` aplicable que exista al retomar el trabajo. El de `Lo
 
 ### Contexto y observación de Central
 
-No basta con leer el calendario. Una respuesta nativa válida debe acreditar la fecha cargada y concordar con la tabla asentada. Si no se observó la carga inicial, se necesita **Buscar**. Las respuestas antiguas, fallidas, de otra fecha o de otro servidor no autorizan escrituras ni ACK.
+No basta con leer el calendario. Una respuesta nativa válida debe acreditar la fecha cargada y una tabla reconocida y asentada. Los campos y PROC se verifican por operación; no se exige igualdad global de toda la tabla. Si no se observó la carga inicial, se necesita **Buscar**. Las respuestas antiguas, fallidas, de otra fecha o de otro servidor no autorizan escrituras ni ACK.
 
 El observador envuelve `fetch` de la página para reconocer rutas concretas, conservando sus argumentos, promesa y respuesta originales. Para las lecturas conocidas, consume una copia de la respuesta. No fabrica respuestas ni hace nuevas lecturas de Central por su cuenta.
 
@@ -129,7 +134,7 @@ La instalación tiene almacenamiento GM propio. El token del Mango clásico **no
 
 Sondeo: **5 s** con entregas activas, **120 s** sin actividad y **30 s** tras errores. Las mutaciones de pantalla no deben provocar peticiones ilimitadas. Buscar nativo puede refrescar, como máximo cada dos minutos y solo con contexto verificado y sin trabajo local, para descubrir loterías que aparecen cerca del sorteo.
 
-Diagnóstico útil: versión, observador operativo, token configurado/estado de autenticación, contexto, fecha verificada, servidor, última consulta, intervalo, filas API, coincidencias, errores y discordancias. El diagnóstico no imprime el token.
+Diagnóstico útil: versión, observador operativo, token configurado/estado de autenticación, contexto, fecha verificada, servidor, última consulta, intervalo, filas API, coincidencias, filas verificadas, omisiones locales, incidencias nativas acotadas, errores y discordancias. El diagnóstico no imprime el token.
 
 ## 7. Diferencias con USA React y lecciones de rendimiento
 

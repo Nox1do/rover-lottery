@@ -148,7 +148,8 @@ async function tick() {
   }
 }
 function diagnostic() {
-  const snap = central.snapshot();
+  const snap = central.snapshot(),
+    stats = delivery.diagnostics();
   return {
     version: VERSION,
     observador: observing,
@@ -162,7 +163,12 @@ function diagnostic() {
     ultima_consulta: lastCheck,
     intervalo_segundos: delay / 1000,
     filas_api: cache?.rows.length || 0,
-    ...delivery.diagnostics(),
+    ...stats,
+    filas_verificadas:
+      snap && cache?.epoch === snap.epoch ? stats.filas_verificadas : 0,
+    ...(snap
+      ? delivery.nativeIncidences(snap)
+      : { incidencias_tabla: [], incidencias_tabla_total: 0 }),
     ultimo_error: lastError,
   };
 }

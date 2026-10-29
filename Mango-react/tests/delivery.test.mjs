@@ -394,3 +394,110 @@ for (const mode of ["revision", "expiry", "context"])
     );
     assert.equal(r.visible.fields.primera, mode === "revision" ? "99" : "05");
   });
+
+test("ciclo por fila: A incompatible no reserva; B entrega; C hace ACK de persistidos", async () => {
+  const calls = [];
+  const rows = ["A", "B", "C"].map((code, i) => ({
+    ...base(),
+    lottery_id: code,
+    row_key: code,
+    name: code,
+    aliases: [code],
+    owned_fields: ["primera"],
+    expected_fields: { primera: "05" },
+    proc_state: "pending",
+  }));
+  const visible = rows.map((r, i) => ({
+    code: r.name,
+    name: r.name,
+    processed: i === 2,
+    fields: { primera: i === 2 ? "99" : "" },
+  }));
+  const snap = {
+    epoch: 1,
+    date: "2026-10-27",
+    server: "PRINCIPAL",
+    persisted: new Map(
+      visible.map((r) => [
+        r.code,
+        { procesado: r.processed, primera: r.processed ? "05" : "" },
+      ]),
+    ),
+  };
+  const central = {
+    assert() {},
+    rows: () => visible,
+    find: (code) => visible.find((r) => r.code === code),
+    rowBlock: (code) =>
+      code === "A" ? { motivo: "campos_distintos", campos: ["primera"] } : null,
+    canFill: () => true,
+    fill: async (code, f) => {
+      Object.assign(central.find(code).fields, f);
+      return true;
+    },
+    isDirty: () => false,
+  };
+  const api = {
+    post: async (path, body) => {
+      calls.push({ path, body });
+      return path.endsWith("reconcile")
+        ? {
+            action: "paint_fields",
+            should_paint: true,
+            expected_fields: { primera: "05" },
+            operation: {
+              operation_id: "op-" + body.lottery_id,
+              status: "reserved",
+              revision: 2,
+              expires_at: new Date(Date.now() + 60000).toISOString(),
+            },
+          }
+        : { ok: true };
+    },
+  };
+  const d = createDelivery({ central, api, clientId: "pc-test" });
+  await d.cycle(rows, snap);
+  assert.deepEqual(
+    calls.map((c) => c.body.lottery_id || c.body.operation_id),
+    ["B", "op-B", "C"],
+  );
+  assert.equal(calls[2].body.observed_fields.primera, "05");
+  assert.equal(d.diagnostics().omitidas[0].loteria, "A");
+  assert.equal(d.diagnostics().filas_verificadas, 2);
+});
+test("ACK sin campos propios identificados se omite sin inferir todos los inputs", async () => {
+  const r = setup({ processed: true });
+  const apiRow = { ...base(), owned_fields: [], expected_fields: {} };
+  await r.d.cycle([apiRow], r.snap);
+  assert.equal(r.calls.length, 0);
+  assert.equal(
+    r.d.diagnostics().omitidas[0].motivo,
+    "sin_campos_administrados",
+  );
+});
+test("diagnóstico local copia campos y separa incidencias nativas de filas Mango", async () => {
+  const r = setup();
+  r.central.rowBlock = () => ({
+    motivo: "campos_distintos",
+    campos: ["primera"],
+  });
+  r.snap.incidences = [
+    { codigo: "REAL", motivo: "campos_distintos", campos: ["primera"] },
+    ...Array.from({ length: 25 }, (_, i) => ({
+      codigo: "OTHER" + i,
+      motivo: "campos_distintos",
+      campos: ["pick4"],
+    })),
+  ];
+  await r.d.cycle([base()], r.snap);
+  const d = r.d.diagnostics();
+  d.omitidas[0].campos.push("pick4");
+  assert.deepEqual(r.d.diagnostics().omitidas[0].campos, ["primera"]);
+  const native = r.d.nativeIncidences(r.snap);
+  assert.equal(native.incidencias_tabla_total, 25);
+  assert.equal(native.incidencias_tabla.length, 20);
+  native.incidencias_tabla[0].campos.push("primera");
+  assert.deepEqual(r.d.nativeIncidences(r.snap).incidencias_tabla[0].campos, [
+    "pick4",
+  ]);
+});

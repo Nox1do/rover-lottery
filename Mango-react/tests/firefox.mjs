@@ -15,7 +15,7 @@ const fixture = (
 const harness = (
   await build({
     stdin: {
-      contents: `import {createCentralAdapter} from './src/central.js';import {installNativeObserver} from './src/native.js';window.adapter=createCentralAdapter(document,window);installNativeObserver(window,f=>f,e=>window.adapter.onNative(e));`,
+      contents: `import {createCentralAdapter} from './src/central.js';import {installNativeObserver} from './src/native.js';import {createDelivery} from './src/delivery.js';window.createDelivery=createDelivery;window.adapter=createCentralAdapter(document,window);installNativeObserver(window,f=>f,e=>window.adapter.onNative(e));`,
       resolveDir: process.cwd(),
     },
     bundle: true,
@@ -552,7 +552,7 @@ test("código con espacios en revisiones no omite un conflicto", async () => {
     await r.close();
   }
 });
-test("código realmente ajeno bloquea y muestra su identidad en diagnóstico", async () => {
+test("código ajeno bloquea su fila y permite otras loterías verificadas", async () => {
   const r = await setup();
   try {
     await r.load();
@@ -562,9 +562,21 @@ test("código realmente ajeno bloquea y muestra su identidad en diagnóstico", a
     await r.page.locator('form button[type="submit"]').click();
     await r.page.waitForFunction(() => !adapter.view().busy);
     await r.page.waitForTimeout(150);
-    assert.equal(await r.page.evaluate(() => adapter.snapshot()), null);
-    assert.match(await r.page.evaluate(() => adapter.message), /DESCONOCIDA/);
-    assert.equal(await r.fill("NY-AM", { pick3: "005" }), "context_changed");
+    assert.ok(await r.page.evaluate(() => !!adapter.snapshot()));
+    assert.equal(
+      await r.page.evaluate(
+        () =>
+          adapter.rowBlock(
+            "DESCONOCIDA",
+            ["primera"],
+            adapter.snapshot(),
+            "fill",
+          ).motivo,
+      ),
+      "fila_no_verificada",
+    );
+    assert.equal(await r.fill("DESCONOCIDA", { primera: "05" }), false);
+    assert.equal(await r.fill("NY-AM", { pick3: "005" }), true);
   } finally {
     await r.close();
   }
@@ -751,7 +763,7 @@ test("PROC actual: 13 procesadas no bloquean la entrega a la pendiente", async (
     await r.close();
   }
 });
-test("PROC desconocido bloquea aunque el color y Status indiquen éxito", async () => {
+test("PROC desconocido bloquea solo esa fila aunque Status indique éxito", async () => {
   const r = await setup({
     overrides: { REAL: { procesado: true, primera: "05" } },
     processedIcon: "lucide lucide-circle-help text-emerald-600",
@@ -766,9 +778,17 @@ test("PROC desconocido bloquea aunque el color y Status indiquen éxito", async 
       await r.page.evaluate(() => adapter.find("REAL").processed),
       null,
     );
-    assert.equal(await r.page.evaluate(() => adapter.snapshot()), null);
-    assert.equal(await r.fill("NY-AM", { pick3: "005" }), "context_changed");
-    assert.deepEqual(await r.vals("NY-AM"), ["", "", "", "", ""]);
+    assert.ok(await r.page.evaluate(() => !!adapter.snapshot()));
+    assert.equal(
+      await r.page.evaluate(
+        () =>
+          adapter.rowBlock("REAL", ["primera"], adapter.snapshot(), "ack")
+            .motivo,
+      ),
+      "proc_distinto",
+    );
+    assert.equal(await r.fill("NY-AM", { pick3: "005" }), true);
+    assert.deepEqual(await r.vals("NY-AM"), ["05", "", "", "005", ""]);
   } finally {
     await r.close();
   }
@@ -855,10 +875,11 @@ for (const { rows, filtered } of [
       await r.close();
     }
   });
-test("picks completos antes del foco nativo conservan ceros y dependientes", async () => {
+test("picks con dependientes conservan ceros y restauran foco tras ceder cola nativa", async () => {
   const r = await setup();
   try {
     await r.load();
+    await r.page.locator("#work").focus();
     await r.page.evaluate(() => {
       window.focusValues = [];
       document.addEventListener("focusin", (event) => {
@@ -882,8 +903,20 @@ test("picks completos antes del foco nativo conservan ceros y dependientes", asy
     );
     const focusValues = await r.page.evaluate(() => window.focusValues);
     assert.ok(focusValues.length > 0);
-    assert.ok(
-      focusValues.every((values) => values.join("|") === "05|01|23|005|0123"),
+    assert.deepEqual(await r.vals("NY-AM"), ["05", "01", "23", "005", "0123"]);
+    assert.equal(
+      await r.page
+        .locator("#work")
+        .evaluate((el) => el === document.activeElement),
+      true,
+    );
+    console.log(
+      "DEPENDENCY_QUEUE_TRACE",
+      JSON.stringify({
+        nativeFocusBeforeComplete: focusValues.some(
+          (values) => values.join("|") !== "05|01|23|005|0123",
+        ),
+      }),
     );
     assert.deepEqual(await r.vals("NY-BP"), ["23", "X", "X", "", ""]);
   } finally {
@@ -1495,9 +1528,593 @@ test("diagnóstico de llenado identifica reglas, revisión, edición y dependien
     await r.close();
   }
 });
+test("aislamiento: diferencia ajena de RHOD no bloquea REAL y requiere prueba local", async () => {
+  const r = await setup({
+    overrides: {
+      "NY-BP": {
+        abrev: "RHOD-MD",
+        nombre: "RHODE ISLAND MIDDAY",
+        procesado: true,
+        primera: "X",
+        pick4: "6401",
+      },
+    },
+  });
+  try {
+    await r.load();
+    await r.page.evaluate(() =>
+      fx.values("RHOD-MD", { primera: "XX", pick3: "XXX" }),
+    );
+    await r.page.waitForFunction(
+      () => adapter.find("RHOD-MD").fields.primera === "XX",
+    );
+    assert.equal(
+      await r.page.evaluate(
+        () =>
+          adapter.rowBlock(
+            "RHOD-MD",
+            ["primera", "pick4"],
+            adapter.snapshot(),
+            "ack",
+          )?.motivo,
+      ),
+      "campos_distintos",
+    );
+    assert.equal(
+      await r.fill("REAL", { primera: "05", segunda: "00", tercera: "09" }),
+      true,
+    );
+  } finally {
+    await r.close();
+  }
+});
+test("aislamiento: Pick4 ignora campo ajeno pero protege premios derivados", async () => {
+  for (const conflict of [false, true]) {
+    const r = await setup();
+    try {
+      await r.load();
+      await r.page.evaluate(
+        (conflict) =>
+          fx.values("NY-AM", conflict ? { segunda: "99" } : { pick3: "XXX" }),
+        conflict,
+      );
+      await r.page.waitForTimeout(30);
+      assert.equal(await r.fill("NY-AM", { pick4: "6401" }), !conflict);
+      if (conflict) assert.equal((await r.vals("NY-AM"))[1], "99");
+    } finally {
+      await r.close();
+    }
+  }
+});
+test("aislamiento: dependencia compartida bloquea A y B pero permite C", async () => {
+  const r = await setup({ rows: 4 });
+  try {
+    r.state.rules = [
+      { activo: true, principal: "REAL", dependiente: "NY-BP", primera: "1ra" },
+      {
+        activo: true,
+        principal: "NY-AM",
+        dependiente: "NY-BP",
+        primera: "1ra",
+      },
+    ];
+    await r.page.evaluate(() =>
+      fetch("/api/loteria/resultadosLoteria2/dependientes", {
+        headers: { "X-Servidor": "1" },
+      }),
+    );
+    await r.load();
+    await r.page.locator('tr[data-code="NY-BP"] input').first().fill("99");
+    assert.equal(await r.fill("REAL", { primera: "05" }), false);
+    assert.equal(await r.fill("NY-AM", { primera: "05" }), false);
+    assert.equal(await r.fill("FIX0", { primera: "05" }), true);
+  } finally {
+    await r.close();
+  }
+});
+test("aislamiento: regla desconocida o dependiente filtrada no autoriza efectos inciertos", async () => {
+  for (const mode of ["unknown", "filtered"]) {
+    const r = await setup();
+    try {
+      r.state.rules = [
+        {
+          activo: true,
+          principal: "NY-AM",
+          dependiente: "NY-BP",
+          primera: mode === "unknown" ? "custom" : "p4:3-4",
+        },
+      ];
+      await r.page.evaluate(() =>
+        fetch("/api/loteria/resultadosLoteria2/dependientes", {
+          headers: { "X-Servidor": "1" },
+        }),
+      );
+      await r.load();
+      if (mode === "filtered")
+        await r.page
+          .locator('input[placeholder="Buscar lotería"]')
+          .fill("NEW YORK AM");
+      if (mode === "filtered") {
+        await r.page.evaluate(() => {
+          fx.values("NY-BP", { primera: "99" });
+        });
+        await r.page
+          .locator('input[placeholder="Buscar lotería"]')
+          .fill("NY-AM");
+        await r.page.waitForTimeout(30);
+      }
+      assert.equal(await r.fill("NY-AM", { pick4: "1234" }), false);
+      if (mode === "unknown")
+        assert.equal(await r.fill("REAL", { primera: "05" }), true);
+    } finally {
+      await r.close();
+    }
+  }
+});
+test("aislamiento: retención fallida suspende fuente y dependiente pero no REAL", async () => {
+  const r = await setup();
+  try {
+    await r.load();
+    const epoch = await r.page.evaluate(() => adapter.snapshot().epoch);
+    await r.page.evaluate(() => (window.fxIgnore = true));
+    assert.equal(await r.fill("NY-AM", { pick3: "005" }), false);
+    await r.page.evaluate(() => (window.fxIgnore = false));
+    assert.equal(await r.fill("REAL", { primera: "05" }), true);
+    assert.equal(await r.page.evaluate(() => adapter.snapshot().epoch), epoch);
+    assert.equal(
+      await r.page.evaluate(
+        () =>
+          adapter.rowBlock("NY-AM", ["pick3"], adapter.snapshot(), "fill")
+            .motivo,
+      ),
+      "llenado_suspendido",
+    );
+    assert.equal(
+      await r.page.evaluate(
+        () =>
+          adapter.rowBlock(
+            "NY-BP",
+            ["primera"],
+            adapter.snapshot(),
+            "dependency",
+          ).motivo,
+      ),
+      "llenado_suspendido",
+    );
+    await r.load();
+    assert.equal(
+      await r.page.evaluate(() =>
+        adapter.rowBlock("NY-AM", ["pick3"], adapter.snapshot(), "fill"),
+      ),
+      null,
+    );
+  } finally {
+    await r.close();
+  }
+});
+async function isolateRuntime(
+  r,
+  { failFirst = false, extraIncidences = 0 } = {},
+) {
+  r.state.rules = [];
+  await r.load();
+  await r.page.evaluate(
+    ({ extraIncidences }) => {
+      fx.values("RHOD-MD", { primera: "XX" });
+      for (let i = 0; i < extraIncidences; i++)
+        fx.values("FIX" + i, { primera: "99" });
+    },
+    { extraIncidences },
+  );
+  await r.page.waitForFunction(
+    () => adapter.find("RHOD-MD").fields.primera === "XX",
+  );
+  await r.page.evaluate(
+    ({ failFirst }) => {
+      const store = {
+        mango_react_token: "isolation-test-secret",
+        mango_react_client: "isolated-test-pc",
+      };
+      window.GM_getValue = (k, d) => store[k] ?? d;
+      window.GM_setValue = (k, v) => (store[k] = v);
+      window.gmMenus = {};
+      window.gmCalls = [];
+      window.isoReady = false;
+      window.GM_registerMenuCommand = (k, f) => (gmMenus[k] = f);
+      window.unsafeWindow = window;
+      window.exportFunction = (f) => f;
+      window.alert = (s) => {
+        window.gmDiagnostic = JSON.parse(s);
+      };
+      if (failFirst)
+        document.addEventListener(
+          "input",
+          (e) => {
+            if (e.target.closest("tr"))
+              window.fxIgnore = e.target.closest("tr").dataset.code === "REAL";
+          },
+          true,
+        );
+      window.GM_xmlhttpRequest = (o) => {
+        const body = o.data ? JSON.parse(o.data) : null;
+        gmCalls.push({ url: o.url, body });
+        const expected = { primera: "05", segunda: "00", tercera: "09" };
+        const revision = isoReady ? 3 : 2;
+        const rows = [
+          ["real", "REAL"],
+          ["anguilla8pm", "ANG-8PM"],
+        ].map(([id, code]) => ({
+          lottery_id: id,
+          row_key: id + "|2026-10-27",
+          name: code,
+          aliases: [code],
+          draw_date: "2026-10-27",
+          revision,
+          proc_state: "pending",
+          owned_fields: ["primera", "segunda", "tercera"],
+          expected_fields: isoReady ? expected : {},
+          components: [
+            {
+              state: isoReady ? "ready" : "awaiting_result",
+              expected_fields: isoReady ? expected : {},
+            },
+          ],
+          visual: { state: isoReady ? null : "blue" },
+        }));
+        const data = o.url.includes("/version?")
+          ? { ok: true, date: "2026-10-27", revision }
+          : o.url.includes("/rows?")
+            ? { contract_version: "1.0", date: "2026-10-27", rows }
+            : o.url.endsWith("/reconcile")
+              ? {
+                  action: "paint_fields",
+                  should_paint: true,
+                  expected_fields: expected,
+                  operation: {
+                    operation_id: "iso-" + body.lottery_id,
+                    revision,
+                    status: "reserved",
+                    expires_at: new Date(Date.now() + 60000).toISOString(),
+                  },
+                }
+              : { ok: true };
+        setTimeout(
+          () => o.onload({ status: 200, responseText: JSON.stringify(data) }),
+          0,
+        );
+      };
+    },
+    { failFirst },
+  );
+  await r.page.addScriptTag({
+    content: await readFile("Mango-Rover-React.user.js", "utf8"),
+  });
+  await r.page.evaluate(() =>
+    Promise.all([
+      fetch("/api/loteria/resultadosLoteria2/dependientes", {
+        headers: { "X-Servidor": "1" },
+      }),
+      fetch("/api/loteria/resultadosLoteria2/revision?fecha=10/27/2026", {
+        headers: { "X-Servidor": "1" },
+      }),
+    ]),
+  );
+  await r.load();
+  await r.page.waitForFunction(
+    () =>
+      document.querySelectorAll('input[data-mango-react-visual="blue"]')
+        .length === 6,
+  );
+}
+for (const failFirst of [false, true])
+  test(`runtime aislado: RHOD ajena y retención fallida ${failFirst}`, async () => {
+    const r = await setup({
+      overrides: {
+        "NY-AM": { abrev: "ANG-8PM", nombre: "ANGUILLA 8PM" },
+        "NY-BP": {
+          abrev: "RHOD-MD",
+          nombre: "RHODE ISLAND MIDDAY",
+          procesado: true,
+          primera: "X",
+          pick4: "6401",
+        },
+      },
+    });
+    try {
+      await isolateRuntime(r, { failFirst });
+      await r.page.evaluate(() => {
+        gmMenus["Mango React · Diagnóstico"]();
+      });
+      const initial = await r.page.evaluate(() => gmDiagnostic);
+      assert.equal(initial.incidencias_tabla[0].codigo, "RHOD-MD");
+      assert.equal(initial.fecha_verificada, "2026-10-27");
+      assert.equal(initial.token_estado, "válido");
+      await r.page.evaluate(() => {
+        isoReady = true;
+        const Before = Date;
+        window.Date = class extends Before {
+          static now() {
+            return Before.now() + 6000;
+          }
+        };
+        fx.render();
+      });
+      await r.page.waitForFunction(
+        () =>
+          gmCalls.filter((c) => c.url.endsWith("/presented")).length ===
+          (window.fxIgnore === undefined ? 2 : 1),
+        null,
+        { timeout: 7000 },
+      );
+      await r.page.evaluate(() => gmMenus["Mango React · Diagnóstico"]());
+      const result = await r.page.evaluate(() => ({
+        diag: gmDiagnostic,
+        calls: gmCalls,
+      }));
+      assert.equal(result.diag.filas_verificadas, failFirst ? 1 : 2);
+      assert.equal(result.diag.fecha_verificada, "2026-10-27");
+      assert.equal(
+        result.calls.filter((c) => c.url.endsWith("/presented")).length,
+        failFirst ? 1 : 2,
+      );
+      assert.ok(
+        result.calls
+          .filter((c) => c.body?.lottery_id)
+          .every((c) => ["real", "anguilla8pm"].includes(c.body.lottery_id)),
+      );
+      assert.deepEqual((await r.vals("ANG-8PM")).slice(0, 3), [
+        "05",
+        "00",
+        "09",
+      ]);
+      assert.deepEqual(await r.vals("RHOD-MD"), ["XX", "", "", "", "6401"]);
+      assert.equal(
+        result.calls.some((c) => c.url.endsWith("/ack")),
+        false,
+      );
+    } finally {
+      await r.close();
+    }
+  });
+test("runtime aislado: diagnóstico acotado a 20 incidencias y contexto nuevo limpia", async () => {
+  const r = await setup({
+    rows: 27,
+    overrides: {
+      "NY-AM": { abrev: "ANG-8PM" },
+      "NY-BP": {
+        abrev: "RHOD-MD",
+        procesado: true,
+        primera: "X",
+        pick4: "6401",
+      },
+    },
+  });
+  try {
+    await isolateRuntime(r, { extraIncidences: 24 });
+    await r.page.evaluate(() => gmMenus["Mango React · Diagnóstico"]());
+    const d = await r.page.evaluate(() => gmDiagnostic);
+    assert.equal(d.incidencias_tabla_total, 25);
+    assert.equal(d.incidencias_tabla.length, 20);
+    assert.ok(!JSON.stringify(d).includes("isolation-test-secret"));
+    const calls = await r.page.evaluate(() => gmCalls.length);
+    await r.page.evaluate(() => gmMenus["Mango React · Diagnóstico"]());
+    assert.equal(await r.page.evaluate(() => gmCalls.length), calls);
+    await r.page.evaluate(() => fx.setDate("26 oct 2026"));
+    await r.page.waitForTimeout(230);
+    await r.page.evaluate(() => gmMenus["Mango React · Diagnóstico"]());
+    assert.deepEqual(
+      await r.page.evaluate(() => gmDiagnostic.incidencias_tabla),
+      [],
+    );
+    assert.equal(
+      await r.page.evaluate(() => gmDiagnostic.incidencias_tabla_total),
+      0,
+    );
+  } finally {
+    await r.close();
+  }
+});
+for (const mode of ["rules", "dependent", "between", "after_fill"])
+  test(`guard asíncrono: ${mode} cancela NY y conserva REAL`, async () => {
+    const r = await setup();
+    try {
+      await r.load();
+      const result = await r.page.evaluate(async (mode) => {
+        const calls = [];
+        let fired = false;
+        document.addEventListener("input", (e) => {
+          if (fired || e.target.closest("tr")?.dataset.code !== "NY-AM") return;
+          fired = true;
+          if (mode === "rules")
+            queueMicrotask(() => {
+              adapter.onNative({
+                type: "start",
+                kind: "rules",
+                id: 900,
+                serverId: "1",
+              });
+              adapter.onNative({
+                type: "success",
+                kind: "rules",
+                id: 900,
+                serverId: "1",
+                data: {
+                  reglas: [
+                    {
+                      activo: true,
+                      principal: "NY-AM",
+                      dependiente: "NY-BP",
+                      primera: "custom",
+                    },
+                  ],
+                },
+              });
+            });
+          if (mode === "dependent")
+            setTimeout(() => fx.values("NY-BP", { primera: "99" }), 10);
+          if (mode === "between")
+            queueMicrotask(() => fx.values("NY-BP", { primera: "99" }));
+        });
+        if (mode === "after_fill") {
+          const fill = adapter.fill;
+          adapter.fill = async (...args) => {
+            const ok = await fill(...args);
+            if (args[0] === "NY-AM") {
+              fx.values("NY-BP", { primera: "99" });
+              await Promise.resolve();
+            }
+            return ok;
+          };
+        }
+        const expected = { pick3: "005", pick4: "0123" };
+        const ny = {
+          lottery_id: "ny",
+          row_key: "ny|2026-10-27",
+          name: "NY-AM",
+          aliases: ["NY-AM"],
+          draw_date: "2026-10-27",
+          revision: 2,
+          proc_state: "pending",
+          owned_fields: ["pick3", "pick4"],
+          expected_fields: expected,
+        };
+        const real = {
+          ...ny,
+          lottery_id: "real",
+          row_key: "real|2026-10-27",
+          name: "REAL",
+          aliases: ["REAL"],
+          owned_fields: ["primera"],
+          expected_fields: { primera: "05" },
+        };
+        const api = {
+          post: async (path, body) => {
+            calls.push({ path, body });
+            const exp = body.lottery_id === "ny" ? expected : { primera: "05" };
+            return path.endsWith("reconcile")
+              ? {
+                  should_paint: true,
+                  action: "paint_fields",
+                  expected_fields: exp,
+                  operation: {
+                    operation_id: body.lottery_id,
+                    status: "reserved",
+                    revision: 2,
+                    expires_at: new Date(Date.now() + 60000).toISOString(),
+                  },
+                }
+              : { ok: true };
+          },
+        };
+        const d = createDelivery({ central: adapter, api, clientId: "test" });
+        await d.cycle([ny, real], adapter.snapshot());
+        return {
+          calls,
+          source: adapter.find("NY-AM").fields,
+          dependent: adapter.find("NY-BP").fields,
+          real: adapter.find("REAL").fields,
+          diagnostics: d.diagnostics(),
+          context: !!adapter.snapshot(),
+        };
+      }, mode);
+      assert.deepEqual(
+        result.calls
+          .filter((c) => c.path.endsWith("/presented"))
+          .map((c) => c.body.operation_id),
+        ["real"],
+      );
+      assert.equal(result.real.primera, "05");
+      assert.equal(result.diagnostics.filas_verificadas, 1);
+      assert.equal(result.context, true);
+      if (mode !== "rules")
+        assert.equal(
+          result.dependent.primera,
+          "99",
+          "no sobrescribe el cambio ajeno",
+        );
+      if (["rules", "between"].includes(mode))
+        assert.equal(result.source.pick4, "", "detiene las entradas restantes");
+    } finally {
+      await r.close();
+    }
+  });
+test("prueba parcial: nueva revisión amplía campos propios sin bloquear valores ya retenidos", async () => {
+  const r = await setup();
+  try {
+    await r.load();
+    await r.page.evaluate(() => fx.values("REAL", { pick4: "XXXX" }));
+    await r.page.waitForTimeout(30);
+    await r.load();
+    const out = await r.page.evaluate(async () => {
+      const calls = [];
+      let expected = { primera: "05" },
+        revision = 2;
+      const row = () => ({
+        lottery_id: "real",
+        row_key: "real|2026-10-27",
+        name: "REAL",
+        draw_date: "2026-10-27",
+        revision,
+        proc_state: "pending",
+        expected_fields: expected,
+      });
+      const api = {
+        post: async (path, body) => {
+          calls.push({ path, body });
+          return path.endsWith("reconcile")
+            ? {
+                should_paint: true,
+                action: "paint_fields",
+                expected_fields: expected,
+                operation: {
+                  operation_id: "partial" + revision,
+                  status: "reserved",
+                  revision,
+                  expires_at: new Date(Date.now() + 60000).toISOString(),
+                },
+              }
+            : { ok: true };
+        },
+      };
+      const d = createDelivery({ central: adapter, api, clientId: "test" });
+      await d.cycle([row()], adapter.snapshot());
+      const first = {
+        fields: adapter.find("REAL").fields,
+        proof: adapter.snapshot().verifiedRows.get("REAL"),
+      };
+      expected = { primera: "05", segunda: "06" };
+      revision = 3;
+      await d.cycle([row()], adapter.snapshot());
+      return {
+        first,
+        fields: adapter.find("REAL").fields,
+        diagnostics: d.diagnostics(),
+        calls,
+      };
+    });
+    assert.deepEqual(out.first.proof.keys, ["primera"]);
+    assert.equal(out.first.fields.primera, "05");
+    assert.equal(out.fields.segunda, "06");
+    assert.equal(out.fields.pick4, "XXXX");
+    assert.deepEqual(
+      out.calls
+        .filter((c) => c.path.endsWith("/presented"))
+        .map((c) => c.body.revision),
+      [2, 3],
+    );
+    assert.deepEqual(out.diagnostics.errors, []);
+    assert.deepEqual(out.diagnostics.omitidas, []);
+  } finally {
+    await r.close();
+  }
+});
 let failed = 0;
 try {
-  for (const { name, fn } of tests) {
+  for (const { name, fn } of tests.filter(
+    (t) =>
+      !process.env.MANGO_TEST_FILTER ||
+      new RegExp(process.env.MANGO_TEST_FILTER).test(t.name),
+  )) {
     try {
       await fn();
       console.log("PASS", name);
@@ -1510,5 +2127,10 @@ try {
   await browser.close();
   server.close();
 }
-console.log(`${tests.length - failed}/${tests.length} Firefox scenarios`);
+const executed = tests.filter(
+  (t) =>
+    !process.env.MANGO_TEST_FILTER ||
+    new RegExp(process.env.MANGO_TEST_FILTER).test(t.name),
+).length;
+console.log(`${executed - failed}/${executed} Firefox scenarios`);
 if (failed) process.exitCode = 1;

@@ -10,9 +10,17 @@ Fuentes públicas comprobadas:
 - https://www.tampermonkey.net/documentation.php?locale=en&q=meta:sandbox
 - https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts/exportFunction
 
+## Verificación por lotería · 0.1.8
+
+El flujo por fila aprobado reemplaza la exigencia anterior de igualdad global de casillas. `context.js` prueba la carga nativa/época y conserva índices y pruebas por campo; `row-context.js` comprueba la fila que la operación necesita. Una fila nunca verificada no obtiene confianza de otras filas. Los fallos locales no bloquean loterías independientes. Se conserva la comparación de PROC y campos relevantes con persistencia, incluidas referencias previas válidas para ediciones conocidas.
+
+El alcance de llenado incluye premios derivados de picks y lecturas/escrituras de reglas activas. Una regla desconocida no autoriza efectos inciertos. Las dependientes compartidas y la intervención siguen protegidas; la comprobación no sustituye los cálculos nativos. Si falla la retención se suspende el grupo afectado hasta una carga nativa nueva; la estructura/contexto generales perdidos siguen suspendiendo todo. La retención y el foco final continúan comprobándose en Firefox. Para observar cambios que React deja pendientes en otras microtareas, se utiliza MessageChannel entre entradas con dependientes y se verifica una referencia de efectos de nuevo antes de presented, incluso en reintentos. El foco nativo intermedio puede ocurrir antes de completar esos picks; no se promete agrupación de pintura de esas filas bajo esa cesión de cola.
+
+Documentación primaria releída: React input controlado, MDN exportFunction y Tampermonkey sandbox. Se añadió la documentación de [MessageChannel](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel); no cambia el mecanismo de eventos, aislamiento ni el observador. No se afirma haber encontrado el valor histórico exacto discrepante de RHOD-MD.
+
 ## Suspensión de configuración y edición retenida · 0.1.7
 
-Central puede conservar ediciones locales después de Buscar. Una invalidación externa del adaptador ahora utiliza la misma suspensión que el submit nativo: descarta la autorización vigente y conserva el baseline anterior para comparar una respuesta nueva del mismo contexto. La edición requiere marca local y datos persistidos idénticos al baseline anterior; una discrepancia no acreditada de campos, identidad o PROC entre la respuesta y la tabla sigue bloqueando, al igual que un contexto distinto. Un cambio legítimo de PROC que coincida entre respuesta y tabla sigue permitiendo el ACK. El baseline retenido no autoriza escrituras ni ACK y no restaura caché, token o reservas Mango.
+Central puede conservar ediciones locales después de Buscar. Una invalidación externa del adaptador ahora utiliza la misma suspensión que el submit nativo: descarta la autorización vigente y conserva el baseline anterior para comparar una respuesta nueva del mismo contexto. La edición requiere marca local y datos persistidos idénticos al baseline anterior; una discrepancia no acreditada de campos, identidad o PROC sigue bloqueando la operación de esa fila; un contexto distinto bloquea todas. Un cambio legítimo de PROC que coincida entre respuesta y tabla sigue permitiendo el ACK. El baseline retenido no autoriza escrituras ni ACK y no restaura caché, token o reservas Mango.
 
 ## Componentes sucesivos y dependientes · 0.1.6
 
@@ -42,7 +50,7 @@ El adaptador comparte una única evaluación entre `canFill` y el diagnóstico d
 | Horarios/dependientes y otros servidores | Mango no opera en esas vistas |
 | Filas visibles diez minutos antes, sin polling principal | Refresco nativo limitado y condicionado a ausencia de trabajo local |
 
-El tiempo mínimo de asentamiento se combina con igualdad de identidad, PROC y campos persistidos; un retraso, error o contexto incompatible suspende efectos. Una respuesta fuera de orden no sustituye la última solicitud. Si no se observó la carga inicial se requiere Buscar de nuevo. Una discordancia entre servicios se diagnostica y no se repara automáticamente.
+El tiempo mínimo de asentamiento se combina con una tabla reconocida y comprobaciones de identidad, PROC y campos persistidos por operación; un error local suspende esa operación y un contexto incompatible suspende todas. Una respuesta fuera de orden no sustituye la última solicitud. Si no se observó la carga inicial se requiere Buscar de nuevo. Una discordancia entre servicios se diagnostica y no se repara automáticamente.
 
 ## Corrección PROC de 0.1.1
 

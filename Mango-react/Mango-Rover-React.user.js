@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mango/Rover React
 // @namespace    https://github.com/Nox1do/rover-lottery/Mango-react
-// @version      0.1.7
+// @version      0.1.8
 // @description  Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida.
 // @match        https://central.roversport.net/*
 // @connect      rover-lottery-api.loteriasrovers.workers.dev
@@ -118,11 +118,18 @@
         invalidate("Respuesta de Central no corresponde a la fecha solicitada.");
         return;
       }
+      const invalidRows = /* @__PURE__ */ new Map();
       for (const row of data.filas) {
         const code = trimCode(row?.abrev);
-        if (!code || map.has(code) || ![true, false, 0, 1].includes(row.procesado)) {
-          invalidate("Respuesta de Central no reconocida.");
-          return;
+        if (!code) continue;
+        if (map.has(code) || invalidRows.has(code)) {
+          map.delete(code);
+          invalidRows.set(code, "codigo_duplicado");
+          continue;
+        }
+        if (![true, false, 0, 1].includes(row.procesado)) {
+          invalidRows.set(code, "proc_desconocido");
+          continue;
         }
         map.set(code, {
           ...fields(row),
@@ -131,7 +138,13 @@
           procesado: row.procesado === true || row.procesado === 1
         });
       }
-      candidate = { ...request, date, persisted: map, readyAt: now() + 100 };
+      candidate = {
+        ...request,
+        date,
+        persisted: map,
+        invalidRows,
+        readyAt: now() + 100
+      };
       request = null;
       message = "Respuesta recibida; verificando la tabla de Central\u2026";
     }
@@ -161,37 +174,54 @@
         invalidate("Cambi\xF3 la fecha o el servidor. Pulsa Buscar.");
         return;
       }
-      if (candidate && !view.busy && !view.dialog && now() >= candidate.readyAt && view.rows?.length) {
-        const codes = /* @__PURE__ */ new Set();
-        let matches = true;
-        for (const row of view.rows) {
+      if (confirmed && view.tableReady === false && !view.busy) {
+        invalidate("La estructura de Central no es verificable. Pulsa Buscar.");
+        return;
+      }
+      if (candidate && view.tableReady !== false && !view.busy && !view.dialog && now() >= candidate.readyAt && view.rows?.length) {
+        const rows = view.rows;
+        const counts = /* @__PURE__ */ new Map();
+        for (const row of rows)
+          counts.set(row.code, (counts.get(row.code) || 0) + 1);
+        const verifiedRows = /* @__PURE__ */ new Map(), incidences = [];
+        for (const row of rows) {
           const stored = candidate.persisted.get(row.code);
-          if (codes.has(row.code) || !stored || stored.procesado !== row.processed) {
-            const reason = codes.has(row.code) ? "c\xF3digo duplicado" : !stored ? "c\xF3digo no encontrado en la respuesta" : "PROC diferente o desconocido";
-            message = `No se pudo verificar ${row.code}: ${reason}.`;
-            matches = false;
-            break;
-          }
-          codes.add(row.code);
-          const old = candidate.previous?.persisted.get(row.code);
-          const knownDirty = candidate.previous?.date === candidate.date && candidate.previous?.server === candidate.server && candidate.previous?.serverId === candidate.serverId && row.dirty && old && equalFields(old, stored);
-          if (!equalFields(stored, row.fields) && !knownDirty) {
-            message = `No se pudo verificar ${row.code}: campos distintos a los guardados en Central.`;
-            matches = false;
-            break;
-          }
+          let motivo = candidate.invalidRows.get(row.code) || (counts.get(row.code) !== 1 ? "codigo_duplicado" : !stored ? "codigo_no_encontrado" : stored.procesado !== row.processed ? "proc_distinto" : null);
+          const old = candidate.previous?.verifiedRows.get(row.code);
+          const previousKeys = old?.keys || [];
+          const knownDirty = row.dirty && old && equalFields(old.fields, stored, previousKeys);
+          const different = FIELD_NAMES.filter(
+            (key) => !equalFields(stored, row.fields, [key])
+          );
+          if (!motivo && different.length && !knownDirty)
+            motivo = "campos_distintos";
+          if (motivo)
+            incidences.push({ codigo: row.code, motivo, campos: different });
+          else
+            verifiedRows.set(row.code, {
+              epoch,
+              date: candidate.date,
+              server: candidate.server,
+              serverId: candidate.serverId,
+              keys: different.length ? [...previousKeys] : [...FIELD_NAMES],
+              fields: fields(stored),
+              procesado: stored.procesado
+            });
         }
-        if (matches) {
-          confirmed = {
-            epoch,
-            date: candidate.date,
-            server: candidate.server,
-            serverId: candidate.serverId,
-            persisted: candidate.persisted
-          };
-          candidate = null;
-          message = "Fecha y publicaci\xF3n verificadas.";
-        }
+        confirmed = {
+          epoch,
+          date: candidate.date,
+          server: candidate.server,
+          serverId: candidate.serverId,
+          persisted: candidate.persisted,
+          invalidRows: candidate.invalidRows,
+          verifiedRows,
+          previousVerified: candidate.previous?.verifiedRows || /* @__PURE__ */ new Map(),
+          incidences,
+          incidenceTotal: incidences.length
+        };
+        candidate = null;
+        message = "Fecha y servidor verificados; comprobaci\xF3n por loter\xEDa.";
       }
     }
     function snapshot(view) {
@@ -206,6 +236,19 @@
         throw new Error("context_changed");
       return cur;
     }
+    function recordProof(code, proof, snap) {
+      if (!confirmed || snap !== confirmed || proof?.epoch !== epoch || proof.date !== snap.date || proof.server !== snap.server || proof.serverId !== snap.serverId)
+        throw Error("context_changed");
+      const stored = snap.persisted.get(code);
+      if (!stored || snap.invalidRows.has(code) || !proof.keys?.length || proof.keys.some((key) => !FIELD_NAMES.includes(key)) || proof.procesado !== stored.procesado || !equalFields(proof.fields, stored, proof.keys))
+        throw Error("invalid_row_proof");
+      const old = snap.verifiedRows.get(code);
+      snap.verifiedRows.set(code, {
+        ...proof,
+        fields: fields(stored),
+        keys: [.../* @__PURE__ */ new Set([...old?.keys || [], ...proof.keys])]
+      });
+    }
     return {
       begin,
       prepareSearch,
@@ -215,6 +258,7 @@
       snapshot,
       assert,
       invalidate,
+      recordProof,
       get message() {
         return message;
       },
@@ -256,6 +300,55 @@
     return projected;
   }
 
+  // src/row-context.js
+  function checkRow({
+    snap,
+    code,
+    keys,
+    visible,
+    previousProof,
+    localEvidence,
+    purpose
+  }) {
+    const fail = (motivo, campos = []) => ({
+      ok: false,
+      motivo,
+      codigo: code,
+      campos,
+      proposito: purpose
+    });
+    if (snap.invalidRows?.has(code)) return fail(snap.invalidRows.get(code));
+    const stored = snap.persisted.get(code);
+    if (!stored) return fail("fila_no_verificada");
+    if (!visible || visible.code !== code) return fail("fila_no_visible");
+    if (typeof visible.processed !== "boolean" || stored.procesado !== visible.processed)
+      return fail("proc_distinto");
+    if (!keys.length || keys.some((key) => !FIELD_NAMES.includes(key)))
+      return fail("sin_campos_administrados");
+    if (localEvidence === "manual" && ["fill", "dependency"].includes(purpose))
+      return fail("edicion_local");
+    const different = keys.filter(
+      (key) => !equalFields(stored, visible.fields, [key])
+    );
+    const knownLocal = localEvidence && previousProof && previousProof.date === snap.date && previousProof.server === snap.server && previousProof.serverId === snap.serverId && different.every((key) => previousProof.keys.includes(key)) && equalFields(previousProof.fields, stored, different);
+    if (different.length && !knownLocal)
+      return fail("campos_distintos", different);
+    return {
+      ok: true,
+      stored,
+      visible,
+      proof: {
+        epoch: snap.epoch,
+        date: snap.date,
+        server: snap.server,
+        serverId: snap.serverId,
+        keys: [...keys],
+        fields: fields(stored),
+        procesado: stored.procesado
+      }
+    };
+  }
+
   // src/central.js
   var HEADERS = {
     primera: "1ERA",
@@ -268,7 +361,15 @@
   function createCentralAdapter(doc, win, onChange = () => {
   }) {
     const context = createContext();
-    let cache2 = null, activity = 0, lastRefresh = Date.now(), publishedBusy = 0;
+    let cache2 = null, activity = 0, lastRefresh = Date.now(), publishedBusy = 0, suspendedEpoch = null;
+    const suspended = /* @__PURE__ */ new Set();
+    function rowSuspended(code, snap) {
+      if (suspendedEpoch !== snap.epoch) {
+        suspended.clear();
+        suspendedEpoch = snap.epoch;
+      }
+      return suspended.has(code);
+    }
     const ownEvents = /* @__PURE__ */ new WeakSet(), sessionWrites = /* @__PURE__ */ new Map(), dependentWrites = /* @__PURE__ */ new Map(), touched = /* @__PURE__ */ new Set(), nativeRequests = /* @__PURE__ */ new Map(), rulesByServer = /* @__PURE__ */ new Map(), revisionByDate = /* @__PURE__ */ new Map();
     const touchKey = (code, view2) => `${view2.server}|${view2.selectedDate}|${code}`;
     function active() {
@@ -361,6 +462,7 @@
         ),
         form,
         search,
+        tableReady: !!table() && !!form && !!serverButton,
         rowCount: indexedRows().length,
         // Only a candidate response or a consumer needing values reads all rows.
         get rows() {
@@ -436,6 +538,37 @@
       const r = indexedRows().filter((r2) => r2.code === code);
       return r.length === 1 ? readRow(r[0]) : null;
     }
+    function rowBlock(code, keys, snap, purpose = "fill") {
+      assert(snap);
+      if (rowSuspended(code, snap))
+        return { motivo: "llenado_suspendido", codigo: code, proposito: purpose };
+      const row = find(code), v = view(), key = touchKey(code, v);
+      const own = sessionWrites.get(key), dependent = dependentWrites.get(key);
+      const rules = rulesByServer.get(`${snap.server}|${snap.serverId}`) || [];
+      const ownSource = own && equalFields(own.fields, row?.fields) && sameBaseline(own.baseline, snap.persisted.get(code));
+      const ownDependent = dependent && equalFields(dependent.fields, row?.fields) && sameBaseline(dependent.baseline, snap.persisted.get(code)) && ruleSignature(
+        dependentGroups(dependent.principal, rules).get(code) || []
+      ) === dependent.signature;
+      const localEvidence = touched.has(key) ? "manual" : ownSource || ownDependent ? "own" : null;
+      const result = checkRow({
+        snap,
+        code,
+        keys,
+        visible: row,
+        purpose,
+        localEvidence,
+        previousProof: snap.verifiedRows.get(code) || snap.previousVerified.get(code)
+      });
+      if (!result.ok)
+        return {
+          motivo: result.motivo,
+          codigo: code,
+          campos: result.campos,
+          proposito: result.proposito
+        };
+      context.recordProof(code, result.proof, snap);
+      return null;
+    }
     function locked(row) {
       return !row || row.processed !== false || Object.values(row.inputs).some((x) => x.disabled || x.readOnly) || ![...row.el.querySelectorAll("button")].some(
         (b) => (b.title === "Procesar" || label(b) === "PROCESAR") && !b.disabled
@@ -475,6 +608,7 @@
       assert(snap);
       if (!validExpected(expected)) return { motivo: "campos_invalidos" };
       const v = view(), row = find(code), serverKey = `${snap.server}|${snap.serverId}`, rules = rulesByServer.get(serverKey);
+      if (rowSuspended(code, snap)) return { motivo: "llenado_suspendido" };
       if (locked(row)) return { motivo: "fila_bloqueada" };
       if (row.dirty || touched.has(touchKey(code, v)))
         return { motivo: "edicion_local" };
@@ -492,18 +626,57 @@
         affected.segunda = expected.pick4.slice(0, 2);
         affected.tercera = expected.pick4.slice(2);
       }
+      const sourceKeys = new Set(Object.keys(affected));
+      const groups = dependentGroups(code, rules);
+      for (const group of groups.values())
+        for (const rule of group) {
+          if (projectRule(rule, row.fields) === null)
+            return { motivo: "regla_dependiente_desconocida" };
+          for (const token2 of FIELD_NAMES.map((key) => rule[key])) {
+            const read = {
+              "1ra": "primera",
+              "2da": "segunda",
+              "3ra": "tercera",
+              p3: "pick3",
+              p4: "pick4"
+            }[token2];
+            if (read) sourceKeys.add(read);
+            else if (typeof token2 === "string" && /^p[34]:/.test(token2))
+              sourceKeys.add(token2[1] === "3" ? "pick3" : "pick4");
+          }
+        }
+      const block = rowBlock(code, [...sourceKeys], snap, "fill");
+      if (block) return block;
       if (Object.entries(affected).some(
         ([k, value]) => row.fields[k] && row.fields[k] !== value
       ))
         return { motivo: "premios_derivados_distintos" };
       for (const [dependentCode, group] of dependentGroups(code, rules)) {
         if (!dependentCode) return { motivo: "regla_dependiente_invalida" };
-        if (!snap.persisted.has(dependentCode)) continue;
+        if (!snap.persisted.has(dependentCode)) {
+          if (find(dependentCode) || snap.invalidRows.has(dependentCode))
+            return {
+              motivo: "dependiente_no_verificada",
+              dependiente: dependentCode
+            };
+          continue;
+        }
         const dependent = find(dependentCode);
         if (locked(dependent))
           return { motivo: "dependiente_bloqueada", dependiente: dependentCode };
         if (touched.has(touchKey(dependentCode, v)))
           return { motivo: "dependiente_editada", dependiente: dependentCode };
+        const keys = [
+          ...new Set(
+            group.flatMap(
+              (rule) => Object.keys(projectRule(rule, row.fields) || {})
+            )
+          )
+        ];
+        if (keys.length) {
+          const block2 = rowBlock(dependentCode, keys, snap, "dependency");
+          if (block2) return { ...block2, dependiente: dependentCode };
+        }
         if (Object.values(dependent.fields).some(Boolean) && !isOwnDependent(code, row, dependent, group, snap, v))
           return {
             motivo: "dependiente_con_valores",
@@ -514,11 +687,61 @@
       }
       return null;
     }
+    const effectSignature = (code, rules) => JSON.stringify(
+      [...dependentGroups(code, rules)].map(([dependent, group]) => [
+        dependent,
+        ruleSignature(group)
+      ])
+    );
+    function effectBlock(receipt, snap) {
+      const v = view(), rules = rulesByServer.get(`${snap.server}|${snap.serverId}`);
+      if (!rules || effectSignature(receipt.code, rules) !== receipt.signature)
+        return { motivo: "reglas_cambiaron", proposito: "dependency" };
+      const source = find(receipt.code);
+      if (locked(source) || touched.has(touchKey(receipt.code, v)) || hasConflict(receipt.code, snap) || !equalFields(source.fields, receipt.fields))
+        return { motivo: "fuente_cambio", proposito: "fill" };
+      for (const effect of receipt.effects) {
+        const dependent = find(effect.code);
+        if (rowSuspended(effect.code, snap) || locked(dependent) || touched.has(touchKey(effect.code, v)) || hasConflict(effect.code, snap) || !equalFields(dependent.fields, effect.fields))
+          return {
+            motivo: "efectos_nativos_distintos",
+            dependiente: effect.code,
+            proposito: "dependency"
+          };
+      }
+      return null;
+    }
+    function suspendScope(code, effects, snap) {
+      rowSuspended(code, snap);
+      suspended.add(code);
+      for (const effect of effects) suspended.add(effect.code);
+    }
+    function presentationBlock(code, expected, snap) {
+      assert(snap);
+      const receipt = sessionWrites.get(touchKey(code, view()));
+      if (!receipt || !equalFields(receipt.expected, expected, Object.keys(expected)))
+        return { motivo: "sin_prueba_de_llenado", proposito: "presented" };
+      const block = effectBlock(receipt, snap);
+      if (block) suspendScope(code, receipt.effects, snap);
+      return block;
+    }
+    function settleNativeQueue() {
+      return new Promise((resolve) => {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = () => {
+          channel.port1.close();
+          channel.port2.close();
+          resolve();
+        };
+        channel.port2.postMessage(null);
+      });
+    }
     async function fill(code, expected, snap, guard = () => {
     }) {
       if (!canFill(code, expected, snap)) return false;
       const v = view(), userActivity = activity, focus = doc.activeElement;
-      const sourceFields = { ...find(code).fields, ...expected };
+      const stepFields = { ...find(code).fields };
+      const sourceFields = { ...stepFields, ...expected };
       if (expected.pick3) sourceFields.primera = expected.pick3.slice(-2);
       if (expected.pick4) {
         sourceFields.segunda = expected.pick4.slice(0, 2);
@@ -540,21 +763,37 @@
           sourceFields,
           sourceBaseline: baseline(snap.persisted.get(code)),
           baseline: baseline(snap.persisted.get(dependentCode)),
-          fields: Object.assign({ ...dependent.fields }, ...projections)
+          fields: Object.assign({ ...dependent.fields }, ...projections),
+          initialFields: { ...dependent.fields },
+          rules: group
         });
       }
+      const signature = effectSignature(code, rules);
+      let hasWritten = false;
+      const receiptFor = (currentFields) => ({
+        code,
+        signature,
+        fields: { ...currentFields },
+        effects: dependentPlan.map((plan) => ({
+          code: plan.code,
+          fields: Object.assign(
+            { ...plan.initialFields },
+            ...hasWritten ? plan.rules.map((rule) => projectRule(rule, currentFields)) : []
+          )
+        }))
+      });
       const scrolling = [...doc.querySelectorAll("#root div")].filter((x2) => x2.scrollTop || x2.scrollLeft).map((el) => ({ el, top: el.scrollTop, left: el.scrollLeft }));
       const x = win.scrollX, y = win.scrollY;
       const keys = Object.keys(expected).filter(
         (k) => !(k === "primera" && expected.pick3) && !(["segunda", "tercera"].includes(k) && expected.pick4)
       );
-      let ok = true, settled = false;
+      let ok = true, completed = false, settled = false;
       try {
         for (const key of keys) {
           assert(snap);
           guard();
           const row = find(code);
-          if (locked(row) || activity !== userActivity || touched.has(touchKey(code, v))) {
+          if (locked(row) || effectBlock(receiptFor(stepFields), snap) || activity !== userActivity || touched.has(touchKey(code, v))) {
             ok = false;
             break;
           }
@@ -572,10 +811,19 @@
           const event = new win.Event("input", { bubbles: true });
           ownEvents.add(event);
           input.dispatchEvent(event);
+          hasWritten = true;
+          stepFields[key] = expected[key];
+          if (key === "pick3") stepFields.primera = expected[key].slice(-2);
+          if (key === "pick4") {
+            stepFields.segunda = expected[key].slice(0, 2);
+            stepFields.tercera = expected[key].slice(2);
+          }
           await Promise.resolve();
+          if (dependentPlan.length && key !== keys.at(-1))
+            await settleNativeQueue();
           assert(snap);
           guard();
-          if (clean(find(code)?.inputs[key]?.value) !== expected[key]) {
+          if (effectBlock(receiptFor(stepFields), snap) || clean(find(code)?.inputs[key]?.value) !== expected[key]) {
             ok = false;
             break;
           }
@@ -585,8 +833,12 @@
         assert(snap);
         guard();
         const latest = find(code);
-        ok = ok && !!latest && equalFields(latest.fields, expected, Object.keys(expected)) && activity === userActivity && !touched.has(touchKey(code, v));
+        ok = ok && !!latest && equalFields(latest.fields, expected, Object.keys(expected)) && !effectBlock(receiptFor(stepFields), snap) && activity === userActivity && !touched.has(touchKey(code, v));
+        completed = ok;
       } finally {
+        if (!completed) {
+          suspendScope(code, dependentPlan, snap);
+        }
         if (!settled) await sleep(0);
         if (activity === userActivity) {
           if (focus?.isConnected && doc.activeElement !== focus)
@@ -599,12 +851,12 @@
           win.scrollTo(x, y);
         }
       }
-      if (!ok)
-        context.invalidate(
-          "Central no retuvo el llenado esperado. Revisa y pulsa Buscar."
-        );
       if (ok) {
-        sessionWrites.set(touchKey(code, v), { code, expected: { ...expected } });
+        sessionWrites.set(touchKey(code, v), {
+          ...receiptFor(sourceFields),
+          expected: { ...expected },
+          baseline: baseline(snap.persisted.get(code))
+        });
         for (const [key, own] of dependentWrites)
           if (own.date !== snap.date || own.serverId !== snap.serverId)
             dependentWrites.delete(key);
@@ -697,6 +949,8 @@
       fill,
       canFill,
       fillBlock,
+      rowBlock,
+      presentationBlock,
       hasConflict,
       refreshIfSafe,
       view,
@@ -853,11 +1107,15 @@
     }, syncBlue() {
     } }
   }) {
-    const operations = /* @__PURE__ */ new Map(), acknowledged = /* @__PURE__ */ new Set(), painted = /* @__PURE__ */ new Map(), requestIds = /* @__PURE__ */ new Map(), reconciliations = /* @__PURE__ */ new Map();
+    const operations = /* @__PURE__ */ new Map(), acknowledged = /* @__PURE__ */ new Set(), painted = /* @__PURE__ */ new Map(), requestIds = /* @__PURE__ */ new Map(), reconciliations = /* @__PURE__ */ new Map(), verified = /* @__PURE__ */ new Set(), matchedCodes = /* @__PURE__ */ new Set();
     let errors = [], mismatches = [], omitted = [], matched = 0, lastDate = null, lastEpoch = null;
     function omit(row, code, block) {
+      verified.delete(row.lottery_id);
       omitted.push({ loteria: row.lottery_id, codigo: code, ...block });
       return false;
+    }
+    function rowBlock(code, keys, snap, purpose) {
+      return central2.rowBlock?.(code, keys, snap, purpose) || null;
     }
     function fillBlock(code, expected, snap) {
       return central2.fillBlock ? central2.fillBlock(code, expected, snap) : central2.canFill(code, expected, snap) ? null : { motivo: "llenado_no_permitido" };
@@ -907,7 +1165,7 @@
     function updateWaiting(matches, snap) {
       visuals2.syncBlue(
         matches.filter(
-          ({ row, visible }) => row.visual?.state === "blue" && row.proc_state !== "processed" && visible.processed === false && snap.persisted.get(visible.code)?.procesado === false
+          ({ row, visible }) => row.visual?.state === "blue" && row.proc_state !== "processed" && visible.processed === false && snap.persisted.get(visible.code)?.procesado === false && !rowBlock(visible.code, names(row), snap, "blue")
         ).map(({ row, visible }) => ({
           code: visible.code,
           names: names(row).filter((key) => !visible.fields[key])
@@ -943,6 +1201,8 @@
       const expected = response.expected_fields || response.operation?.expected_fields, operation = response.operation;
       if (!operation?.operation_id || !Number.isInteger(operation.revision) || !validExpected(expected))
         throw Error("invalid_paint_contract");
+      const localBlock = rowBlock(code, names(row), snap, "fill");
+      if (localBlock) return omit(row, code, localBlock);
       if (central2.isDirty?.(code))
         return omit(row, code, { motivo: "edicion_local" });
       const current = central2.find(code);
@@ -958,6 +1218,14 @@
       const after = central2.find(code);
       if (!after || after.processed !== false || central2.isDirty?.(code) || !equalFields(after.fields, expected, Object.keys(expected)))
         throw Error("write_not_retained");
+      const afterBlock = rowBlock(code, names(row), snap, "fill");
+      if (afterBlock) return omit(row, code, afterBlock);
+      if (central2.presentationBlock) {
+        await sleep(0);
+        guard();
+      }
+      const effectsBlock = central2.presentationBlock?.(code, expected, snap);
+      if (effectsBlock) return omit(row, code, effectsBlock);
       const observed = Object.fromEntries(
         Object.keys(expected).map((k) => [k, after.fields[k]])
       );
@@ -979,11 +1247,21 @@
       const stored = snap.persisted.get(code), visible = central2.find(code);
       if (!stored || !visible)
         return omit(row, code, { motivo: "fila_no_verificada" });
+      const ownedKeys = names(row);
+      if (!ownedKeys.length)
+        return omit(row, code, { motivo: "sin_campos_administrados" });
+      const verificationBlock = rowBlock(
+        code,
+        ownedKeys,
+        snap,
+        stored.procesado ? "ack" : "blue"
+      );
+      if (verificationBlock) return omit(row, code, verificationBlock);
+      verified.add(row.lottery_id);
       if (stored.procesado && visible.processed === true) {
         visuals2.clear(code);
         if (row.proc_state === "processed") return;
-        let owned2 = names(row);
-        if (!owned2.length) owned2 = FIELD_NAMES.filter((k) => clean(stored[k]));
+        const owned2 = ownedKeys;
         if (!owned2.length || owned2.every((k) => !clean(stored[k]))) return;
         const observed = Object.fromEntries(
           owned2.map((k) => [k, clean(stored[k])])
@@ -1009,6 +1287,7 @@
       if (row.proc_state === "processed") {
         visuals2.clear(code);
         mismatches.push(row.lottery_id);
+        verified.delete(row.lottery_id);
         return;
       }
       if (stored.procesado || visible.processed !== false)
@@ -1030,8 +1309,11 @@
       }
       const owned = names(row);
       const expected = row.expected_fields || {};
-      if (!validExpected(expected))
+      if (!validExpected(expected)) {
+        if (!Object.keys(expected).length && (row.components || []).some((c) => c.state === "awaiting_result"))
+          return;
         return omit(row, code, { motivo: "sin_campos_disponibles" });
+      }
       const block = fillBlock(code, expected, snap);
       if (block) return omit(row, code, block);
       if (equalFields(visible.fields, expected, Object.keys(expected))) return;
@@ -1064,6 +1346,8 @@
       mismatches = [];
       omitted = [];
       matched = 0;
+      verified.clear();
+      matchedCodes.clear();
       if (lastDate !== snap.date) {
         operations.clear();
         acknowledged.clear();
@@ -1080,6 +1364,7 @@
       central2.assert(snap);
       const matches = matchingRows(rows, snap);
       const matchedRows = new Set(matches.map((x) => x.row));
+      for (const x of matches) matchedCodes.add(x.visible.code);
       for (const row of rows.filter((r) => r.draw_date === snap.date))
         if (!matchedRows.has(row))
           omit(row, null, { motivo: "sin_coincidencia_unica" });
@@ -1089,12 +1374,14 @@
         try {
           await process(x.row, x.visible.code, snap);
         } catch (e) {
+          verified.delete(x.row.lottery_id);
           errors.push({ lottery: x.row.lottery_id, error: e.message });
           if ([
             "operation_expired",
             "operation_unavailable",
             "stale_revision",
-            "client_lock_lost"
+            "client_lock_lost",
+            "write_not_retained"
           ].includes(e.message)) {
             operations.delete(x.row.row_key);
             requestIds.delete(x.row.row_key);
@@ -1106,11 +1393,25 @@
     return {
       cycle,
       syncVisuals,
+      nativeIncidences: (snap) => {
+        const sameContext = lastDate === snap.date && lastEpoch === snap.epoch;
+        const list = (snap.incidences || []).filter(
+          (x) => !sameContext || !matchedCodes.has(x.codigo)
+        );
+        return {
+          incidencias_tabla_total: list.length,
+          incidencias_tabla: list.slice(0, 20).map((x) => ({ ...x, proposito: "carga", campos: [...x.campos] }))
+        };
+      },
       diagnostics: () => ({
         matched,
+        filas_verificadas: verified.size,
         mismatches: [...mismatches],
         errors: [...errors],
-        omitidas: omitted.map((x) => ({ ...x })),
+        omitidas: omitted.map((x) => ({
+          ...x,
+          ...x.campos ? { campos: [...x.campos] } : {}
+        })),
         conciliaciones: [...reconciliations.values()].map((x) => ({ ...x }))
       })
     };
@@ -1196,7 +1497,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.1.7";
+  var VERSION = "0.1.8";
   var KEYS = {
     token: "mango_react_token",
     client: "mango_react_client",
@@ -1316,7 +1617,7 @@
     }
   }
   function diagnostic() {
-    const snap = central.snapshot();
+    const snap = central.snapshot(), stats = delivery.diagnostics();
     return {
       version: VERSION,
       observador: observing,
@@ -1330,7 +1631,9 @@
       ultima_consulta: lastCheck,
       intervalo_segundos: delay / 1e3,
       filas_api: cache?.rows.length || 0,
-      ...delivery.diagnostics(),
+      ...stats,
+      filas_verificadas: snap && cache?.epoch === snap.epoch ? stats.filas_verificadas : 0,
+      ...snap ? delivery.nativeIncidences(snap) : { incidencias_tabla: [], incidencias_tabla_total: 0 },
       ultimo_error: lastError
     };
   }

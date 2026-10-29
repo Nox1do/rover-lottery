@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.1.8 — 2026-10-28
+
+- Separa la fecha/servidor de la verificación de cada lotería, siguiendo el flujo por fila de Mango Rover v2. Las diferencias de Rhode Island o de otra fila ajena ya no bloquean entregas independientes.
+- Comprueba campos administrados y efectos nativos de picks/reglas antes de operar; conserva persistencia, ediciones locales, identidad única y atribución de dependientes propias. Código/PROC/campos incompatibles quedan aislados a operaciones relacionadas.
+- Un llenado no retenido suspende principal y dependientes hasta otra carga nativa, sin rollback ni presented; otras filas pueden continuar. Fecha/servidor/permisos y autenticación siguen suspendiendo globalmente.
+- ACK limitado a campos administrados y datos nativos procesados; si el contrato no identifica campos, se omite sin inferirlos del resto de inputs.
+- Revalida reglas y efectos antes/después de entradas y antes de presented; conserva cambios en dependientes durante la operación. En filas con dependientes, cede la cola nativa entre entradas sin pausa fija por campo y restaura el foco final.
+- Una prueba parcial acredita únicamente diferencias propias; los campos nuevos que coinciden directamente con persistencia pueden continuar.
+- Diagnóstico con filas verificadas, motivos locales y hasta 20 incidencias nativas ajenas a las coincidencias Mango, además del total. Abrirlo no consulta ni modifica datos.
+
 ## 0.1.7 — 2026-10-28
 
 - Conserva la referencia persistida ya verificada al suspender Mango por configuración, pausa/reanudación o rechazo de autenticación. Evita que una edición local pendiente como RHOD-MD pierda su baseline y bloquee la siguiente carga de toda la tabla.

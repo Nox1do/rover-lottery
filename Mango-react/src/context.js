@@ -4,6 +4,7 @@ import {
   fields,
   equalFields,
   trimCode,
+  FIELD_NAMES,
 } from "./helpers.js";
 // A load response proves persisted data; a settled DOM proves which table is visible.
 export function createContext({ today = todayInZone, now = Date.now } = {}) {
@@ -46,15 +47,18 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
       invalidate("Respuesta de Central no corresponde a la fecha solicitada.");
       return;
     }
+    const invalidRows = new Map();
     for (const row of data.filas) {
       const code = trimCode(row?.abrev);
-      if (
-        !code ||
-        map.has(code) ||
-        ![true, false, 0, 1].includes(row.procesado)
-      ) {
-        invalidate("Respuesta de Central no reconocida.");
-        return;
+      if (!code) continue;
+      if (map.has(code) || invalidRows.has(code)) {
+        map.delete(code);
+        invalidRows.set(code, "codigo_duplicado");
+        continue;
+      }
+      if (![true, false, 0, 1].includes(row.procesado)) {
+        invalidRows.set(code, "proc_desconocido");
+        continue;
       }
       map.set(code, {
         ...fields(row),
@@ -63,7 +67,13 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
         procesado: row.procesado === true || row.procesado === 1,
       });
     }
-    candidate = { ...request, date, persisted: map, readyAt: now() + 100 };
+    candidate = {
+      ...request,
+      date,
+      persisted: map,
+      invalidRows,
+      readyAt: now() + 100,
+    };
     request = null;
     message = "Respuesta recibida; verificando la tabla de Central…";
   }
@@ -102,57 +112,71 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
       invalidate("Cambió la fecha o el servidor. Pulsa Buscar.");
       return;
     }
+    if (confirmed && view.tableReady === false && !view.busy) {
+      invalidate("La estructura de Central no es verificable. Pulsa Buscar.");
+      return;
+    }
     if (
       candidate &&
+      view.tableReady !== false &&
       !view.busy &&
       !view.dialog &&
       now() >= candidate.readyAt &&
       view.rows?.length
     ) {
-      const codes = new Set();
-      let matches = true;
-      for (const row of view.rows) {
+      const rows = view.rows;
+      const counts = new Map();
+      for (const row of rows)
+        counts.set(row.code, (counts.get(row.code) || 0) + 1);
+      const verifiedRows = new Map(),
+        incidences = [];
+      for (const row of rows) {
         const stored = candidate.persisted.get(row.code);
-        if (
-          codes.has(row.code) ||
-          !stored ||
-          stored.procesado !== row.processed
-        ) {
-          const reason = codes.has(row.code)
-            ? "código duplicado"
+        let motivo =
+          candidate.invalidRows.get(row.code) ||
+          (counts.get(row.code) !== 1
+            ? "codigo_duplicado"
             : !stored
-              ? "código no encontrado en la respuesta"
-              : "PROC diferente o desconocido";
-          message = `No se pudo verificar ${row.code}: ${reason}.`;
-          matches = false;
-          break;
-        }
-        codes.add(row.code);
-        const old = candidate.previous?.persisted.get(row.code);
+              ? "codigo_no_encontrado"
+              : stored.procesado !== row.processed
+                ? "proc_distinto"
+                : null);
+        const old = candidate.previous?.verifiedRows.get(row.code);
+        const previousKeys = old?.keys || [];
         const knownDirty =
-          candidate.previous?.date === candidate.date &&
-          candidate.previous?.server === candidate.server &&
-          candidate.previous?.serverId === candidate.serverId &&
-          row.dirty &&
-          old &&
-          equalFields(old, stored);
-        if (!equalFields(stored, row.fields) && !knownDirty) {
-          message = `No se pudo verificar ${row.code}: campos distintos a los guardados en Central.`;
-          matches = false;
-          break;
-        }
+          row.dirty && old && equalFields(old.fields, stored, previousKeys);
+        const different = FIELD_NAMES.filter(
+          (key) => !equalFields(stored, row.fields, [key]),
+        );
+        if (!motivo && different.length && !knownDirty)
+          motivo = "campos_distintos";
+        if (motivo)
+          incidences.push({ codigo: row.code, motivo, campos: different });
+        else
+          verifiedRows.set(row.code, {
+            epoch,
+            date: candidate.date,
+            server: candidate.server,
+            serverId: candidate.serverId,
+            keys: different.length ? [...previousKeys] : [...FIELD_NAMES],
+            fields: fields(stored),
+            procesado: stored.procesado,
+          });
       }
-      if (matches) {
-        confirmed = {
-          epoch,
-          date: candidate.date,
-          server: candidate.server,
-          serverId: candidate.serverId,
-          persisted: candidate.persisted,
-        };
-        candidate = null;
-        message = "Fecha y publicación verificadas.";
-      }
+      confirmed = {
+        epoch,
+        date: candidate.date,
+        server: candidate.server,
+        serverId: candidate.serverId,
+        persisted: candidate.persisted,
+        invalidRows: candidate.invalidRows,
+        verifiedRows,
+        previousVerified: candidate.previous?.verifiedRows || new Map(),
+        incidences,
+        incidenceTotal: incidences.length,
+      };
+      candidate = null;
+      message = "Fecha y servidor verificados; comprobación por lotería.";
     }
   }
   function snapshot(view) {
@@ -178,6 +202,33 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
       throw new Error("context_changed");
     return cur;
   }
+  function recordProof(code, proof, snap) {
+    if (
+      !confirmed ||
+      snap !== confirmed ||
+      proof?.epoch !== epoch ||
+      proof.date !== snap.date ||
+      proof.server !== snap.server ||
+      proof.serverId !== snap.serverId
+    )
+      throw Error("context_changed");
+    const stored = snap.persisted.get(code);
+    if (
+      !stored ||
+      snap.invalidRows.has(code) ||
+      !proof.keys?.length ||
+      proof.keys.some((key) => !FIELD_NAMES.includes(key)) ||
+      proof.procesado !== stored.procesado ||
+      !equalFields(proof.fields, stored, proof.keys)
+    )
+      throw Error("invalid_row_proof");
+    const old = snap.verifiedRows.get(code);
+    snap.verifiedRows.set(code, {
+      ...proof,
+      fields: fields(stored),
+      keys: [...new Set([...(old?.keys || []), ...proof.keys])],
+    });
+  }
   return {
     begin,
     prepareSearch,
@@ -187,6 +238,7 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
     snapshot,
     assert,
     invalidate,
+    recordProof,
     get message() {
       return message;
     },

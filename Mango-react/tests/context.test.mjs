@@ -77,9 +77,9 @@ test("contexto verificado usa conteo sin releer campos; una carga nueva compara 
   rows[0].fields.primera = "99";
   load({ fecha: day, filas: [row({ primera: "05" })] });
   assert.equal(
-    c.snapshot(view),
-    null,
-    "un conteo coincidente no prueba persistencia",
+    c.snapshot(view).verifiedRows.has("REAL"),
+    false,
+    "el contexto general no prueba los campos de una fila",
   );
   assert.ok(reads > 0);
   rows[0].fields.primera = "05";
@@ -101,16 +101,17 @@ for (const code of [" BRAZIL03PM ", "BRAZIL03PM\t", "\u00a0BRAZIL03PM\u00a0"])
     assert.equal(snap.persisted.size, 1);
     assert.equal(incoming.abrev, code, "no modifica la respuesta original");
   });
-test("códigos que colisionan al recortar espacios bloquean la carga", () => {
+test("códigos que colisionan al recortar espacios bloquean solo esa fila", () => {
   const { c, view, load } = setup();
   load({ fecha: day, filas: [row(), row({ abrev: " REAL " })] });
-  assert.equal(c.snapshot(view), null);
+  assert.equal(c.snapshot(view).invalidRows.get("REAL"), "codigo_duplicado");
+  assert.equal(c.snapshot(view).verifiedRows.size, 0);
 });
 test("recortar espacios no equipara códigos con diferencias internas", () => {
   const { c, view, load } = setup();
   view.rows[0].code = "BRAZIL03PM";
   load({ fecha: day, filas: [row({ abrev: " BRAZIL 03PM " })] });
-  assert.equal(c.snapshot(view), null);
+  assert.equal(c.snapshot(view).verifiedRows.has("BRAZIL03PM"), false);
 });
 test("edición local conserva persistencia al cambiar solo el relleno del código", () => {
   const { c, view, load } = setup();
@@ -124,12 +125,12 @@ test("edición local conserva persistencia al cambiar solo el relleno del códig
   assert.equal(c.snapshot(view).persisted.get("REAL").primera, "05");
   assert.equal(view.rows[0].fields.primera, "98");
 });
-test("contexto bloqueado identifica la fila incompatible en diagnóstico", () => {
+test("contexto general identifica la fila incompatible sin acreditarla", () => {
   const { c, view, load } = setup();
   view.rows[0].code = "DESCONOCIDA";
   load();
-  assert.equal(c.snapshot(view), null);
-  assert.match(c.message, /DESCONOCIDA/);
+  assert.equal(c.snapshot(view).verifiedRows.has("DESCONOCIDA"), false);
+  assert.equal(c.snapshot(view).incidences[0].codigo, "DESCONOCIDA");
 });
 test("ignora carga anterior al último request y no recupera después de error", () => {
   const { c, view, advance } = setup();
@@ -185,7 +186,7 @@ test("PROC con edición conserva números persistidos para ACK", () => {
   assert.equal(snap.persisted.get("REAL").primera, "05");
   assert.equal(snap.persisted.get("REAL").procesado, true);
 });
-test("DOM transitorio nuevo PROC con valores de día viejo bloquea", () => {
+test("DOM transitorio nuevo PROC con valores de día viejo no acredita la fila", () => {
   const { c, view, load } = setup();
   view.rows[0].fields.primera = "99";
   view.rows[0].processed = true;
@@ -193,7 +194,7 @@ test("DOM transitorio nuevo PROC con valores de día viejo bloquea", () => {
     fecha: "10/27/2026",
     filas: [row({ procesado: true, primera: "05" })],
   });
-  assert.equal(c.snapshot(view), null);
+  assert.equal(c.snapshot(view).verifiedRows.has("REAL"), false);
 });
 test("diálogo y carga bloquean efectos mientras permanecen abiertos", () => {
   const { c, view, load } = setup();
@@ -358,7 +359,7 @@ for (const mode of ["unverified", "changed_values", "server_id"])
       filas: [row(mode === "changed_values" ? { primera: "42" } : {})],
     });
     advance();
-    assert.equal(c.snapshot(view), null);
+    assert.equal(c.snapshot(view).verifiedRows.has("REAL"), false);
   });
 test("baseline conservado no permite reusar edición de otra fecha o tras fallo", () => {
   const { c, view, load } = setup();
@@ -394,6 +395,64 @@ test("reintento de Buscar después de fallo conserva edición pero exige respues
     fecha: "10/27/2026",
     filas: [row({ procesado: true, primera: "05" })],
   });
+  advance();
+  assert.ok(c.snapshot(view));
+});
+
+test("RHOD-MD incompatible no bloquea contexto ni acredita esa fila", () => {
+  const { c, view, load } = setup();
+  view.rows.push({
+    code: "RHOD-MD",
+    fields: fields({ primera: "XX", pick4: "6401" }),
+    processed: true,
+  });
+  load({
+    fecha: day,
+    filas: [
+      row(),
+      row({ abrev: "RHOD-MD", procesado: true, primera: "X", pick4: "6401" }),
+    ],
+  });
+  const snap = c.snapshot(view);
+  assert.ok(snap, "la diferencia ajena es local");
+  assert.ok(snap.verifiedRows.has("REAL"));
+  assert.equal(snap.verifiedRows.has("RHOD-MD"), false);
+  assert.equal(
+    snap.incidences.find((x) => x.codigo === "RHOD-MD").motivo,
+    "campos_distintos",
+  );
+});
+test("código nativo duplicado se aísla y una prueba vieja no se registra", () => {
+  const { c, view, load } = setup();
+  load({
+    fecha: day,
+    filas: [row(), row({ abrev: "RHOD-MD" }), row({ abrev: " RHOD-MD " })],
+  });
+  const snap = c.snapshot(view);
+  assert.ok(snap);
+  assert.equal(snap.invalidRows.get("RHOD-MD"), "codigo_duplicado");
+  assert.ok(snap.verifiedRows.has("REAL"));
+  const proof = snap.verifiedRows.get("REAL");
+  c.prepareSearch(view);
+  assert.throws(() => c.recordProof("REAL", proof, snap), /context_changed/);
+});
+test("una fila nunca verificada no hereda baseline tras reinicio", () => {
+  const { c, view, load } = setup();
+  view.rows[0].fields.primera = "99";
+  load();
+  assert.ok(c.snapshot(view));
+  assert.equal(c.snapshot(view).verifiedRows.size, 0);
+  view.rows[0].dirty = true;
+  c.prepareSearch(view);
+  load();
+  assert.equal(c.snapshot(view).verifiedRows.size, 0);
+});
+test("la tabla puede montarse después de comenzar la primera petición", () => {
+  const { c, view, load, advance } = setup();
+  view.tableReady = false;
+  load();
+  assert.equal(c.snapshot(view), null);
+  view.tableReady = true;
   advance();
   assert.ok(c.snapshot(view));
 });

@@ -11,6 +11,7 @@ import {
 } from "./helpers.js";
 import { createContext } from "./context.js";
 import { projectRule } from "./dependencies.js";
+import { checkRow } from "./row-context.js";
 const HEADERS = {
   primera: "1ERA",
   segunda: "2DA",
@@ -24,7 +25,16 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
   let cache = null,
     activity = 0,
     lastRefresh = Date.now(),
-    publishedBusy = 0;
+    publishedBusy = 0,
+    suspendedEpoch = null;
+  const suspended = new Set();
+  function rowSuspended(code, snap) {
+    if (suspendedEpoch !== snap.epoch) {
+      suspended.clear();
+      suspendedEpoch = snap.epoch;
+    }
+    return suspended.has(code);
+  }
   const ownEvents = new WeakSet(),
     sessionWrites = new Map(),
     dependentWrites = new Map(),
@@ -139,6 +149,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       ),
       form,
       search,
+      tableReady: !!table() && !!form && !!serverButton,
       rowCount: indexedRows().length,
       // Only a candidate response or a consumer needing values reads all rows.
       get rows() {
@@ -221,6 +232,52 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     const r = indexedRows().filter((r) => r.code === code);
     return r.length === 1 ? readRow(r[0]) : null;
   }
+  function rowBlock(code, keys, snap, purpose = "fill") {
+    assert(snap);
+    if (rowSuspended(code, snap))
+      return { motivo: "llenado_suspendido", codigo: code, proposito: purpose };
+    const row = find(code),
+      v = view(),
+      key = touchKey(code, v);
+    const own = sessionWrites.get(key),
+      dependent = dependentWrites.get(key);
+    const rules = rulesByServer.get(`${snap.server}|${snap.serverId}`) || [];
+    const ownSource =
+      own &&
+      equalFields(own.fields, row?.fields) &&
+      sameBaseline(own.baseline, snap.persisted.get(code));
+    const ownDependent =
+      dependent &&
+      equalFields(dependent.fields, row?.fields) &&
+      sameBaseline(dependent.baseline, snap.persisted.get(code)) &&
+      ruleSignature(
+        dependentGroups(dependent.principal, rules).get(code) || [],
+      ) === dependent.signature;
+    const localEvidence = touched.has(key)
+      ? "manual"
+      : ownSource || ownDependent
+        ? "own"
+        : null;
+    const result = checkRow({
+      snap,
+      code,
+      keys,
+      visible: row,
+      purpose,
+      localEvidence,
+      previousProof:
+        snap.verifiedRows.get(code) || snap.previousVerified.get(code),
+    });
+    if (!result.ok)
+      return {
+        motivo: result.motivo,
+        codigo: code,
+        campos: result.campos,
+        proposito: result.proposito,
+      };
+    context.recordProof(code, result.proof, snap);
+    return null;
+  }
   function locked(row) {
     return (
       !row ||
@@ -282,6 +339,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       row = find(code),
       serverKey = `${snap.server}|${snap.serverId}`,
       rules = rulesByServer.get(serverKey);
+    if (rowSuspended(code, snap)) return { motivo: "llenado_suspendido" };
     if (locked(row)) return { motivo: "fila_bloqueada" };
     if (row.dirty || touched.has(touchKey(code, v)))
       return { motivo: "edicion_local" };
@@ -305,6 +363,27 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       affected.segunda = expected.pick4.slice(0, 2);
       affected.tercera = expected.pick4.slice(2);
     }
+    const sourceKeys = new Set(Object.keys(affected));
+    const groups = dependentGroups(code, rules);
+    for (const group of groups.values())
+      for (const rule of group) {
+        if (projectRule(rule, row.fields) === null)
+          return { motivo: "regla_dependiente_desconocida" };
+        for (const token of FIELD_NAMES.map((key) => rule[key])) {
+          const read = {
+            "1ra": "primera",
+            "2da": "segunda",
+            "3ra": "tercera",
+            p3: "pick3",
+            p4: "pick4",
+          }[token];
+          if (read) sourceKeys.add(read);
+          else if (typeof token === "string" && /^p[34]:/.test(token))
+            sourceKeys.add(token[1] === "3" ? "pick3" : "pick4");
+        }
+      }
+    const block = rowBlock(code, [...sourceKeys], snap, "fill");
+    if (block) return block;
     if (
       Object.entries(affected).some(
         ([k, value]) => row.fields[k] && row.fields[k] !== value,
@@ -314,12 +393,30 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     for (const [dependentCode, group] of dependentGroups(code, rules)) {
       if (!dependentCode) return { motivo: "regla_dependiente_invalida" };
       // An absent dependent may be hidden by a filter. Never write it blindly.
-      if (!snap.persisted.has(dependentCode)) continue;
+      if (!snap.persisted.has(dependentCode)) {
+        if (find(dependentCode) || snap.invalidRows.has(dependentCode))
+          return {
+            motivo: "dependiente_no_verificada",
+            dependiente: dependentCode,
+          };
+        continue;
+      }
       const dependent = find(dependentCode);
       if (locked(dependent))
         return { motivo: "dependiente_bloqueada", dependiente: dependentCode };
       if (touched.has(touchKey(dependentCode, v)))
         return { motivo: "dependiente_editada", dependiente: dependentCode };
+      const keys = [
+        ...new Set(
+          group.flatMap((rule) =>
+            Object.keys(projectRule(rule, row.fields) || {}),
+          ),
+        ),
+      ];
+      if (keys.length) {
+        const block = rowBlock(dependentCode, keys, snap, "dependency");
+        if (block) return { ...block, dependiente: dependentCode };
+      }
       if (
         Object.values(dependent.fields).some(Boolean) &&
         !isOwnDependent(code, row, dependent, group, snap, v)
@@ -336,12 +433,78 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     }
     return null;
   }
+  const effectSignature = (code, rules) =>
+    JSON.stringify(
+      [...dependentGroups(code, rules)].map(([dependent, group]) => [
+        dependent,
+        ruleSignature(group),
+      ]),
+    );
+  function effectBlock(receipt, snap) {
+    const v = view(),
+      rules = rulesByServer.get(`${snap.server}|${snap.serverId}`);
+    if (!rules || effectSignature(receipt.code, rules) !== receipt.signature)
+      return { motivo: "reglas_cambiaron", proposito: "dependency" };
+    const source = find(receipt.code);
+    if (
+      locked(source) ||
+      touched.has(touchKey(receipt.code, v)) ||
+      hasConflict(receipt.code, snap) ||
+      !equalFields(source.fields, receipt.fields)
+    )
+      return { motivo: "fuente_cambio", proposito: "fill" };
+    for (const effect of receipt.effects) {
+      const dependent = find(effect.code);
+      if (
+        rowSuspended(effect.code, snap) ||
+        locked(dependent) ||
+        touched.has(touchKey(effect.code, v)) ||
+        hasConflict(effect.code, snap) ||
+        !equalFields(dependent.fields, effect.fields)
+      )
+        return {
+          motivo: "efectos_nativos_distintos",
+          dependiente: effect.code,
+          proposito: "dependency",
+        };
+    }
+    return null;
+  }
+  function suspendScope(code, effects, snap) {
+    rowSuspended(code, snap);
+    suspended.add(code);
+    for (const effect of effects) suspended.add(effect.code);
+  }
+  function presentationBlock(code, expected, snap) {
+    assert(snap);
+    const receipt = sessionWrites.get(touchKey(code, view()));
+    if (
+      !receipt ||
+      !equalFields(receipt.expected, expected, Object.keys(expected))
+    )
+      return { motivo: "sin_prueba_de_llenado", proposito: "presented" };
+    const block = effectBlock(receipt, snap);
+    if (block) suspendScope(code, receipt.effects, snap);
+    return block;
+  }
+  function settleNativeQueue() {
+    return new Promise((resolve) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => {
+        channel.port1.close();
+        channel.port2.close();
+        resolve();
+      };
+      channel.port2.postMessage(null);
+    });
+  }
   async function fill(code, expected, snap, guard = () => {}) {
     if (!canFill(code, expected, snap)) return false;
     const v = view(),
       userActivity = activity,
       focus = doc.activeElement;
-    const sourceFields = { ...find(code).fields, ...expected };
+    const stepFields = { ...find(code).fields };
+    const sourceFields = { ...stepFields, ...expected };
     if (expected.pick3) sourceFields.primera = expected.pick3.slice(-2);
     if (expected.pick4) {
       sourceFields.segunda = expected.pick4.slice(0, 2);
@@ -364,8 +527,26 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         sourceBaseline: baseline(snap.persisted.get(code)),
         baseline: baseline(snap.persisted.get(dependentCode)),
         fields: Object.assign({ ...dependent.fields }, ...projections),
+        initialFields: { ...dependent.fields },
+        rules: group,
       });
     }
+    const signature = effectSignature(code, rules);
+    let hasWritten = false;
+    const receiptFor = (currentFields) => ({
+      code,
+      signature,
+      fields: { ...currentFields },
+      effects: dependentPlan.map((plan) => ({
+        code: plan.code,
+        fields: Object.assign(
+          { ...plan.initialFields },
+          ...(hasWritten
+            ? plan.rules.map((rule) => projectRule(rule, currentFields))
+            : []),
+        ),
+      })),
+    });
     const scrolling = [...doc.querySelectorAll("#root div")]
       .filter((x) => x.scrollTop || x.scrollLeft)
       .map((el) => ({ el, top: el.scrollTop, left: el.scrollLeft }));
@@ -377,6 +558,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         !(["segunda", "tercera"].includes(k) && expected.pick4),
     );
     let ok = true,
+      completed = false,
       settled = false;
     try {
       for (const key of keys) {
@@ -385,6 +567,7 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         const row = find(code);
         if (
           locked(row) ||
+          effectBlock(receiptFor(stepFields), snap) ||
           activity !== userActivity ||
           touched.has(touchKey(code, v))
         ) {
@@ -405,12 +588,25 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         const event = new win.Event("input", { bubbles: true });
         ownEvents.add(event);
         input.dispatchEvent(event);
-        // Yield to React, MutationObservers and other scripts' microtasks,
-        // without a timer/paint between this row's input events.
+        hasWritten = true;
+        stepFields[key] = expected[key];
+        if (key === "pick3") stepFields.primera = expected[key].slice(-2);
+        if (key === "pick4") {
+          stepFields.segunda = expected[key].slice(0, 2);
+          stepFields.tercera = expected[key].slice(2);
+        }
+        // Without dependents the row stays in one microtask burst. For dependent
+        // effects, let React commit work queued by other scripts before another
+        // native input could overwrite it. No fixed per-field delay.
         await Promise.resolve();
+        if (dependentPlan.length && key !== keys.at(-1))
+          await settleNativeQueue();
         assert(snap);
         guard();
-        if (clean(find(code)?.inputs[key]?.value) !== expected[key]) {
+        if (
+          effectBlock(receiptFor(stepFields), snap) ||
+          clean(find(code)?.inputs[key]?.value) !== expected[key]
+        ) {
           ok = false;
           break;
         }
@@ -424,9 +620,14 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
         ok &&
         !!latest &&
         equalFields(latest.fields, expected, Object.keys(expected)) &&
+        !effectBlock(receiptFor(stepFields), snap) &&
         activity === userActivity &&
         !touched.has(touchKey(code, v));
+      completed = ok;
     } finally {
+      if (!completed) {
+        suspendScope(code, dependentPlan, snap);
+      }
       // An early guard failure may precede Central's queued native focus.
       // Let that timer run before restoring focus/scroll, including on abort.
       if (!settled) await sleep(0);
@@ -442,12 +643,12 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
       }
     }
     // No rollback: unexpected native changes or user intervention must remain visible.
-    if (!ok)
-      context.invalidate(
-        "Central no retuvo el llenado esperado. Revisa y pulsa Buscar.",
-      );
     if (ok) {
-      sessionWrites.set(touchKey(code, v), { code, expected: { ...expected } });
+      sessionWrites.set(touchKey(code, v), {
+        ...receiptFor(sourceFields),
+        expected: { ...expected },
+        baseline: baseline(snap.persisted.get(code)),
+      });
       for (const [key, own] of dependentWrites)
         if (own.date !== snap.date || own.serverId !== snap.serverId)
           dependentWrites.delete(key);
@@ -564,6 +765,8 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     fill,
     canFill,
     fillBlock,
+    rowBlock,
+    presentationBlock,
     hasConflict,
     refreshIfSafe,
     view,

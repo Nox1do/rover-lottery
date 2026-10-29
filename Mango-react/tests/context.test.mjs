@@ -327,6 +327,39 @@ test("Buscar suspende efectos y conserva baseline para edición local del mismo 
   advance();
   assert.equal(c.snapshot(view).persisted.get("REAL").primera, "05");
 });
+test("suspensión de configuración mantiene el motivo y exige otra respuesta para conservar edición conocida", () => {
+  const { c, view, load } = setup();
+  load();
+  const previous = c.snapshot(view);
+  view.rows[0].fields.primera = "99";
+  view.rows[0].dirty = true;
+  c.prepareSearch(view, "Configuración actualizada. Pulsa Buscar.");
+  assert.equal(c.message, "Configuración actualizada. Pulsa Buscar.");
+  assert.equal(c.snapshot(view), null);
+  assert.throws(() => c.assert(previous, view));
+  load();
+  assert.equal(c.snapshot(view).persisted.get("REAL").primera, "");
+  assert.equal(view.rows[0].fields.primera, "99");
+});
+for (const mode of ["unverified", "changed_values", "server_id"])
+  test(`suspensión no acredita edición incierta: ${mode}`, () => {
+    const { c, view, load, advance } = setup();
+    if (mode !== "unverified") load();
+    view.rows[0].fields.primera = "99";
+    view.rows[0].dirty = true;
+    c.prepareSearch(view, "Reinicio");
+    const id = c.begin({
+      date: day,
+      server: "PRINCIPAL",
+      serverId: mode === "server_id" ? "2" : "1",
+    });
+    c.finish(id, {
+      fecha: day,
+      filas: [row(mode === "changed_values" ? { primera: "42" } : {})],
+    });
+    advance();
+    assert.equal(c.snapshot(view), null);
+  });
 test("baseline conservado no permite reusar edición de otra fecha o tras fallo", () => {
   const { c, view, load } = setup();
   load();

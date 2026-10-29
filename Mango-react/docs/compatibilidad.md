@@ -10,6 +10,10 @@ Fuentes públicas comprobadas:
 - https://www.tampermonkey.net/documentation.php?locale=en&q=meta:sandbox
 - https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts/exportFunction
 
+## Suspensión de configuración y edición retenida · 0.1.7
+
+Central puede conservar ediciones locales después de Buscar. Una invalidación externa del adaptador ahora utiliza la misma suspensión que el submit nativo: descarta la autorización vigente y conserva el baseline anterior para comparar una respuesta nueva del mismo contexto. La edición requiere marca local y datos persistidos idénticos al baseline anterior; una discrepancia no acreditada de campos, identidad o PROC entre la respuesta y la tabla sigue bloqueando, al igual que un contexto distinto. Un cambio legítimo de PROC que coincida entre respuesta y tabla sigue permitiendo el ACK. El baseline retenido no autoriza escrituras ni ACK y no restaura caché, token o reservas Mango.
+
 ## Componentes sucesivos y dependientes · 0.1.6
 
 Inspección pública del 28/10/2026: `index-BcE53Pt2.js`, `VerResultados-BX9GQnTL.js` y `PublicarFlujo-CdWenogO.js`. El manejador aplica las reglas activas después de cada entrada de la principal, incluso si todavía falta un pick. Las reglas admiten X, copias de premios/picks, segmentos de picks y campos sin tocar. `dependencies.js` reproduce únicamente la proyección para verificar los efectos observados; no sustituye el cálculo nativo. Un token desconocido no acredita atribución.

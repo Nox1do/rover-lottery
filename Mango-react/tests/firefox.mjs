@@ -171,12 +171,24 @@ async function waitingRuntime(r, rowConfig = {}) {
     const storage = { mango_react_token: "test-secret" };
     window.GM_getValue = (key, fallback) => storage[key] ?? fallback;
     window.GM_setValue = (key, value) => (storage[key] = value);
-    window.GM_addValueChangeListener = () => {};
+    window.gmListeners = {};
+    window.GM_addValueChangeListener = (key, fn) => {
+      gmListeners[key] = fn;
+    };
+    window.gmRemoteChange = (key, value) => {
+      const old = storage[key];
+      storage[key] = value;
+      gmListeners[key](key, old, value, true);
+    };
     window.GM_registerMenuCommand = (name, fn) => (gmMenus[name] = fn);
     window.unsafeWindow = window;
     window.exportFunction = (fn) => fn;
     window.alert = (message) => {
-      window.gmDiagnostic = JSON.parse(message);
+      try {
+        window.gmDiagnostic = JSON.parse(message);
+      } catch {
+        window.gmNotice = message;
+      }
     };
     window.GM_xmlhttpRequest = (options) => {
       gmCalls.push({ url: options.url, body: options.data });
@@ -254,6 +266,95 @@ async function waitingRuntime(r, rowConfig = {}) {
     .first()
     .waitFor();
 }
+for (const reset of ["remote", "pause"])
+  test(`reinicio ${reset}: RHOD-MD editada no pierde baseline ni bloquea el resto tras Buscar`, async () => {
+    const r = await setup({
+      overrides: {
+        "NY-BP": { abrev: "RHOD-MD", nombre: "RHODE ISLAND MIDDAY" },
+      },
+    });
+    try {
+      await waitingRuntime(r);
+      await r.page.locator('tr[data-code="RHOD-MD"] input').first().fill("99");
+      const callsBefore = await r.page.evaluate(() => gmCalls.length);
+      await r.page.evaluate((reset) => {
+        if (reset === "remote")
+          gmRemoteChange("mango_react_client", "new-test-pc");
+        else {
+          gmMenus["Mango React · Pausar/reanudar"]();
+          gmMenus["Mango React · Pausar/reanudar"]();
+        }
+        gmMenus["Mango React · Diagnóstico"]();
+      }, reset);
+      const suspended = await r.page.evaluate(() => gmDiagnostic);
+      assert.equal(suspended.fecha_verificada, null);
+      assert.equal(suspended.filas_api, 0);
+      await r.page.waitForTimeout(300);
+      assert.equal(
+        await r.page.evaluate(() => gmCalls.length),
+        callsBefore,
+        "no reusa autorización ni consulta antes de Buscar",
+      );
+      await r.load();
+      await r.page
+        .waitForFunction(
+          () => {
+            gmMenus["Mango React · Diagnóstico"]();
+            return (
+              gmDiagnostic.fecha_verificada === "2026-10-27" &&
+              gmDiagnostic.filas_api === 1
+            );
+          },
+          null,
+          { timeout: 5000 },
+        )
+        .catch(async (error) => {
+          console.log(
+            "RESET_CONTEXT_QA",
+            await r.page.evaluate(() => gmDiagnostic),
+          );
+          throw error;
+        });
+      assert.equal((await r.vals("RHOD-MD"))[0], "99");
+      assert.equal(
+        await r.page
+          .locator('tr[data-code="REAL"] input[data-mango-react-visual="blue"]')
+          .count(),
+        3,
+      );
+      await r.page.evaluate(() => {
+        gmWaitingState = "ready";
+        gmExpected = { primera: "05" };
+        gmReconcileData = {
+          ok: true,
+          action: "paint_fields",
+          should_paint: true,
+          expected_fields: { primera: "05" },
+          operation: {
+            operation_id: "after-reset",
+            revision: 3,
+            status: "reserved",
+            expires_at: new Date(Date.now() + 60000).toISOString(),
+          },
+        };
+      });
+      await r.page.waitForFunction(
+        () => gmCalls.some((c) => c.url.endsWith("/presented")),
+        null,
+        { timeout: 10000 },
+      );
+      assert.equal((await r.vals("REAL"))[0], "05");
+      assert.equal((await r.vals("RHOD-MD"))[0], "99");
+      assert.equal(
+        await r.page.evaluate(() =>
+          gmCalls.some((c) => c.url.endsWith("/ack")),
+        ),
+        false,
+      );
+    } finally {
+      await r.close();
+    }
+  });
 test("runtime NY AM completa Pick 4 al llegar después de Pick 3 sin recargar ni procesar", async () => {
   const r = await setup();
   try {

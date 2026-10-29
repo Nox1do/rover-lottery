@@ -571,6 +571,8 @@ export function createCentralAdapter(doc, win, onChange = () => {}) {
     get message() {
       return context.message;
     },
-    invalidate: context.invalidate,
+    // Suspend effects without losing the verified baseline for unsaved edits.
+    // A fresh matching native response is still required before resuming.
+    invalidate: (reason) => context.prepareSearch(view(), reason),
   };
 }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mango/Rover React
 // @namespace    https://github.com/Nox1do/rover-lottery/Mango-react
-// @version      0.1.6
+// @version      0.1.7
 // @description  Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida.
 // @match        https://central.roversport.net/*
 // @connect      rover-lottery-api.loteriasrovers.workers.dev
@@ -142,10 +142,10 @@
         retained = previous;
       }
     }
-    function prepareSearch(view) {
+    function prepareSearch(view, reason = "Esperando la respuesta de Buscar.") {
       sync(view);
       const previous = confirmed || retained || request?.previous || candidate?.previous;
-      invalidate("Esperando la respuesta de Buscar.");
+      invalidate(reason);
       retained = previous;
     }
     function sync(view) {
@@ -704,7 +704,9 @@
       get message() {
         return context.message;
       },
-      invalidate: context.invalidate
+      // Suspend effects without losing the verified baseline for unsaved edits.
+      // A fresh matching native response is still required before resuming.
+      invalidate: (reason) => context.prepareSearch(view(), reason)
     };
   }
 
@@ -1194,7 +1196,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.1.6";
+  var VERSION = "0.1.7";
   var KEYS = {
     token: "mango_react_token",
     client: "mango_react_client",

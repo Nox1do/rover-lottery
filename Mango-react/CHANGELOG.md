@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.1.7 — 2026-10-28
+
+- Conserva la referencia persistida ya verificada al suspender Mango por configuración, pausa/reanudación o rechazo de autenticación. Evita que una edición local pendiente como RHOD-MD pierda su baseline y bloquee la siguiente carga de toda la tabla.
+- Reutiliza la suspensión de Buscar: invalida permisos y reservas de contexto, conserva el motivo original y exige una nueva respuesta nativa del mismo contexto con persistencia intacta antes de reanudar. No reutiliza la caché Mango ni convierte ediciones desconocidas en resultados guardados.
+- Regresiones completas con cambio remoto de configuración y pausa/reanudación: RHOD-MD conserva su edición, la otra fila recupera azul y se entrega tras una reserva nueva; no hay consultas antes de Buscar ni ACK de la edición pendiente.
+
 ## 0.1.6 — 2026-10-28
 
 - Corrige el bloqueo reproducido al recibir los picks de New York por separado: los valores calculados por Central en las dependientes durante el primer llenado ya no impiden completar el siguiente pick.

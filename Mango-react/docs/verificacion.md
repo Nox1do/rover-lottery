@@ -1,5 +1,13 @@
 # Verificación
 
+## 0.1.7 — 28/10/2026
+
+- Con 0.1.6 se reprodujo el JSON del usuario: tras una edición de RHOD-MD y un cambio remoto de configuración, Buscar deja `fecha_verificada: null`, `filas_api: 0`, token sin comprobar y el mismo error de campos distintos. Pausar/reanudar también pierde la referencia. Ambas regresiones completas fallaron: 52/54 escenarios React/Firefox. Una regresión unitaria del motivo de suspensión falló: 48/49 Node.
+- La corrección conserva el baseline ya verificado sin conservar autorización. Las pruebas exigen que antes de Buscar no se consulte Mango, que una respuesta nueva recupere el azul, que RHOD-MD siga editada y que otra fila se llene con reserva/presentación nuevas, sin ACK ni publicación de RHOD-MD.
+- Cobertura negativa: no se admite una edición sin verificación anterior, persistencia cambiada ni un servidor ID distinto; se conservan todos los controles previos de fecha, PROC, identidad, contexto y reservas.
+- Verificación final: `npm test` aprobó 49 pruebas Node, 54 escenarios React/Firefox y dos de extensión aislada, sin fallos. `npm run check` y `git diff --check` aprobados. Históricos 0.1.0–0.1.6 sin cambios.
+- El diagnóstico identifica el bloqueo actual y reproduce una ruta que lo provoca; no conserva quién inició el cambio de configuración ni una traza del instante previo a las publicaciones manuales de Anguilla/Real PM. No se realizaron publicaciones financieras reales.
+
 ## 0.1.6 — 28/10/2026
 
 - Base 0.1.5: 42 pruebas Node, 40 escenarios React/Firefox y dos de extensión aprobados. Antes del arreglo, las regresiones de ambos órdenes de llegada y Buscar intermedio fallaron: 47/50 Firefox. El instalador 0.1.5 también se detuvo después de presentar Pick 3 en la prueba de dos revisiones sucesivas.

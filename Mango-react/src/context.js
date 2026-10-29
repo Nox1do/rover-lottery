@@ -74,11 +74,11 @@ export function createContext({ today = todayInZone, now = Date.now } = {}) {
       retained = previous;
     }
   }
-  function prepareSearch(view) {
+  function prepareSearch(view, reason = "Esperando la respuesta de Buscar.") {
     sync(view);
     const previous =
       confirmed || retained || request?.previous || candidate?.previous;
-    invalidate("Esperando la respuesta de Buscar.");
+    invalidate(reason);
     retained = previous;
   }
   function sync(view) {

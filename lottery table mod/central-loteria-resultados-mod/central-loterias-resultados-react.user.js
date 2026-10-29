@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.11
+// @version      0.0.12
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,7 +16,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.11';
+  const VERSION = '0.0.12';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
@@ -402,12 +402,34 @@ SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
     return Boolean(photoExclusionMatch(lotteryCell));
   }
 
+
+  function photoCountFromButton(button) {
+    // El contador de galería sólo contiene un número; el '+' no.
+    const text = (button.textContent || '').trim();
+    if (!/^\d{1,5}$/.test(text)) return null;
+    const count = Number(text);
+    return Number.isSafeInteger(count) ? count : null;
+  }
+
+  function annotatePhotoCount(photoCell, excluded) {
+    if (!photoCell) return;
+    for (const button of photoCell.querySelectorAll('button, [role="button"]')) {
+      const count = excluded ? null : photoCountFromButton(button);
+      const active = count !== null && count > 0;
+      const marked = button.getAttribute('data-clr-photo-positive') === 'true';
+      if (active && !marked) button.setAttribute('data-clr-photo-positive', 'true');
+      if (!active && button.hasAttribute('data-clr-photo-positive'))
+        button.removeAttribute('data-clr-photo-positive');
+    }
+  }
+
   function annotatePhotoCell(row, cells) {
     const photosIndex = state.columns.photos;
     const lotteryIndex = state.columns.lottery;
     const photoCell = photosIndex >= 0 ? cells[photosIndex] : null;
     const lotteryCell = lotteryIndex >= 0 ? cells[lotteryIndex] : null;
     const shouldHide = Boolean(photoCell && lotteryCell && isPhotoExcluded(lotteryCell));
+    annotatePhotoCount(photoCell, shouldHide);
     if (shouldHide) {
       if (row.getAttribute('data-clr-no-photos') !== 'true')
         row.setAttribute('data-clr-no-photos', 'true');
@@ -712,6 +734,32 @@ SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
       table[data-clr-table="true"] tbody tr[data-clr-highlight="blue"]>td{background:#e8f2ff!important;}
       table[data-clr-table="true"] tbody tr[data-clr-highlight="blue"]:hover>td{background:#d9eaff!important;}
       table[data-clr-table="true"] tbody tr[data-clr-highlight="blue"]>td:first-child{box-shadow:inset 4px 0 #8bb6e8;}
+
+      /* FOTOS: destacar solamente el contador con una o más fotos.
+         No cambiar sus dimensiones ni afectar el botón + o ACCION. */
+      table[data-clr-table="true"] tbody tr:not([data-clr-no-photos="true"]) td button[data-clr-photo-positive="true"],
+      table[data-clr-table="true"] tbody tr:not([data-clr-no-photos="true"]) td [role="button"][data-clr-photo-positive="true"],
+      [role="grid"][data-clr-table="true"] [role="row"]:not([data-clr-no-photos="true"]) [role="cell"] [data-clr-photo-positive="true"],
+      [role="table"][data-clr-table="true"] [role="row"]:not([data-clr-no-photos="true"]) [role="cell"] [data-clr-photo-positive="true"]{
+        background-color:#c9e1ff!important;
+        color:#153f7f!important;
+        outline:1.5px solid #5d9df5!important;
+        outline-offset:-1px!important;
+        box-shadow:0 0 0 2px rgba(83,158,251,.16),0 1px 4px rgba(44,113,204,.13)!important;
+        font-weight:700!important;
+      }
+      table[data-clr-table="true"] tbody tr:not([data-clr-no-photos="true"]) td [data-clr-photo-positive="true"] svg,
+      [role="grid"][data-clr-table="true"] [role="cell"] [data-clr-photo-positive="true"] svg,
+      [role="table"][data-clr-table="true"] [role="cell"] [data-clr-photo-positive="true"] svg{
+        color:#153f7f!important;
+        stroke:currentColor!important;
+      }
+      table[data-clr-table="true"] tbody tr:not([data-clr-no-photos="true"]) td [data-clr-photo-positive="true"]:hover,
+      [role="grid"][data-clr-table="true"] [role="cell"] [data-clr-photo-positive="true"]:hover,
+      [role="table"][data-clr-table="true"] [role="cell"] [data-clr-photo-positive="true"]:hover{
+        background-color:#b6d6ff!important;
+        outline-color:#4089f1!important;
+      }
       /* FOTOS: ocultar solo sus dos botones en loterías excluidas.
          No afectar ACCION, inputs, columnas ni eventos/react state. */
       table[data-clr-table="true"] tbody tr[data-clr-no-photos="true"] > td[data-clr-photo-cell="true"] button,
@@ -988,6 +1036,9 @@ SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
           return matched ? `${matched.name} (${matched.code})` : null;
         })() : null,
         buttonsInPhotos: photo?.querySelectorAll('button, [role="button"]').length || 0,
+        photoCount: photo ? ([...photo.querySelectorAll('button, [role="button"]')]
+          .map(photoCountFromButton).find((count) => count !== null) ?? null) : null,
+        bluePhotoButtons: photo?.querySelectorAll('[data-clr-photo-positive="true"]').length || 0,
         photoColumnFound: Boolean(photo),
       };
     });

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         central-loterias-resultados-react
 // @namespace    https://central.roversport.net/
-// @version      0.0.12
+// @version      0.0.13
 // @description  Adaptacion visual y filtros pasivos para Resultados de Loteria en Central React.
 // @match        https://central.roversport.net/*
 // @homepageURL  https://github.com/Nox1do/rover-lottery/tree/main/lottery%20table%20mod/central-loteria-resultados-mod
@@ -16,7 +16,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.0.12';
+  const VERSION = '0.0.13';
   const PATH = '/loteria/resultados/ver';
   const PREFIX = 'clr001';
   const STYLE_ID = `${PREFIX}-style`;
@@ -735,30 +735,39 @@ SP REALPM - NAC|SP REALPM-NAC`.trim().split('\n').map((line) => {
       table[data-clr-table="true"] tbody tr[data-clr-highlight="blue"]:hover>td{background:#d9eaff!important;}
       table[data-clr-table="true"] tbody tr[data-clr-highlight="blue"]>td:first-child{box-shadow:inset 4px 0 #8bb6e8;}
 
-      /* FOTOS: destacar solamente el contador con una o más fotos.
-         No cambiar sus dimensiones ni afectar el botón + o ACCION. */
+      /* Diseño aprobado de FOTOS: pastilla azul pastel (#DEEDFE),
+         sin borde azul ni halo. El botón + y los contadores 0 conservan
+         su apariencia original. Las dimensiones no se modifican. */
       table[data-clr-table="true"] tbody tr:not([data-clr-no-photos="true"]) td button[data-clr-photo-positive="true"],
       table[data-clr-table="true"] tbody tr:not([data-clr-no-photos="true"]) td [role="button"][data-clr-photo-positive="true"],
       [role="grid"][data-clr-table="true"] [role="row"]:not([data-clr-no-photos="true"]) [role="cell"] [data-clr-photo-positive="true"],
       [role="table"][data-clr-table="true"] [role="row"]:not([data-clr-no-photos="true"]) [role="cell"] [data-clr-photo-positive="true"]{
-        background-color:#c9e1ff!important;
-        color:#153f7f!important;
-        outline:1.5px solid #5d9df5!important;
-        outline-offset:-1px!important;
-        box-shadow:0 0 0 2px rgba(83,158,251,.16),0 1px 4px rgba(44,113,204,.13)!important;
+        background-color:#deedfe!important;
+        color:#16335f!important;
+        border-color:transparent!important;
+        outline:none!important;
+        box-shadow:none!important;
+        border-radius:9px!important;
         font-weight:700!important;
       }
       table[data-clr-table="true"] tbody tr:not([data-clr-no-photos="true"]) td [data-clr-photo-positive="true"] svg,
       [role="grid"][data-clr-table="true"] [role="cell"] [data-clr-photo-positive="true"] svg,
       [role="table"][data-clr-table="true"] [role="cell"] [data-clr-photo-positive="true"] svg{
-        color:#153f7f!important;
+        color:#16335f!important;
         stroke:currentColor!important;
       }
       table[data-clr-table="true"] tbody tr:not([data-clr-no-photos="true"]) td [data-clr-photo-positive="true"]:hover,
       [role="grid"][data-clr-table="true"] [role="cell"] [data-clr-photo-positive="true"]:hover,
       [role="table"][data-clr-table="true"] [role="cell"] [data-clr-photo-positive="true"]:hover{
-        background-color:#b6d6ff!important;
-        outline-color:#4089f1!important;
+        background-color:#d4e7fd!important;
+      }
+      /* Respetar la navegación por teclado: foco visible incluso sin borde
+         permanente en el estado azul. */
+      table[data-clr-table="true"] tbody tr:not([data-clr-no-photos="true"]) td [data-clr-photo-positive="true"]:focus-visible,
+      [role="grid"][data-clr-table="true"] [role="cell"] [data-clr-photo-positive="true"]:focus-visible,
+      [role="table"][data-clr-table="true"] [role="cell"] [data-clr-photo-positive="true"]:focus-visible{
+        outline:2px solid #447ed2!important;
+        outline-offset:2px!important;
       }
       /* FOTOS: ocultar solo sus dos botones en loterías excluidas.
          No afectar ACCION, inputs, columnas ni eventos/react state. */

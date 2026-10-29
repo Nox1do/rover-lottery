@@ -1,6 +1,6 @@
 {
   "name": "Mango/Rover React",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "namespace": "https://github.com/Nox1do/rover-lottery/Mango-react",
   "description": "Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida."
 }

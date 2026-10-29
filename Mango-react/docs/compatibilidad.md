@@ -10,6 +10,12 @@ Fuentes públicas comprobadas:
 - https://www.tampermonkey.net/documentation.php?locale=en&q=meta:sandbox
 - https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts/exportFunction
 
+## Refresco durante actividad · 0.1.10
+
+El final de un ciclo Mango ya no solicita Buscar si la cadencia resultante es rápida: componentes awaiting_result/ready de filas pendientes o la ventana nativa próxima. Se evalúan todas las filas API, independientemente del filtro. Al pasar a reposo se conserva refreshIfSafe con límite de dos minutos y comprobaciones de contexto/trabajo local. No se retienen permisos ni colores antiguos durante una carga real; el Buscar manual sigue invalidando la época y exigiendo respuesta nueva.
+
+Documentación primaria contrastada: [requestSubmit](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/requestSubmit) dispara submit, que el adaptador usa para suspender la autorización. En Firefox se reproduce el submit automático tras dos minutos de vigilancia en 0.1.9; no se simula un permiso para continuar durante la carga. El coste de aplazarlo es que las nuevas filas nativas se descubrirán al terminar esa actividad o mediante Buscar manual.
+
 ## Sondeo y colores · 0.1.9
 
 La columna HORA solo decide la cadencia de lectura; no autoriza pintar ni escribir ni modifica horarios. El verde conserva una referencia de valor/plazo dentro de una época/fecha/servidor; remapear un input no reinicia su duración. Otra carga descarta las referencias incluso si termina entre dos ticks. El filtro sin coincidencias mantiene únicamente una carga ya probada; no habilita la carga inicial vacía.

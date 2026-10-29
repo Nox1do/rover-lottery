@@ -112,7 +112,9 @@ async function poll(snap) {
     : d.mismatches.length
       ? "API procesado / Central pendiente: " + d.mismatches.join(", ")
       : null;
-  central.refreshIfSafe(snap);
+  // A native search invalidates this frame. Defer it throughout the fast
+  // watch/delivery window, including activity hidden by a table filter.
+  if (delay === 120000) central.refreshIfSafe(snap);
 }
 async function tick() {
   if (paused || !observing) return;

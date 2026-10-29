@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.1.10 — 2026-10-29
+
+- Aplaza el Buscar automático durante la vigilancia, los resultados listos de filas Mango pendientes y la ventana de horarios próximos. El control usa el estado Mango de toda la respuesta, incluso filas ocultas por un filtro, y no depende de que el azul esté visible.
+- Evita que ese refresco invalide el contexto y retire el azul mientras se esperan entregas. Al terminar la actividad vuelve a evaluar el refresco con el límite y las protecciones locales existentes. Buscar manual sigue requiriendo una respuesta nativa nueva.
+- Regresiones del instalador completo: vigilancia visible/oculta más de dos minutos, llenado y verde al llegar, reserva no autorizada sin azul, y reanudación del refresco al salir de actividad. No cambia el proveedor ni fuerza resultados ausentes.
+
 ## 0.1.9 — 2026-10-29
 
 - La proximidad de un horario nativo pendiente sale del modo lento sin esperar dos minutos; ventana RD de tres minutos antes/cinco después, solo para lecturas. La autorización sigue siendo del servicio.

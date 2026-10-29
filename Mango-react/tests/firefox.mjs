@@ -2394,6 +2394,195 @@ test("colores: dependiente pendiente oculta bloquea refresco tras publicar la pr
     await r.close();
   }
 });
+// Keep the runtime tick deterministic while real React/native fetches still run.
+async function refreshRuntime(r) {
+  await r.page.evaluate(() => {
+    const interval = setInterval;
+    window.setInterval = (fn, ms, ...args) =>
+      ms === 1000 ? ((window.refreshTick = fn), 0) : interval(fn, ms, ...args);
+  });
+  await waitingRuntime(r);
+  await r.page.waitForFunction(() => {
+    gmMenus["Mango React · Diagnóstico"]();
+    return !!gmDiagnostic.ultima_consulta;
+  });
+  await r.page.evaluate(() => {
+    window.refreshSubmits = 0;
+    window.refreshBefore = gmDiagnostic.ultima_consulta;
+    document
+      .querySelector("form")
+      .addEventListener("submit", () => refreshSubmits++);
+  });
+}
+async function completeRefreshPoll(r) {
+  await r.page.waitForFunction(() => {
+    gmMenus["Mango React · Diagnóstico"]();
+    return gmDiagnostic.ultima_consulta !== refreshBefore;
+  });
+  await r.page.evaluate(() => {
+    refreshBefore = gmDiagnostic.ultima_consulta;
+  });
+}
+for (const filter of ["", "NO EXISTE"])
+  test(`refresco activo: no interrumpe vigilancia con filtro ${filter || "completo"} y entrega al llegar`, async () => {
+    const r = await setup();
+    try {
+      await refreshRuntime(r);
+      r.state.delay = 600;
+      if (filter)
+        await r.page
+          .locator('input[placeholder="Buscar lotería"]')
+          .fill(filter);
+      const initial = await r.page.evaluate(() => ({
+        epoch: adapter.snapshot().epoch,
+        calls: gmCalls.filter((c) => c.url.includes("/version?")).length,
+      }));
+      await r.page.evaluate(async () => {
+        const Before = Date;
+        window.Date = class extends Before {
+          static now() {
+            return Before.now() + 121000;
+          }
+        };
+        refreshTick();
+      });
+      await completeRefreshPoll(r);
+      assert.equal(await r.page.evaluate(() => refreshSubmits), 0);
+      assert.equal(
+        await r.page.evaluate(() => adapter.snapshot()?.epoch),
+        initial.epoch,
+      );
+      assert.ok(
+        await r.page.evaluate(
+          (n) => gmCalls.filter((c) => c.url.includes("/version?")).length > n,
+          initial.calls,
+        ),
+      );
+      if (filter)
+        await r.page.locator('input[placeholder="Buscar lotería"]').fill("");
+      await r.page
+        .locator('input[data-mango-react-visual="blue"]')
+        .first()
+        .waitFor();
+      assert.equal(
+        await r.page.locator('input[data-mango-react-visual="blue"]').count(),
+        3,
+      );
+      await r.page.evaluate(async () => {
+        const Before = Date;
+        window.Date = class extends Before {
+          static now() {
+            return Before.now() + 6000;
+          }
+        };
+        gmWaitingState = "ready";
+        gmExpected = { primera: "05", segunda: "00", tercera: "09" };
+        gmReconcileData = {
+          should_paint: true,
+          action: "paint_fields",
+          expected_fields: gmExpected,
+          operation: {
+            operation_id: "after-refresh-deferred",
+            status: "reserved",
+            revision: 3,
+            expires_at: new Date(Date.now() + 60000).toISOString(),
+          },
+        };
+        refreshTick();
+      });
+      await completeRefreshPoll(r);
+      assert.deepEqual(await r.vals("REAL"), ["05", "00", "09", "", ""]);
+      assert.equal(
+        await r.page.locator('input[data-mango-react-visual="green"]').count(),
+        3,
+      );
+      assert.equal(await r.page.evaluate(() => refreshSubmits), 0);
+      assert.equal(
+        await r.page.evaluate(
+          () => gmCalls.filter((c) => c.url.endsWith("/reconcile")).length,
+        ),
+        1,
+      );
+    } finally {
+      await r.close();
+    }
+  });
+test("refresco activo: ready sin azul aplaza Buscar aunque el servicio no autorice llenar", async () => {
+  const r = await setup();
+  try {
+    await refreshRuntime(r);
+    await r.page.evaluate(async () => {
+      const Before = Date;
+      window.Date = class extends Before {
+        static now() {
+          return Before.now() + 121000;
+        }
+      };
+      gmWaitingState = "ready";
+      gmExpected = { primera: "05" };
+      gmReconcileData = {
+        should_paint: false,
+        action: "wait",
+        reason: "client_locked",
+      };
+      refreshTick();
+    });
+    await completeRefreshPoll(r);
+    assert.equal(await r.page.evaluate(() => refreshSubmits), 0);
+    assert.equal(
+      await r.page.locator('input[data-mango-react-visual="blue"]').count(),
+      0,
+    );
+    assert.deepEqual(await r.vals("REAL"), ["", "", "", "", ""]);
+    assert.equal(
+      await r.page.evaluate(() =>
+        gmCalls.some((c) => c.url.endsWith("/presented")),
+      ),
+      false,
+    );
+  } finally {
+    await r.close();
+  }
+});
+test("refresco activo: horario próximo aplaza Buscar y lo libera al terminar la actividad", async () => {
+  const r = await setup();
+  try {
+    await refreshRuntime(r);
+    await r.page.evaluate(async () => {
+      document.querySelector('tr[data-code="REAL"]').cells[2].textContent =
+        "1:03 PM";
+      gmWaitingState = "processed";
+      const Before = Date;
+      window.Date = class extends Before {
+        static now() {
+          return Before.now() + 121000;
+        }
+      };
+      refreshTick();
+    });
+    await completeRefreshPoll(r);
+    assert.equal(await r.page.evaluate(() => refreshSubmits), 0);
+    assert.equal(
+      await r.page.locator('input[data-mango-react-visual="blue"]').count(),
+      0,
+    );
+    await r.page.evaluate(async () => {
+      const Before = Date;
+      window.Date = class extends Before {
+        static now() {
+          return Before.now() + 7 * 60000;
+        }
+      };
+      refreshTick();
+    });
+    await completeRefreshPoll(r);
+    assert.equal(await r.page.evaluate(() => refreshSubmits), 1);
+    await r.page.waitForFunction(() => !!adapter.snapshot());
+    assert.deepEqual(await r.vals("REAL"), ["", "", "", "", ""]);
+  } finally {
+    await r.close();
+  }
+});
 let failed = 0;
 try {
   for (const { name, fn } of tests.filter(

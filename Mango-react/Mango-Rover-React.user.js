@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mango/Rover React
 // @namespace    https://github.com/Nox1do/rover-lottery/Mango-react
-// @version      0.1.9
+// @version      0.1.10
 // @description  Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida.
 // @match        https://central.roversport.net/*
 // @connect      rover-lottery-api.loteriasrovers.workers.dev
@@ -1592,7 +1592,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.1.9";
+  var VERSION = "0.1.10";
   var KEYS = {
     token: "mango_react_token",
     client: "mango_react_client",
@@ -1676,7 +1676,7 @@
     delay = nextDelay(cache.rows, central.hasImminentDraw(snap));
     const d = delivery.diagnostics();
     lastError = d.errors.length ? d.errors.map((x) => `${x.lottery}: ${x.error}`).join("; ") : d.mismatches.length ? "API procesado / Central pendiente: " + d.mismatches.join(", ") : null;
-    central.refreshIfSafe(snap);
+    if (delay === 12e4) central.refreshIfSafe(snap);
   }
   async function tick() {
     if (paused || !observing) return;

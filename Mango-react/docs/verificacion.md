@@ -1,5 +1,13 @@
 # Verificación
 
+## 0.1.10 — 29/10/2026
+
+- Reporte: el Buscar automático interrumpe el azul durante varios segundos al coincidir los sorteos del mediodía. Contra 0.1.9 las cuatro regresiones fallaron: se disparó submit tras más de dos minutos de vigilancia, con tabla completa o filtro sin coincidencias, con ready sin permiso de llenar y con horario nativo próximo. El código invalida la época al recibir submit, por lo que los colores anteriores se descartan correctamente durante esa carga; el defecto era iniciar la carga durante actividad.
+- Con el aplazamiento en el final del ciclo, las cuatro regresiones pasan. Comprueban ausencia de submit y conservación de época durante vigilancia, consulta Mango continuada, azul al mostrar nuevamente la fila, una única reserva y presentación con ceros/verde cuando llega el resultado. También comprueban que ready sin azul no fuerza llenado y que al terminar la ventana/actividad vuelve a permitirse el refresco.
+- La fixture captura el intervalo del instalador, pero espera el cambio de última consulta para acreditar el ciclo completo: el callback nativo invoca tick sin devolver su promesa. Servicios/GM simulados; React y Firefox reales.
+- La Primera Día se investigó con SELECT de esa fecha y PC: reconocimiento manual12:04:52.110RD, sin paint registrado; el resultado actualmente disponible consta confirmado por recovery12:10:54RD y ready_at nulo. No acredita una entrega disponible perdida durante refresco ni quién originó valores discrepantes. No se modificó el backend ni se publicó un resultado financiero.
+- Verificación final: `npm test` aprobó 67 pruebas Node, 79 escenarios React/Firefox y cuatro de extensión aislada; cero fallos. La revisión independiente no encontró problemas. `npm run check` y `git diff --check` aprobados; los históricos0.1.0–0.1.9 permanecen intactos.
+
 ## 0.1.9 — 29/10/2026
 
 - Reporte: Anguilla 9 AM con azul tardío y sin verde. SELECT de la PC indicada: listening12:57:53.585Z, ready13:01:05Z, presented13:01:08.938Z y reconocimiento de procesado nativo13:01:19.637Z. Acredita entrega, no el DOM/color histórico ni una interacción concreta. No mezclar el reloj del diagnóstico del cliente con el servidor para calcular latencias precisas.

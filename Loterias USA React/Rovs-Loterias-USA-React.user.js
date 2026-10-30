@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterias USA React 0.0.1
 // @namespace    https://github.com/Nox1do/rover-lottery/Loterias-USA-React
-// @version      0.0.17
+// @version      0.0.18
 // @description  Barra manual de loterías USA para la tabla React de Rover. Solo llenado de formulario.
 // @author       noeg
 // @match        https://central.roversport.net/*
@@ -26,7 +26,7 @@
 
 (function () {
 'use strict';
-const APP_VERSION = "0.0.17";
+const APP_VERSION = "0.0.18";
 
 // --- src/config.js ---
     const LOTERIAS = [
@@ -1379,7 +1379,11 @@ function createRoverAdapter(onChange) {
         const dateButton = form?.querySelector('button[aria-haspopup="dialog"]');
         const date = parseCentralDate(dateButton?.textContent);
         const serverButton = document.querySelector('button[title="Servidor cuyos datos se están viendo"]');
-        const server = serverButton?.textContent.trim() || '';
+        // El botón también contiene el contador de otros servidores sin respuesta.
+        // Solo .truncate es la identidad de la vista; sus badges no cambian el contexto.
+        const serverLabel = serverButton?.querySelector('.truncate');
+        const serverName = serverLabel || (serverButton?.childElementCount === 0 ? serverButton : null);
+        const server = serverName?.textContent.trim() || '';
         return { form, search, date, server };
     }
 
@@ -1404,19 +1408,28 @@ function createRoverAdapter(onChange) {
         const active = location.pathname.replace(/\/$/, '') === path;
         const current = screen();
         const key = current.date && formatLocalDateKey(current.date);
-        if (!active) { invalidate(); candidate = null; pending = false; }
-        if (confirmed && (confirmed.dateKey !== key || confirmed.server !== current.server)) invalidate();
-        if (candidate && (candidate.dateKey !== key || candidate.server !== current.server)) { candidate = null; pending = false; }
         const table = active && resultTable();
-        if (active && pending && candidate && current.search && !current.search.disabled && table && Date.now() >= candidate.notBefore) {
-            confirmed = { dateKey: candidate.dateKey, server: candidate.server }; candidate = null; pending = false;
+        const controlsReady = !!(key && current.server);
+        if (!active) { invalidate(); candidate = null; pending = false; }
+        const changed = scope => (key && scope.dateKey !== key) || (current.server && scope.server !== current.server);
+        if (confirmed && (changed(confirmed) || ((confirmed.paused || !controlsReady) && table && table !== confirmed.table))) invalidate();
+        if (candidate && changed(candidate)) { candidate = null; pending = false; }
+        if (confirmed) {
+            // Ausencia no significa otra fecha: suspender, y recuperar únicamente
+            // la misma tabla ya vinculada cuando regresen los controles originales.
+            if (!controlsReady) confirmed.paused = true;
+            else if (table) { confirmed.paused = false; confirmed.table = table; }
+        }
+        if (active && pending && candidate && controlsReady && current.search && !current.search.disabled && table && Date.now() >= candidate.notBefore) {
+            confirmed = { dateKey: candidate.dateKey, server: candidate.server, table }; candidate = null; pending = false;
         }
         if (active && pending && candidate && current.search && !current.search.disabled && table && Date.now() < candidate.notBefore) {
             timer = setTimeout(sync, candidate.notBefore - Date.now() + 1);
         }
-        const ready = !!(active && confirmed && table && current.search && !current.search.disabled && !pending);
-        const message = !active ? '' : ready ? `${confirmed.dateKey} · Listo` : pending ? 'Cargando la fecha de Rover…' : 'Pulsa Buscar en Rover para vincular la fecha.';
-        const view = { active, ready, message, epoch };
+        const ready = !!(active && confirmed && !confirmed.paused && controlsReady && table && current.search && !current.search.disabled && !pending);
+        const checking = !!(pending || (confirmed && (!controlsReady || confirmed.paused)));
+        const message = !active ? '' : ready ? `${confirmed.dateKey} · Listo` : pending ? 'Cargando la fecha de Rover…' : checking ? 'Verificando la tabla y los controles de Rover…' : 'Pulsa Buscar en Rover para vincular la fecha.';
+        const view = { active, ready, message, epoch, checking };
         const signature = JSON.stringify(view);
         if (signature !== lastView) { lastView = signature; onChange(view); }
         return { ...view, ...current, table, dateKey: confirmed?.dateKey };
@@ -1438,7 +1451,7 @@ function createRoverAdapter(onChange) {
     function capture() {
         const current = sync();
         if (!current.ready) {
-            const code = !current.active || (current.dateKey && !current.table) ? 'table_missing' : current.search?.disabled ? 'rover_loading' : 'date_required';
+            const code = !current.active || (current.dateKey && !current.table) ? 'table_missing' : current.search?.disabled || current.checking ? 'rover_loading' : 'date_required';
             throw statusError(code, current.message || 'Abre Ver resultados en Rover.');
         }
         return { epoch, dateKey: current.dateKey, date: new Date(current.date.getTime()), server: current.server };

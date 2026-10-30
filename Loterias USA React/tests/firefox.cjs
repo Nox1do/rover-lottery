@@ -850,6 +850,146 @@ test('Cambio de servidor en vuelo: descarta el resultado', async () => {
     await r.page.waitForTimeout(450); assert.deepEqual(await r.values('GE-MD'), Array(5).fill(''));
   } finally { await r.close(); }
 });
+test('Contexto: contador de servidores no pierde la fecha confirmada', async () => {
+  const r = await setup(); try {
+    await r.bind();
+    for (const count of [1, 3, 0]) {
+      await r.page.evaluate(count => window.fixtureServerFailures(count), count);
+      await r.page.waitForTimeout(80);
+      const button = await r.click('ga-am');
+      assert.equal(await button.getAttribute('data-status-code'), 'success', 'Un contador no es otro servidor');
+    }
+    assert.deepEqual((await r.values('GE-MD')).slice(3), ['027', '0987']);
+  } finally { await r.close(); }
+});
+test('Contexto: contador cambia durante consulta sin invalidar la fecha', async () => {
+  const r = await setup({ mode: 'slow' }); try {
+    await r.bind(); await r.page.locator('[data-lottery-id="ga-am"]').click();
+    await r.page.evaluate(() => window.fixtureServerFailures(2));
+    await r.page.waitForFunction(() => document.querySelector('[data-lottery-id="ga-am"]').dataset.statusCode !== 'loading');
+    assert.deepEqual((await r.values('GE-MD')).slice(3), ['027', '0987']);
+  } finally { await r.close(); }
+});
+test('Contexto: nombre ausente con contador no se interpreta como servidor', async () => {
+  const r = await setup(); try {
+    await r.bind(); await r.page.evaluate(() => window.fixtureServerFailures(2));
+    await r.page.waitForTimeout(80);
+    await r.page.evaluate(() => {
+      window.savedLabel = document.querySelector('button[title="Servidor cuyos datos se están viendo"] .truncate');
+      window.savedLabel.remove();
+    });
+    await r.page.waitForFunction(() => document.querySelector('#rlur-bar').dataset.ready === 'false');
+    await r.click('ga-am');
+    assert.equal(await r.page.evaluate(() => window.externalRequests.length), 0);
+    await r.page.evaluate(() => document.querySelector('button[title="Servidor cuyos datos se están viendo"]').prepend(window.savedLabel));
+    await r.page.waitForFunction(() => document.querySelector('#rlur-bar').dataset.ready === 'true', null, { timeout: 2000 });
+  } finally { await r.close(); }
+});
+for (const selector of ['#root form', 'button[title="Servidor cuyos datos se están viendo"] .truncate']) test(`Contexto: controles transitorios conservan tabla confirmada (${selector})`, async () => {
+  const r = await setup(); try {
+    await r.bind();
+    await r.page.evaluate(selector => {
+      const node = document.querySelector(selector); window.detachedContext = { node, parent: node.parentNode, next: node.nextSibling };
+      // Una etiqueta vacía sigue existiendo mientras React la recompone.
+      if (selector.includes('truncate')) { window.detachedContext.text = node.textContent; node.textContent = ''; }
+      else node.remove();
+    }, selector);
+    await r.page.waitForFunction(() => document.querySelector('#rlur-bar').dataset.ready === 'false');
+    await r.click('ga-am');
+    assert.equal(await r.page.evaluate(() => window.externalRequests.length), 0, 'No consultar sin controles verificables');
+    await r.page.evaluate(() => {
+      const { node, parent, next, text } = window.detachedContext;
+      if (text !== undefined) node.textContent = text; else parent.insertBefore(node, next);
+    });
+    await r.page.waitForFunction(() => document.querySelector('#rlur-bar').dataset.ready === 'true', null, { timeout: 2000 });
+    assert.equal(await (await r.click('ga-am')).getAttribute('data-status-code'), 'success', 'Recuperar sin otro Buscar');
+  } finally { await r.close(); }
+});
+test('Contexto: fecha distinta durante controles incompletos sigue invalidando', async () => {
+  const r = await setup(); try {
+    await r.bind();
+    await r.page.evaluate(() => {
+      window.savedServerLabel = document.querySelector('button[title="Servidor cuyos datos se están viendo"] .truncate');
+      window.savedServerLabel.textContent = '';
+    });
+    await r.page.waitForTimeout(80);
+    await r.page.evaluate(() => window.fixtureDate('23 oct 2026')); await r.page.waitForTimeout(80);
+    await r.page.evaluate(() => { window.savedServerLabel.textContent = 'PRINCIPAL'; window.fixtureDate('24 oct 2026'); });
+    await r.page.waitForTimeout(80); await r.click('ga-am');
+    assert.equal(await r.page.evaluate(() => window.externalRequests.length), 0);
+  } finally { await r.close(); }
+});
+test('Contexto: otra tabla durante ausencia de controles no hereda confirmación', async () => {
+  const r = await setup(); try {
+    await r.bind();
+    await r.page.evaluate(() => { window.savedForm = document.querySelector('#root form'); window.savedForm.remove(); });
+    await r.page.waitForTimeout(80);
+    await r.page.evaluate(() => {
+      const table = document.querySelector('#root table'); table.replaceWith(table.cloneNode(true));
+      document.querySelector('#root main').prepend(window.savedForm);
+    });
+    await r.page.waitForTimeout(80); await r.click('ga-am');
+    assert.equal(await r.page.evaluate(() => window.externalRequests.length), 0);
+  } finally { await r.close(); }
+});
+test('Contexto: controles regresan antes que la misma tabla sin perder prueba', async () => {
+  const r = await setup(); try {
+    await r.bind();
+    await r.page.evaluate(() => {
+      const form = document.querySelector('#root form'), table = document.querySelector('#root table');
+      window.savedContextNodes = { form, table, formParent: form.parentNode, tableParent: table.parentNode };
+      form.remove(); table.remove();
+    });
+    await r.page.waitForTimeout(80);
+    await r.page.evaluate(() => window.savedContextNodes.formParent.prepend(window.savedContextNodes.form));
+    await r.page.waitForTimeout(80); await r.click('ga-am');
+    assert.equal(await r.page.evaluate(() => window.externalRequests.length), 0);
+    await r.page.evaluate(() => window.savedContextNodes.tableParent.append(window.savedContextNodes.table));
+    await r.page.waitForFunction(() => document.querySelector('#rlur-bar').dataset.ready === 'true', null, { timeout: 2000 });
+    assert.equal(await (await r.click('ga-am')).getAttribute('data-status-code'), 'success');
+  } finally { await r.close(); }
+});
+for (const pauseFirst of [false, true]) test(`Contexto: tabla ajena observada durante pausa invalida aunque vuelva la original (${pauseFirst})`, async () => {
+  const r = await setup(); try {
+    await r.bind();
+    await r.page.evaluate(pauseFirst => {
+      const form = document.querySelector('#root form'), table = document.querySelector('#root table');
+      window.originalContext = { form, table, parent: form.parentNode };
+      form.remove();
+      if (!pauseFirst) { window.foreignTable = table.cloneNode(true); table.replaceWith(window.foreignTable); }
+    }, pauseFirst);
+    if (pauseFirst) {
+      await r.page.waitForTimeout(80);
+      await r.page.evaluate(() => {
+        window.foreignTable = window.originalContext.table.cloneNode(true);
+        window.originalContext.table.replaceWith(window.foreignTable);
+      });
+    }
+    await r.page.waitForTimeout(80);
+    await r.page.evaluate(() => {
+      window.foreignTable.replaceWith(window.originalContext.table);
+      window.originalContext.parent.prepend(window.originalContext.form);
+    });
+    await r.page.waitForTimeout(80); await r.click('ga-am');
+    assert.equal(await r.page.evaluate(() => window.externalRequests.length), 0, 'Otra tabla observada invalida la prueba anterior');
+  } finally { await r.close(); }
+});
+test('Contexto: servidor diferente con contador sigue exigiendo Buscar', async () => {
+  const r = await setup(); try {
+    await r.bind(); await r.page.evaluate(() => window.fixtureServerFailures(2)); await r.page.waitForTimeout(80);
+    await r.page.evaluate(() => window.fixtureServer()); await r.page.waitForTimeout(80);
+    await r.click('ga-am');
+    assert.equal(await r.page.evaluate(() => window.externalRequests.length), 0);
+  } finally { await r.close(); }
+});
+test('Contexto: selector simple sin badges conserva compatibilidad', async () => {
+  const r = await setup(); try {
+    await r.bind();
+    await r.page.evaluate(() => document.querySelector('button[title="Servidor cuyos datos se están viendo"]').replaceChildren(document.createTextNode('PRINCIPAL')));
+    await r.page.waitForTimeout(80);
+    assert.equal(await (await r.click('ga-am')).getAttribute('data-status-code'), 'success');
+  } finally { await r.close(); }
+});
 test('Fecha cambiada sin Buscar: no consulta con la tabla anterior', async () => {
   const r = await setup(); try {
     await r.bind(); await r.page.evaluate(() => window.fixtureDate('23 oct 2026')); await r.click('ga-am');

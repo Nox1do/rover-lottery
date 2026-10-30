@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.0.18 — 2026-10-30
+
+- Corrige un caso reproducible de «Fecha sin confirmar»: el contador de otros servidores sin respuesta formaba parte de `textContent` del selector y se interpretaba como cambio de servidor. Lee únicamente la etiqueta `.truncate`, con respaldo solo para selectores de texto simples.
+- Suspende temporalmente la autorización si desaparecen controles durante una actualización de DOM; la recupera sin repetir Buscar cuando vuelven la misma fecha/servidor y la misma tabla ya confirmada. Mantiene el bloqueo si la tabla se sustituye durante esa pausa.
+- Conserva la invalidación por fecha/servidor distintos, navegación o nuevo Buscar, y no autoriza una carga inicial que el script no haya podido vincular. No añade llamadas a Rover ni interceptores de red.
+- Añade reproducciones Firefox del contador en reposo/en vuelo, etiquetas vacías/ausentes, repintado de controles, recuperación ordenada de la tabla, contexto incompatible y selector simple. Interfaz y proveedores sin cambios.
+
 ## 0.0.17 — 2026-10-28
 
 - Implementa el mockup aprobado: una sola fila al iniciar y al compactar, a ancho completo y pegada al pie. Día/Noche conservan el mismo tamaño; buscador, compactar/cerrar y loterías se alinean horizontalmente.

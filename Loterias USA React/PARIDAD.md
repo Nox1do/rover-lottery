@@ -61,3 +61,7 @@ Sigue permitiéndose volver a llenar aunque haya datos, incluidos picks iguales 
 ## Actualización 0.0.17: fila inicial aprobada
 
 Cambio intencional de presentación: el inicio compacto pasa de dos filas a una, con controles en la misma línea y versión en el placeholder. Más altura sigue mostrando más loterías. El orden de configuración se conserva; la barra estrecha ampliada usa cuadrícula vertical y la compacta horizontal. Se conservan los 75 sorteos, fuentes, entrada nativa, colores, estados, accesibilidad, móvil táctil, zoom y controles de tamaño. La versión procede de GM_info y, si falta, del script.
+
+## Actualización 0.0.18: conservar contexto verificado
+
+La identidad del servidor se obtiene de su etiqueta, excluyendo contadores de fallos ajenos. La ausencia temporal de controles no equivale a otra fecha: suspende el llenado y solo permite recuperar la misma tabla/contexto ya acreditados. Los cambios reales, otra tabla durante la pausa, navegación y un nuevo Buscar mantienen las protecciones. No se toma la fecha visible por sí sola como prueba de una carga inicial ni se consultan APIs internas.

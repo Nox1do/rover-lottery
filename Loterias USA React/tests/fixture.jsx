@@ -21,12 +21,14 @@ function App() {
   const [values, setValues] = useState(initial);
   const [filter, setFilter] = useState('');
   const [server, setServer] = useState('PRINCIPAL');
+  const [serverFailures, setServerFailures] = useState(0);
   const [tick, setTick] = useState(0);
   window.fixtureState = values;
   window.fixtureLoaded = loaded;
   window.fixtureRender = () => setTick(v => v + 1);
   window.fixtureDate = date => setSelected(date);
   window.fixtureServer = () => setServer(s => s === 'PRINCIPAL' ? 'SEGUNDO' : 'PRINCIPAL');
+  window.fixtureServerFailures = setServerFailures;
   window.fixtureValues = (code, fields) => setValues(old => ({ ...old, [code]: { ...old[code], ...fields } }));
   window.fixtureDuplicate = false;
   function change(code, key, raw) {
@@ -46,7 +48,7 @@ function App() {
   }
   return <main data-tick={tick}>
     <h1>Ver resultados</h1>
-    <button title="Servidor cuyos datos se están viendo" onClick={window.fixtureServer}>{server}</button>
+    <button title="Servidor cuyos datos se están viendo" onClick={window.fixtureServer}><span className="truncate">{server}</span>{serverFailures > 0 && <span title={`${serverFailures} servidores sin respuesta`}>{serverFailures}</span>}</button>
     <form onSubmit={event => { event.preventDefault(); setBusy(true); setTimeout(() => { setLoaded(selected); setBusy(false); setValues(initial()); }, window.fixtureLoadDelay || 90); }}>
       <label>Fecha</label><button type="button" aria-haspopup="dialog" onClick={() => setSelected(selected === '24 oct 2026' ? '23 oct 2026' : '24 oct 2026')}>{selected}</button>
       <button type="submit" disabled={busy}>Buscar</button>

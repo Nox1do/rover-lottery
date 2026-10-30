@@ -1,4 +1,4 @@
-# Rovs Loterias USA React 0.0.17
+# Rovs Loterias USA React 0.0.18
 
 [Instalar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA%20React/Rovs-Loterias-USA-React.user.js)
 
@@ -35,7 +35,7 @@ Los errores llevan un código estable desde el transporte, la validación o el a
 
 ## Fecha y disponibilidad
 
-Cambiar calendario, servidor o volver a pulsar Buscar invalida las consultas anteriores. No se toma la fecha de hoy como respaldo. Una fila oculta por el filtro de Rover o todavía no habilitada por su horario no se llena: elimina el filtro o revisa la fecha en Rover y vuelve a consultar.
+Cambiar realmente el calendario o el servidor, o volver a pulsar Buscar, invalida las consultas anteriores. Desde 0.0.18 se lee solo el nombre del selector de servidor: su contador de servidores sin respuesta no invalida la fecha. Si faltan temporalmente los controles, se bloquean las consultas mientras faltan y se recupera la confirmación sin otro Buscar únicamente si regresa la misma tabla con la misma fecha/servidor. Una tabla distinta durante esa pausa requiere Buscar. No se toma la fecha de hoy como respaldo. Una fila oculta por el filtro de Rover o todavía no habilitada por su horario no se llena: elimina el filtro o revisa la fecha en Rover y vuelve a consultar.
 
 El script no realiza llamadas a APIs internas de Rover, no guarda ni procesa resultados, no intercepta sus peticiones y no fabrica respuestas. Solo consulta los proveedores externos heredados del script base.
 

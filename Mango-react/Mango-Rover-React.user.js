@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mango/Rover React
 // @namespace    https://github.com/Nox1do/rover-lottery/Mango-react
-// @version      0.1.10
+// @version      0.1.11
 // @description  Entrega Mango para Central React: PRINCIPAL, fecha verificada, edición segura y confirmación persistida.
 // @match        https://central.roversport.net/*
 // @connect      rover-lottery-api.loteriasrovers.workers.dev
@@ -1093,12 +1093,19 @@
   }
 
   // src/api.js
-  function createApi({ getToken, request, onUnauthorized = () => {
-  } }) {
+  function createApi({
+    getToken,
+    request,
+    onUnauthorized = () => {
+    },
+    monotonicNow = () => performance.now()
+  }) {
+    const reservationClocks = /* @__PURE__ */ new WeakMap();
     async function json(path, { auth: auth2 = false, body, method = body === void 0 ? "GET" : "POST" } = {}) {
       if (!path.startsWith("/v1/mango/")) throw Error("unsupported_api_path");
       const token2 = auth2 ? getToken() : "";
       if (auth2 && !token2) throw Error("token_missing");
+      const started = monotonicNow();
       const response = await new Promise((resolve, reject) => {
         request({
           method,
@@ -1130,11 +1137,24 @@
         throw error;
       }
       if (data?.ok === false) throw Error(String(data.error || "api_rejected"));
+      if (path === "/v1/mango/rows/reconcile" && data?.should_paint === true) {
+        const headers = String(response.responseHeaders || "");
+        const dates = [...headers.matchAll(/^date:[ \t]*([^\r\n]+)/gim)];
+        const ages = [...headers.matchAll(/^age:[ \t]*([^\r\n]+)/gim)];
+        const serverDate = dates.length === 1 ? Date.parse(dates[0][1]) : NaN;
+        if (Number.isFinite(serverDate) && ages.every((a) => a[1].trim() === "0")) {
+          reservationClocks.set(data, { serverDate, started });
+        }
+      }
       return data;
     }
     return {
       get: (path, auth2 = false) => json(path, { auth: auth2 }),
-      post: (path, body) => json(path, { auth: true, body })
+      post: (path, body) => json(path, { auth: true, body }),
+      reservationNow(response) {
+        const clock2 = reservationClocks.get(response);
+        return clock2 ? clock2.serverDate + 1e3 + monotonicNow() - clock2.started : NaN;
+      }
     };
   }
 
@@ -1230,7 +1250,11 @@
         Object.keys(expected)
       ))
         throw Error("stale_revision");
-      if (!Number.isFinite(Date.parse(operation.expires_at)) || Date.parse(operation.expires_at) <= Date.now())
+      const serverNow = api2.reservationNow(response);
+      if (!Number.isFinite(serverNow))
+        throw Error("reservation_clock_unavailable");
+      const expiresAt = Date.parse(operation.expires_at);
+      if (!Number.isFinite(expiresAt) || expiresAt <= serverNow)
         throw Error("operation_expired");
     }
     async function present(row, code, snap, response) {
@@ -1419,6 +1443,7 @@
           errors.push({ lottery: x.row.lottery_id, error: e.message });
           if ([
             "operation_expired",
+            "reservation_clock_unavailable",
             "operation_unavailable",
             "stale_revision",
             "client_lock_lost",
@@ -1592,7 +1617,7 @@
   }
 
   // src/main.js
-  var VERSION = "0.1.10";
+  var VERSION = "0.1.11";
   var KEYS = {
     token: "mango_react_token",
     client: "mango_react_client",

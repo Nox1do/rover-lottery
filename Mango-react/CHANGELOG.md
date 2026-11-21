@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.1.11
+
+- Valida la reserva de llenado con la hora HTTP de Mango y el tiempo transcurrido del navegador. Un desfase fijo del reloj local ya no hace vencer una reserva válida. Si no se puede comprobar la hora del servidor, no escribe y vuelve a conciliar en el próximo ciclo.
+
 ## 0.1.10 — 2026-10-29
 
 - Aplaza el Buscar automático durante la vigilancia, los resultados listos de filas Mango pendientes y la ventana de horarios próximos. El control usa el estado Mango de toda la respuesta, incluso filas ocultas por un filtro, y no depende de que el azul esté visible.

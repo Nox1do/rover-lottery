@@ -239,7 +239,11 @@ async function waitingRuntime(r, rowConfig = {}) {
       else if (options.url.endsWith("/presented")) data = { ok: true };
       else throw Error("Unexpected Mango request: " + options.url);
       const finish = () =>
-        options.onload({ status: 200, responseText: JSON.stringify(data) });
+        options.onload({
+          status: 200,
+          responseHeaders: "Date: " + new Date().toUTCString(),
+          responseText: JSON.stringify(data),
+        });
       if (gmHoldVersion && options.url.includes("/version?"))
         gmHeldRequests.push(finish);
       else setTimeout(finish, 0);
@@ -1326,7 +1330,12 @@ for (const interrupted of [false, true])
                   }
                 : { ok: true, authenticated: true };
           setTimeout(
-            () => o.onload({ status: 200, responseText: JSON.stringify(data) }),
+            () =>
+              o.onload({
+                status: 200,
+                responseHeaders: "Date: " + new Date().toUTCString(),
+                responseText: JSON.stringify(data),
+              }),
             0,
           );
         };
@@ -1779,7 +1788,12 @@ async function isolateRuntime(
                 }
               : { ok: true };
         setTimeout(
-          () => o.onload({ status: 200, responseText: JSON.stringify(data) }),
+          () =>
+            o.onload({
+              status: 200,
+              responseHeaders: "Date: " + new Date().toUTCString(),
+              responseText: JSON.stringify(data),
+            }),
           0,
         );
       };
@@ -2006,7 +2020,11 @@ for (const mode of ["rules", "dependent", "between", "after_fill"])
               : { ok: true };
           },
         };
-        const d = createDelivery({ central: adapter, api, clientId: "test" });
+        const d = createDelivery({
+          central: adapter,
+          api: { ...api, reservationNow: Date.now },
+          clientId: "test",
+        });
         await d.cycle([ny, real], adapter.snapshot());
         return {
           calls,
@@ -2076,7 +2094,11 @@ test("prueba parcial: nueva revisión amplía campos propios sin bloquear valore
             : { ok: true };
         },
       };
-      const d = createDelivery({ central: adapter, api, clientId: "test" });
+      const d = createDelivery({
+        central: adapter,
+        api: { ...api, reservationNow: Date.now },
+        clientId: "test",
+      });
       await d.cycle([row()], adapter.snapshot());
       const first = {
         fields: adapter.find("REAL").fields,

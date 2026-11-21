@@ -1,4 +1,4 @@
-# Mango/Rover React · 0.1.10
+# Mango/Rover React · 0.1.11
 
 Versión independiente para **Firefox + Tampermonkey**, en https://central.roversport.net/loteria/resultados/ver. Trabaja únicamente con **PRINCIPAL** y la fecha de hoy en **America/Santo_Domingo**. Conserva el contrato 1.0 del servicio Mango existente; no requiere instalar React ni modifica el Worker.
 

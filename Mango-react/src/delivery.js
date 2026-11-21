@@ -145,10 +145,11 @@ export function createDelivery({
         ))
     )
       throw Error("stale_revision");
-    if (
-      !Number.isFinite(Date.parse(operation.expires_at)) ||
-      Date.parse(operation.expires_at) <= Date.now()
-    )
+    const serverNow = api.reservationNow(response);
+    if (!Number.isFinite(serverNow))
+      throw Error("reservation_clock_unavailable");
+    const expiresAt = Date.parse(operation.expires_at);
+    if (!Number.isFinite(expiresAt) || expiresAt <= serverNow)
       throw Error("operation_expired");
   }
   async function present(row, code, snap, response) {
@@ -355,6 +356,7 @@ export function createDelivery({
         if (
           [
             "operation_expired",
+            "reservation_clock_unavailable",
             "operation_unavailable",
             "stale_revision",
             "client_lock_lost",

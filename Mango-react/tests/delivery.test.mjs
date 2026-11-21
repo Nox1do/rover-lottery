@@ -67,6 +67,7 @@ function setup({ processed = false, edited = false } = {}) {
     isDirty: () => edited,
   };
   const api = {
+    reservationNow: Date.now,
     async post(path, body) {
       calls.push({ path, body });
       if (path.endsWith("reconcile"))
@@ -438,6 +439,7 @@ test("ciclo por fila: A incompatible no reserva; B entrega; C hace ACK de persis
     isDirty: () => false,
   };
   const api = {
+    reservationNow: Date.now,
     post: async (path, body) => {
       calls.push({ path, body });
       return path.endsWith("reconcile")
@@ -501,3 +503,86 @@ test("diagnóstico local copia campos y separa incidencias nativas de filas Mang
     "pick4",
   ]);
 });
+
+for (const scenario of [
+  "clock ahead",
+  "clock behind and expired",
+  "missing Date",
+  "expires while waiting",
+]) {
+  test(`reservation uses Mango's response clock: ${scenario}`, async (t) => {
+    const server = Date.parse("2026-10-27T12:00:00Z");
+    const local =
+      server + (scenario === "clock behind and expired" ? -37000 : 37000);
+    t.mock.timers.enable({ apis: ["Date"], now: local });
+    const r = setup();
+    const calls = [];
+    let elapsed = 0;
+    if (scenario === "expires while waiting") {
+      r.central.fill = async (_code, fields, _snap, guard) => {
+        elapsed = 30000;
+        guard();
+        Object.assign(r.visible.fields, fields);
+        return true;
+      };
+    }
+    const api = createApi({
+      getToken: () => "fixture-token",
+      monotonicNow: () => elapsed,
+      request(options) {
+        const reserve = options.url.endsWith("/reconcile");
+        calls.push(reserve ? "reconcile" : "presented");
+        options.onload({
+          status: 200,
+          responseHeaders:
+            scenario === "missing Date"
+              ? ""
+              : "date: " +
+                new Date(server).toUTCString() +
+                "\r\nCache-Control: no-store\r\n",
+          responseText: JSON.stringify(
+            reserve
+              ? {
+                  action: "paint_fields",
+                  should_paint: true,
+                  expected_fields: base().expected_fields,
+                  operation: {
+                    operation_id: "timed-operation",
+                    revision: 2,
+                    status: "reserved",
+                    expires_at: new Date(
+                      server +
+                        (scenario === "clock behind and expired" ? -1 : 30000),
+                    ).toISOString(),
+                  },
+                }
+              : { ok: true },
+          ),
+        });
+      },
+    });
+    const delivery = createDelivery({
+      central: r.central,
+      api,
+      clientId: "pc-test",
+    });
+    await delivery.cycle([base()], r.snap);
+    assert.equal(
+      r.visible.fields.primera,
+      scenario === "clock ahead" ? "05" : "",
+    );
+    assert.deepEqual(
+      calls,
+      scenario === "clock ahead" ? ["reconcile", "presented"] : ["reconcile"],
+    );
+    assert.equal(
+      delivery.diagnostics().errors[0]?.error,
+      {
+        "clock ahead": undefined,
+        "clock behind and expired": "operation_expired",
+        "missing Date": "reservation_clock_unavailable",
+        "expires while waiting": "operation_expired",
+      }[scenario],
+    );
+  });
+}

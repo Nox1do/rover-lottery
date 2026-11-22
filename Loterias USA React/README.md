@@ -1,10 +1,12 @@
-# Rovs Loterias USA React 0.0.18
+# Rovs Loterias USA React 0.0.19
 
 [Instalar en Tampermonkey](https://raw.githubusercontent.com/Nox1do/rover-lottery/main/Loterias%20USA%20React/Rovs-Loterias-USA-React.user.js)
 
 Userscript independiente para **Firefox + Tampermonkey** en `https://central.roversport.net/loteria/resultados/ver`. Basado en Rovs Loterías USA 0.6.7; conserva sus **75 loterías**, proveedores y orden. No modifica ni sustituye el script del Rover anterior.
 
 ## Uso
+
+En **Noche**, el botón **Washington 8PM** consulta solo Pick 3 y llena la fila `WASHINGTON NIGHT` (`WST-NG`).
 
 1. Instala el script desde el enlace anterior y recarga Rover.
 2. Selecciona la fecha en Rover y pulsa **Buscar**. La barra confirma la fecha cuando termina la carga. Si ya tenías la tabla abierta al instalar el script, pulsa Buscar de nuevo.

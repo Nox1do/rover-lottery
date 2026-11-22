@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.0.19 — 2026-11-22
+
+- Renombra el botón de Washington estado a «Washington 8PM». Conserva la fila `WASHINGTON NIGHT`, el código `WST-NG`, el orden y la consulta exclusiva de Pick 3.
+
 ## 0.0.18 — 2026-10-30
 
 - Corrige un caso reproducible de «Fecha sin confirmar»: el contador de otros servidores sin respuesta formaba parte de `textContent` del selector y se interpretaba como cambio de servidor. Lee únicamente la etiqueta `.truncate`, con respaldo solo para selectores de texto simples.

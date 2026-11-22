@@ -387,7 +387,7 @@
           categoria: "NOCHE" },
 
         // Washington estado: fila WASHINGTON NIGHT, código corto WST-NG.
-        { id: "wa-night", codigo: "WST-NG", nombreMenu: "🇺🇸 Washington Night", nombreFila: "WASHINGTON NIGHT",
+        { id: "wa-night", codigo: "WST-NG", nombreMenu: "🇺🇸 Washington 8PM", nombreFila: "WASHINGTON NIGHT",
           fuente: "LOTTERYUSA",
           url3: "https://www.lotteryusa.com/washington/daily/",
           url4: null,

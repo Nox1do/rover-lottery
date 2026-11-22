@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rovs Loterias USA React 0.0.1
 // @namespace    https://github.com/Nox1do/rover-lottery/Loterias-USA-React
-// @version      0.0.18
+// @version      0.0.19
 // @description  Barra manual de loterías USA para la tabla React de Rover. Solo llenado de formulario.
 // @author       noeg
 // @match        https://central.roversport.net/*
@@ -26,7 +26,7 @@
 
 (function () {
 'use strict';
-const APP_VERSION = "0.0.18";
+const APP_VERSION = "0.0.19";
 
 // --- src/config.js ---
     const LOTERIAS = [
@@ -418,7 +418,7 @@ const APP_VERSION = "0.0.18";
           categoria: "NOCHE" },
 
         // Washington estado: fila WASHINGTON NIGHT, código corto WST-NG.
-        { id: "wa-night", codigo: "WST-NG", nombreMenu: "🇺🇸 Washington Night", nombreFila: "WASHINGTON NIGHT",
+        { id: "wa-night", codigo: "WST-NG", nombreMenu: "🇺🇸 Washington 8PM", nombreFila: "WASHINGTON NIGHT",
           fuente: "LOTTERYUSA",
           url3: "https://www.lotteryusa.com/washington/daily/",
           url4: null,

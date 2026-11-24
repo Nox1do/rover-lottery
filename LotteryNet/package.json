@@ -6,7 +6,8 @@
   "description": "Independent Lottery.net -> Rover visual-only userscript (scaffold)",
   "scripts": {
     "test": "node --test",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "test:browser:blocked": "node tests/browser/network-blocked-rover.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"

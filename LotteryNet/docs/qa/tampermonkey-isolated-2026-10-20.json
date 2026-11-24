@@ -1,0 +1,769 @@
+{
+  "status": "PASS",
+  "generatedAt": "2026-10-20T18:30:13.014Z",
+  "scope": "Real Tampermonkey on sanitized local rows, no authenticated Rover",
+  "limitations": [
+    "Chromium only",
+    "No production session",
+    "No installed user scripts from user profile",
+    "Fresh separate profile for each phase; profile persistence is not tested"
+  ],
+  "outsideCanary": "http://10.1.0.9:45063",
+  "preflight": {
+    "status": "PASS",
+    "phase": "preflight",
+    "userscriptSha256": "26675c564e37390a671dbb0e909d17614d758db2a67cf1b5c404d5f144a638fb",
+    "extensionId": "aaomdoebkockmjpinfplckaeoabeicam",
+    "browser": "141.0.7390.37",
+    "permissions": {
+      "developerMode": true,
+      "allowUserScripts": true,
+      "realApiAvailable": true
+    },
+    "installation": {
+      "method": "Utilities file import and manager confirmation",
+      "dashboardEnabled": true
+    },
+    "bootstrap": {
+      "initial": [],
+      "registered": [
+        {
+          "id": "3|content|nt7mb+141|r|3tc45zzycpj",
+          "matches": [
+            "<all_urls>"
+          ],
+          "runAt": "document_start",
+          "world": "USER_SCRIPT",
+          "allFrames": true
+        },
+        {
+          "id": "1|page|nt7mb+141",
+          "matches": [
+            "<all_urls>"
+          ],
+          "runAt": "document_start",
+          "world": "USER_SCRIPT",
+          "allFrames": true
+        }
+      ]
+    },
+    "manager": {
+      "handler": "Tampermonkey",
+      "version": "5.4.1",
+      "scriptVersion": "0.0.1",
+      "sandboxMode": "raw",
+      "grants": [
+        "GM_info",
+        "GM_xmlhttpRequest",
+        "GM_getValue",
+        "GM_setValue",
+        "GM_deleteValue"
+      ]
+    },
+    "storage": {
+      "stored": true,
+      "deleted": true
+    },
+    "localGmGet": true,
+    "outsideGmPost": {
+      "ok": true,
+      "status": 200,
+      "text": "outside-canary"
+    },
+    "pageProbe": {
+      "ok": true
+    },
+    "localWriteRequests": 0
+  },
+  "isolated": {
+    "status": "PASS",
+    "phase": "isolated",
+    "networkIsolation": {
+      "namespaceChanged": true,
+      "interfaces": [
+        "lo"
+      ],
+      "externalRoutes": 0
+    },
+    "userscriptSha256": "26675c564e37390a671dbb0e909d17614d758db2a67cf1b5c404d5f144a638fb",
+    "extensionId": "aaomdoebkockmjpinfplckaeoabeicam",
+    "browser": "141.0.7390.37",
+    "permissions": {
+      "developerMode": true,
+      "allowUserScripts": true,
+      "realApiAvailable": true
+    },
+    "installation": {
+      "method": "Utilities file import and manager confirmation",
+      "dashboardEnabled": true
+    },
+    "bootstrap": {
+      "initial": [],
+      "registered": [
+        {
+          "id": "3|content|nt7mb+141|r|r3n9oq4lqsc",
+          "matches": [
+            "<all_urls>"
+          ],
+          "runAt": "document_start",
+          "world": "USER_SCRIPT",
+          "allFrames": true
+        },
+        {
+          "id": "1|page|nt7mb+141",
+          "matches": [
+            "<all_urls>"
+          ],
+          "runAt": "document_start",
+          "world": "USER_SCRIPT",
+          "allFrames": true
+        }
+      ]
+    },
+    "manager": {
+      "handler": "Tampermonkey",
+      "version": "5.4.1",
+      "scriptVersion": "0.0.1",
+      "sandboxMode": "raw",
+      "grants": [
+        "GM_info",
+        "GM_xmlhttpRequest",
+        "GM_getValue",
+        "GM_setValue",
+        "GM_deleteValue"
+      ]
+    },
+    "storage": {
+      "stored": true,
+      "deleted": true
+    },
+    "localGmGet": true,
+    "outsideGmPost": {
+      "ok": false,
+      "error": "network-error"
+    },
+    "pageProbe": {
+      "ok": false,
+      "error": "TypeError"
+    },
+    "localWriteRequests": 0,
+    "scenarios": 120,
+    "events": {
+      "input": 0,
+      "change": 0,
+      "blur": 0
+    },
+    "processClicks": 0,
+    "postFillObservationMs": 500,
+    "cases": [
+      {
+        "id": "fl-am",
+        "scenario": "full",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "idempotent",
+        "status": "COINCIDENTE"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "p3-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "p4-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "leading-zeros",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "date-changed",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "search-restore",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "restore-conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "wrong-code",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "duplicate-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "fl-am",
+        "scenario": "missing-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "full",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "idempotent",
+        "status": "COINCIDENTE"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "p3-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "p4-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "leading-zeros",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "date-changed",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "search-restore",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "restore-conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "wrong-code",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "duplicate-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "fl-pm",
+        "scenario": "missing-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "full",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "idempotent",
+        "status": "COINCIDENTE"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "p3-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "p4-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "leading-zeros",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "date-changed",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "search-restore",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "restore-conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "wrong-code",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "duplicate-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "la-pm",
+        "scenario": "missing-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "full",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "idempotent",
+        "status": "COINCIDENTE"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "p3-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "p4-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "leading-zeros",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "date-changed",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "search-restore",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "restore-conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "wrong-code",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "duplicate-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "oh-am",
+        "scenario": "missing-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "full",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "idempotent",
+        "status": "COINCIDENTE"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "p3-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "p4-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "leading-zeros",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "date-changed",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "search-restore",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "restore-conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "wrong-code",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "duplicate-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "oh-pm",
+        "scenario": "missing-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "full",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "idempotent",
+        "status": "COINCIDENTE"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "p3-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "p4-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "leading-zeros",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "date-changed",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "search-restore",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "restore-conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "wrong-code",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "duplicate-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "tn-morning",
+        "scenario": "missing-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "full",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "idempotent",
+        "status": "COINCIDENTE"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "p3-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "p4-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "leading-zeros",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "date-changed",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "search-restore",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "restore-conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "wrong-code",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "duplicate-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "tn-midday",
+        "scenario": "missing-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "full",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "idempotent",
+        "status": "COINCIDENTE"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "p3-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "p4-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "leading-zeros",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "date-changed",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "search-restore",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "restore-conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "wrong-code",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "duplicate-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "tn-pm",
+        "scenario": "missing-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "in-am",
+        "scenario": "full",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "in-am",
+        "scenario": "idempotent",
+        "status": "COINCIDENTE"
+      },
+      {
+        "id": "in-am",
+        "scenario": "p3-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "in-am",
+        "scenario": "p4-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "in-am",
+        "scenario": "leading-zeros",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "in-am",
+        "scenario": "conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "in-am",
+        "scenario": "date-changed",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "in-am",
+        "scenario": "search-restore",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "in-am",
+        "scenario": "restore-conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "in-am",
+        "scenario": "wrong-code",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "in-am",
+        "scenario": "duplicate-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "in-am",
+        "scenario": "missing-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "full",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "idempotent",
+        "status": "COINCIDENTE"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "p3-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "p4-only",
+        "status": "PARCIAL"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "leading-zeros",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "date-changed",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "search-restore",
+        "status": "COMPLETADO"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "restore-conflict",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "wrong-code",
+        "status": "CONFLICTO"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "duplicate-row",
+        "status": "SIN_FILA"
+      },
+      {
+        "id": "in-pm",
+        "scenario": "missing-row",
+        "status": "SIN_FILA"
+      }
+    ]
+  },
+  "canaryRequestsDuringIsolation": 0,
+  "extension": {
+    "source": "https://www.tampermonkey.net/crx/tampermonkey_stable.crx",
+    "finalUrl": "https://data.tampermonkey.net/tampermonkey_stable.crx",
+    "sha256": "a124e3189ecc0981ce79ef182dd3897a75fe22fc7bf0828e9d293ad7122d3d4d",
+    "version": "5.4.1",
+    "manifestVersion": 3
+  }
+}

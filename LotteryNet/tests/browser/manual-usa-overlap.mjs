@@ -112,7 +112,8 @@ const configUSA=(page,p3,p4)=>page.evaluate(([three,four])=>window.__qa.configur
 
 try{
  for(const [engine,type] of [['Chromium',chromium],['Firefox',firefox]]){
-  const browser=await type.launch({headless:true});
+  const executablePath=process.env['LOTTERYNET_QA_'+engine.toUpperCase()+'_PATH'];
+  const browser=await type.launch({headless:true,...(executablePath&&{executablePath})});
   try{
    const page=await browser.newPage(),outgoing=[];
    page.on('request',request=>{if(request.method()!=='GET'||request.url().includes('/__inc/'))outgoing.push(request.method()+' '+request.url());});
